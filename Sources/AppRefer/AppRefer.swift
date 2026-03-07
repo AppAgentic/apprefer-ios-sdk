@@ -4,10 +4,7 @@ import Foundation
 ///
 /// Usage:
 /// ```swift
-/// let attribution = try await AppRefer.configure(
-///     backendURL: "https://trk.yourdomain.com",
-///     appId: "your-app"
-/// )
+/// let attribution = try await AppRefer.configure(appId: "your-app")
 /// ```
 public actor AppRefer {
     private static var shared: AppRefer?
@@ -22,7 +19,7 @@ public actor AppRefer {
         self.logger = AppReferLogger(debug: config.debug, logLevel: config.logLevel)
         self.storage = AppReferStorage()
         self.httpClient = AppReferHTTPClient(
-            backendURL: config.backendURL,
+            backendURL: AppReferConfig.backendURL,
             appId: config.appId,
             logger: logger
         )
@@ -37,14 +34,12 @@ public actor AppRefer {
     /// On subsequent launches: returns cached attribution (no network call).
     @discardableResult
     public static func configure(
-        backendURL: String,
         appId: String,
         userId: String? = nil,
         debug: Bool = false,
         logLevel: Int = 1
     ) async throws -> Attribution? {
         let config = AppReferConfig(
-            backendURL: backendURL,
             appId: appId,
             userId: userId,
             debug: debug,

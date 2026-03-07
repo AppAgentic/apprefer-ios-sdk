@@ -2,9 +2,6 @@ import Foundation
 
 /// Configuration for the AppRefer SDK.
 public struct AppReferConfig: Sendable {
-    /// Your tracking domain (e.g., "https://trk.yourdomain.com")
-    public let backendURL: String
-
     /// App identifier matching your AppRefer dashboard
     public let appId: String
 
@@ -18,16 +15,17 @@ public struct AppReferConfig: Sendable {
     public let logLevel: Int
 
     public init(
-        backendURL: String,
         appId: String,
         userId: String? = nil,
         debug: Bool = false,
         logLevel: Int = 1
     ) {
-        self.backendURL = backendURL
         self.appId = appId
         self.userId = userId
         self.debug = debug
         self.logLevel = logLevel
     }
+
+    /// The AppRefer backend URL.
+    internal static let backendURL = "https://apprefer.com"
 }
