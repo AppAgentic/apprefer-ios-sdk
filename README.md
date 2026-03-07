@@ -24,7 +24,7 @@ dependencies: [
 
 ## Quick Start
 
-Get your **App ID** from the [AppRefer dashboard](https://apprefer.com) → Setup.
+Get your **API Key** from the [AppRefer dashboard](https://apprefer.com) → Setup.
 
 ```swift
 import AppRefer
@@ -33,7 +33,7 @@ import AppRefer
 struct MyApp: App {
     init() {
         Task {
-            let attribution = try await AppRefer.configure(appId: "YOUR_APP_ID")
+            let attribution = try await AppRefer.configure(apiKey: "pk_...")
 
             if let attr = attribution {
                 print("Attributed to: \(attr.network) via \(attr.matchType)")
@@ -55,7 +55,7 @@ Call once at app launch. Resolves attribution on first install, returns cached r
 
 ```swift
 let attribution = try await AppRefer.configure(
-    appId: "YOUR_APP_ID",
+    apiKey: "pk_...",
     userId: nil,        // optional — link RevenueCat user ID at init
     debug: false        // optional — enable verbose logging
 )

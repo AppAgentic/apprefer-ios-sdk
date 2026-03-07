@@ -2,16 +2,16 @@ import Foundation
 
 final class AppReferHTTPClient: @unchecked Sendable {
     private let backendURL: String
-    private let appId: String
+    private let apiKey: String
     private let logger: AppReferLogger
     private let session: URLSession
     private let sdkVersion = "0.1.0"
     private let maxRetries = 3
     private let requestTimeout: TimeInterval = 10
 
-    init(backendURL: String, appId: String, logger: AppReferLogger) {
+    init(backendURL: String, apiKey: String, logger: AppReferLogger) {
         self.backendURL = backendURL
-        self.appId = appId
+        self.apiKey = apiKey
         self.logger = logger
 
         let config = URLSessionConfiguration.default
@@ -42,7 +42,7 @@ final class AppReferHTTPClient: @unchecked Sendable {
             request.httpBody = bodyData
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue(sdkVersion, forHTTPHeaderField: "X-SDK-Version")
-            request.setValue(appId, forHTTPHeaderField: "X-App-Id")
+            request.setValue(apiKey, forHTTPHeaderField: "X-AppRefer-Key")
             request.timeoutInterval = requestTimeout
 
             logger.debugLog("POST \(url)")

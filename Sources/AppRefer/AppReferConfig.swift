@@ -2,8 +2,8 @@ import Foundation
 
 /// Configuration for the AppRefer SDK.
 public struct AppReferConfig: Sendable {
-    /// App identifier matching your AppRefer dashboard
-    public let appId: String
+    /// SDK key from the AppRefer dashboard (starts with `pk_`)
+    public let apiKey: String
 
     /// Optional: set RevenueCat user ID at init time
     public let userId: String?
@@ -15,12 +15,12 @@ public struct AppReferConfig: Sendable {
     public let logLevel: Int
 
     public init(
-        appId: String,
+        apiKey: String,
         userId: String? = nil,
         debug: Bool = false,
         logLevel: Int = 1
     ) {
-        self.appId = appId
+        self.apiKey = apiKey
         self.userId = userId
         self.debug = debug
         self.logLevel = logLevel

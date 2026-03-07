@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Usage:
 /// ```swift
-/// let attribution = try await AppRefer.configure(appId: "your-app")
+/// let attribution = try await AppRefer.configure(apiKey: "pk_...")
 /// ```
 public actor AppRefer {
     private static var shared: AppRefer?
@@ -20,7 +20,7 @@ public actor AppRefer {
         self.storage = AppReferStorage()
         self.httpClient = AppReferHTTPClient(
             backendURL: AppReferConfig.backendURL,
-            appId: config.appId,
+            apiKey: config.apiKey,
             logger: logger
         )
     }
@@ -34,13 +34,13 @@ public actor AppRefer {
     /// On subsequent launches: returns cached attribution (no network call).
     @discardableResult
     public static func configure(
-        appId: String,
+        apiKey: String,
         userId: String? = nil,
         debug: Bool = false,
         logLevel: Int = 1
     ) async throws -> Attribution? {
         let config = AppReferConfig(
-            appId: appId,
+            apiKey: apiKey,
             userId: userId,
             debug: debug,
             logLevel: logLevel
@@ -107,7 +107,7 @@ public actor AppRefer {
     // MARK: - Internal Implementation
 
     private func _configure() async -> Attribution? {
-        logger.info("AppRefer SDK initialized with appId: \(config.appId)")
+        logger.info("AppRefer SDK initialized")
 
         // Set user ID if provided at init time
         if let userId = config.userId {
@@ -141,7 +141,6 @@ public actor AppRefer {
         let asaToken = AppReferAdServices.getToken()
 
         var body: [String: Any] = [
-            "app_id": config.appId,
             "device_id": deviceId,
             "device_info": deviceInfo,
             "sdk_version": "0.1.0",
@@ -204,7 +203,6 @@ public actor AppRefer {
 
         let deviceId = storage.getDeviceId()
         var body: [String: Any] = [
-            "app_id": config.appId,
             "device_id": deviceId,
             "event_name": eventName,
         ]
@@ -243,7 +241,6 @@ public actor AppRefer {
 
         let deviceId = storage.getDeviceId()
         let body: [String: Any] = [
-            "app_id": config.appId,
             "device_id": deviceId,
             "event_name": "_advanced_matching",
             "advanced_matching": hashedData,
