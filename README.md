@@ -18,7 +18,7 @@ https://github.com/AppAgentic/apprefer-ios-sdk
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/AppAgentic/apprefer-ios-sdk", from: "0.1.0")
+    .package(url: "https://github.com/AppAgentic/apprefer-ios-sdk", from: "0.2.0")
 ]
 ```
 

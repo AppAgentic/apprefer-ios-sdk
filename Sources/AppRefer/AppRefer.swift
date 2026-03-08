@@ -182,7 +182,7 @@ public actor AppRefer {
         var body: [String: Any] = [
             "device_id": deviceId,
             "device_info": deviceInfo,
-            "sdk_version": "0.1.0",
+            "sdk_version": AppReferVersion.current,
             "is_debug": config.debug,
         ]
 

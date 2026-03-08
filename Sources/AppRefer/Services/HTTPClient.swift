@@ -5,7 +5,7 @@ final class AppReferHTTPClient: @unchecked Sendable {
     private let apiKey: String
     private let logger: AppReferLogger
     private let session: URLSession
-    private let sdkVersion = "0.1.0"
+    private let sdkVersion = AppReferVersion.current
     private let maxRetries = 3
     private let requestTimeout: TimeInterval = 10
 
