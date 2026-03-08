@@ -21,10 +21,9 @@ enum AppReferDeviceInfo {
         // Device model via utsname
         var systemInfo = utsname()
         uname(&systemInfo)
-        let machine = withUnsafePointer(to: &systemInfo.machine) {
-            $0.withMemoryRebound(to: CChar.self, capacity: 1) {
-                String(cString: $0)
-            }
+        let machine = withUnsafeBytes(of: &systemInfo.machine) { rawPtr in
+            let ptr = rawPtr.baseAddress!.assumingMemoryBound(to: CChar.self)
+            return String(cString: ptr)
         }
         info["model"] = machine
 

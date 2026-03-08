@@ -7,7 +7,21 @@ import Foundation
 /// let attribution = try await AppRefer.configure(apiKey: "pk_...")
 /// ```
 public actor AppRefer {
-    private static var shared: AppRefer?
+    // Lock-protected shared instance for thread-safe static access
+    private static let lock = NSLock()
+    private nonisolated(unsafe) static var _shared: AppRefer?
+
+    private static func getShared() -> AppRefer? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _shared
+    }
+
+    private static func setShared(_ sdk: AppRefer) {
+        lock.lock()
+        defer { lock.unlock() }
+        _shared = sdk
+    }
 
     private let config: AppReferConfig
     private let storage: AppReferStorage
@@ -47,7 +61,7 @@ public actor AppRefer {
         )
 
         let sdk = AppRefer(config: config)
-        shared = sdk
+        setShared(sdk)
 
         return await sdk._configure()
     }
@@ -60,10 +74,23 @@ public actor AppRefer {
         revenue: Double? = nil,
         currency: String? = nil
     ) async throws {
-        guard let sdk = shared else {
+        guard let sdk = getShared() else {
             throw AppReferError.notConfigured
         }
-        await sdk._trackEvent(eventName, properties: properties, revenue: revenue, currency: currency)
+        // Deep-copy properties via JSON round-trip to prevent callers from
+        // mutating the dictionary while JSONSerialization walks it inside the actor.
+        let safeCopy = properties.flatMap { Self.jsonSafeCopy($0) }
+        await sdk._trackEvent(eventName, properties: safeCopy, revenue: revenue, currency: currency)
+    }
+
+    /// Deep-copy a [String: Any] dictionary via JSON serialization
+    /// to detach from any mutable NSMutableDictionary/NSMutableArray references.
+    private static func jsonSafeCopy(_ dict: [String: Any]) -> [String: Any]? {
+        guard JSONSerialization.isValidJSONObject(dict),
+              let data = try? JSONSerialization.data(withJSONObject: dict),
+              let copy = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return dict }
+        return copy
     }
 
     /// Send hashed user PII for Meta Advanced Matching.
@@ -75,7 +102,7 @@ public actor AppRefer {
         lastName: String? = nil,
         dateOfBirth: String? = nil
     ) async throws {
-        guard let sdk = shared else {
+        guard let sdk = getShared() else {
             throw AppReferError.notConfigured
         }
         await sdk._setAdvancedMatching(
@@ -88,7 +115,7 @@ public actor AppRefer {
     /// Set RevenueCat app_user_id so webhook events can be linked
     /// to this device's attribution.
     public static func setUserId(_ userId: String) async throws {
-        guard let sdk = shared else {
+        guard let sdk = getShared() else {
             throw AppReferError.notConfigured
         }
         await sdk._setUserId(userId)
@@ -96,12 +123,24 @@ public actor AppRefer {
 
     /// Get cached attribution result (no network call).
     public static func getAttribution() async -> Attribution? {
-        return shared?.storage.getCachedAttribution()
+        guard let sdk = getShared() else { return nil }
+        return await sdk._getAttribution()
     }
 
     /// Get the AppRefer device ID (for setting as RC subscriber attribute).
     public static func getDeviceId() async -> String? {
-        return shared?.storage.getDeviceId()
+        guard let sdk = getShared() else { return nil }
+        return await sdk._getDeviceId()
+    }
+
+    // MARK: - Actor-isolated accessors
+
+    private func _getAttribution() -> Attribution? {
+        storage.getCachedAttribution()
+    }
+
+    private func _getDeviceId() -> String {
+        storage.getDeviceId()
     }
 
     // MARK: - Internal Implementation
