@@ -1,3 +1,7 @@
+## 0.2.1
+
+- Fix kill switch response key (`sdk_enabled` → `sdkEnabled`)
+
 ## 0.2.0
 
 - Fix EXC_BAD_ACCESS: thread-safe actor isolation with lock-protected static state

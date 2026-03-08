@@ -201,7 +201,7 @@ public actor AppRefer {
         }
 
         // Update kill switch from server
-        let sdkEnabled = response["sdk_enabled"] as? Bool ?? true
+        let sdkEnabled = response["sdkEnabled"] as? Bool ?? true
         storage.setSdkEnabled(sdkEnabled)
         if !sdkEnabled {
             logger.info("SDK disabled by server")

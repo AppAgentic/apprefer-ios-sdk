@@ -24,7 +24,7 @@ dependencies: [
 
 ## Quick Start
 
-Get your **API Key** from the [AppRefer dashboard](https://apprefer.com) → Setup.
+Get your **API Keys** from the [AppRefer dashboard](https://apprefer.com) → Settings.
 
 ```swift
 import AppRefer
@@ -33,7 +33,8 @@ import AppRefer
 struct MyApp: App {
     init() {
         Task {
-            let attribution = try await AppRefer.configure(apiKey: "pk_...")
+            let attribution = try await AppRefer.configure(apiKey: "pk_live_...")
+            // Use "pk_test_..." during development
 
             if let attr = attribution {
                 print("Attributed to: \(attr.network) via \(attr.matchType)")
@@ -47,6 +48,17 @@ struct MyApp: App {
 }
 ```
 
+## API Keys
+
+Each app has two SDK keys:
+
+| Key | Prefix | Purpose |
+|-----|--------|---------|
+| **Live** | `pk_live_` | Production — real attribution, events forwarded to ad networks |
+| **Test** | `pk_test_` | Development — sandbox attribution, no ad network forwarding |
+
+Use the test key during development and the live key in production builds. The server determines the environment from the key — no configuration flag needed.
+
 ## API
 
 ### Configure
@@ -55,9 +67,9 @@ Call once at app launch. Resolves attribution on first install, returns cached r
 
 ```swift
 let attribution = try await AppRefer.configure(
-    apiKey: "pk_...",
-    userId: nil,        // optional — link RevenueCat user ID at init
-    debug: false        // optional — enable verbose logging
+    apiKey: "pk_live_...",  // or "pk_test_..." for development
+    userId: nil,            // optional — link RevenueCat user ID at init
+    debug: false            // optional — enable verbose logging
 )
 ```
 
@@ -115,7 +127,8 @@ attribution.ttclid        // TikTok click ID (if present)
 - **Set the RevenueCat user ID early** — call `AppRefer.setUserId()` right after `Purchases.configure()` so purchase webhooks can be attributed to the correct device.
 - **Call `setAdvancedMatching()` after login/signup** — this sends hashed PII to improve Meta CAPI match rates. Only needs to be called once per user session.
 - **Don't track purchases with `trackEvent()`** — revenue events are handled automatically via RevenueCat webhooks. Use `trackEvent()` only for non-purchase milestones like `signup`, `tutorial_complete`, or `onboarding_finish`.
-- **Use the Debugger** — verify events are flowing correctly in the [AppRefer dashboard](https://apprefer.com) → Debugger before going to production.
+- **Use the test key during development** — `pk_test_` keys create sandbox events that are isolated from production data and never forwarded to ad networks. Switch to `pk_live_` for release builds.
+- **Use the Debugger** — verify events are flowing correctly in the [AppRefer dashboard](https://apprefer.com) → Debugger before going to production. Toggle the Sandbox switch to see test events.
 - **No IDFA required** — the SDK uses Apple's AdServices framework and does not require ATT permission or the `AdSupport` framework.
 
 ## Requirements
