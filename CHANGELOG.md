@@ -1,3 +1,12 @@
+## 0.3.0
+
+- Harden SDK to never crash host app
+- Remove throws from all public API methods — silently no-op if called before configure()
+- Fix force unwrap crash in DeviceInfo utsname pointer
+- Fix potential double-resume crash in URLSession continuation
+- Fix simulator crash: skip AdServices (throws uncatchable NSException)
+- Use proper AdServices import instead of unsafe objc_msgSend bridge
+
 ## 0.2.1
 
 - Fix kill switch response key (`sdk_enabled` → `sdkEnabled`)
