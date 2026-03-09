@@ -33,8 +33,8 @@ import AppRefer
 struct MyApp: App {
     init() {
         Task {
-            let attribution = try await AppRefer.configure(apiKey: "pk_live_...")
-            // Use "pk_test_..." during development
+            let attribution = await AppRefer.configure(apiKey: "pk_live_...")
+            // Use "pk_test_..." during development — never crashes your app
 
             if let attr = attribution {
                 print("Attributed to: \(attr.network) via \(attr.matchType)")
@@ -66,7 +66,7 @@ Use the test key during development and the live key in production builds. The s
 Call once at app launch. Resolves attribution on first install, returns cached result on subsequent launches.
 
 ```swift
-let attribution = try await AppRefer.configure(
+let attribution = await AppRefer.configure(
     apiKey: "pk_live_...",  // or "pk_test_..." for development
     userId: nil,            // optional — link RevenueCat user ID at init
     debug: false            // optional — enable verbose logging
@@ -78,7 +78,7 @@ let attribution = try await AppRefer.configure(
 Connect the device to RevenueCat so purchase webhooks can be attributed.
 
 ```swift
-try await AppRefer.setUserId(Purchases.shared.appUserID)
+await AppRefer.setUserId(Purchases.shared.appUserID)
 ```
 
 ### Track Events
@@ -86,8 +86,8 @@ try await AppRefer.setUserId(Purchases.shared.appUserID)
 Track non-purchase events. Purchases are handled automatically via RevenueCat webhooks.
 
 ```swift
-try await AppRefer.trackEvent("signup")
-try await AppRefer.trackEvent("tutorial_complete", properties: ["step": "final"])
+await AppRefer.trackEvent("signup")
+await AppRefer.trackEvent("tutorial_complete", properties: ["step": "final"])
 ```
 
 ### Advanced Matching
@@ -95,7 +95,7 @@ try await AppRefer.trackEvent("tutorial_complete", properties: ["step": "final"]
 Improve ad network match rates by sending hashed PII. All data is SHA256-hashed on-device before transmission.
 
 ```swift
-try await AppRefer.setAdvancedMatching(
+await AppRefer.setAdvancedMatching(
     email: "user@example.com",
     phone: "+1234567890",
     firstName: "Jane",

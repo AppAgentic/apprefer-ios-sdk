@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Usage:
 /// ```swift
-/// let attribution = try await AppRefer.configure(apiKey: "pk_...")
+/// let attribution = await AppRefer.configure(apiKey: "pk_...")
 /// ```
 public actor AppRefer {
     // Lock-protected shared instance for thread-safe static access
@@ -52,7 +52,7 @@ public actor AppRefer {
         userId: String? = nil,
         debug: Bool = false,
         logLevel: Int = 1
-    ) async throws -> Attribution? {
+    ) async -> Attribution? {
         let config = AppReferConfig(
             apiKey: apiKey,
             userId: userId,
@@ -73,9 +73,10 @@ public actor AppRefer {
         properties: [String: Any]? = nil,
         revenue: Double? = nil,
         currency: String? = nil
-    ) async throws {
+    ) async {
         guard let sdk = getShared() else {
-            throw AppReferError.notConfigured
+            _log("trackEvent called before configure() — ignoring")
+            return
         }
         // Deep-copy properties via JSON round-trip to prevent callers from
         // mutating the dictionary while JSONSerialization walks it inside the actor.
@@ -101,9 +102,10 @@ public actor AppRefer {
         firstName: String? = nil,
         lastName: String? = nil,
         dateOfBirth: String? = nil
-    ) async throws {
+    ) async {
         guard let sdk = getShared() else {
-            throw AppReferError.notConfigured
+            _log("setAdvancedMatching called before configure() — ignoring")
+            return
         }
         await sdk._setAdvancedMatching(
             email: email, phone: phone,
@@ -114,11 +116,19 @@ public actor AppRefer {
 
     /// Set RevenueCat app_user_id so webhook events can be linked
     /// to this device's attribution.
-    public static func setUserId(_ userId: String) async throws {
+    public static func setUserId(_ userId: String) async {
         guard let sdk = getShared() else {
-            throw AppReferError.notConfigured
+            _log("setUserId called before configure() — ignoring")
+            return
         }
         await sdk._setUserId(userId)
+    }
+
+    /// Debug log for cases where no SDK instance exists yet.
+    private static func _log(_ message: String) {
+        #if DEBUG
+        print("[AppRefer] \(message)")
+        #endif
     }
 
     /// Get cached attribution result (no network call).
@@ -295,15 +305,3 @@ public actor AppRefer {
     }
 }
 
-// MARK: - Errors
-
-public enum AppReferError: Error, LocalizedError {
-    case notConfigured
-
-    public var errorDescription: String? {
-        switch self {
-        case .notConfigured:
-            return "AppRefer.configure() must be called first"
-        }
-    }
-}

@@ -80,17 +80,12 @@ final class ConcurrencyTests: XCTestCase {
         XCTAssertNil(attr)
     }
 
-    /// Calls trackEvent concurrently (should throw notConfigured, not crash).
+    /// Calls trackEvent concurrently before configure — should silently no-op, not crash.
     func testConcurrentTrackEventBeforeConfigure() async {
         await withTaskGroup(of: Void.self) { group in
             for i in 0..<20 {
                 group.addTask {
-                    do {
-                        try await AppRefer.trackEvent("test_\(i)")
-                        // If configure hasn't been called, this should throw
-                    } catch {
-                        // Expected: AppReferError.notConfigured
-                    }
+                    await AppRefer.trackEvent("test_\(i)")
                 }
             }
         }

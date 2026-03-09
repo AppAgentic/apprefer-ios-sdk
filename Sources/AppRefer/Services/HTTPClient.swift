@@ -90,7 +90,10 @@ final class AppReferHTTPClient: @unchecked Sendable {
             return try await session.data(for: request)
         } else {
             return try await withCheckedThrowingContinuation { continuation in
+                var resumed = false
                 let task = session.dataTask(with: request) { data, response, error in
+                    guard !resumed else { return }
+                    resumed = true
                     if let error = error {
                         continuation.resume(throwing: error)
                     } else if let data = data, let response = response {
