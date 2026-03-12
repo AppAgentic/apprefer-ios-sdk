@@ -186,8 +186,9 @@ public actor AppRefer {
         let deviceId = storage.getDeviceId()
         let deviceInfo = AppReferDeviceInfo.collect()
 
-        // Get AdServices token (iOS only — always iOS here)
+        // Get AdServices token + IDFA
         let asaToken = AppReferAdServices.getToken()
+        let idfa = AppReferAdServices.getIdfa()
 
         var body: [String: Any] = [
             "device_id": deviceId,
@@ -198,6 +199,9 @@ public actor AppRefer {
 
         if let asaToken = asaToken {
             body["asa_token"] = asaToken
+        }
+        if let idfa = idfa {
+            body["idfa"] = idfa
         }
         if let userId = storage.getUserId() {
             body["customer_user_id"] = userId
