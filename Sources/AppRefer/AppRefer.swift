@@ -302,6 +302,16 @@ public actor AppRefer {
     private func _setUserId(_ userId: String) async {
         storage.setUserId(userId)
         logger.info("User ID set: \(userId)")
+
+        // Sync userId to server so webhook userId fallback can find this attribution
+        guard storage.isSdkEnabled() else { return }
+        let deviceId = storage.getDeviceId()
+        let body: [String: Any] = [
+            "device_id": deviceId,
+            "event_name": "_set_user_id",
+            "properties": ["user_id": userId],
+        ]
+        _ = await httpClient.post("/api/track/event", body: body)
     }
 }
 
