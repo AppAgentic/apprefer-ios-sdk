@@ -15,6 +15,7 @@ public struct Attribution: Codable, Sendable {
     public let gclid: String?
     public let ttclid: String?
     public let queryParams: [String: String]
+    public let customData: [String: String]
     public let createdAt: Date
 
     enum CodingKeys: String, CodingKey {
@@ -31,6 +32,7 @@ public struct Attribution: Codable, Sendable {
         case gclid
         case ttclid
         case queryParams = "query_params"
+        case customData = "customData"
         case createdAt = "created_at"
     }
 
@@ -49,6 +51,7 @@ public struct Attribution: Codable, Sendable {
         gclid = try? container.decode(String.self, forKey: .gclid)
         ttclid = try? container.decode(String.self, forKey: .ttclid)
         queryParams = (try? container.decode([String: String].self, forKey: .queryParams)) ?? [:]
+        customData = (try? container.decode([String: String].self, forKey: .customData)) ?? [:]
 
         if let dateString = try? container.decode(String.self, forKey: .createdAt) {
             let formatter = ISO8601DateFormatter()
@@ -79,6 +82,9 @@ public struct Attribution: Codable, Sendable {
         try container.encodeIfPresent(gclid, forKey: .gclid)
         try container.encodeIfPresent(ttclid, forKey: .ttclid)
         try container.encode(queryParams, forKey: .queryParams)
+        if !customData.isEmpty {
+            try container.encode(customData, forKey: .customData)
+        }
         let formatter = ISO8601DateFormatter()
         try container.encode(formatter.string(from: createdAt), forKey: .createdAt)
     }
@@ -98,6 +104,7 @@ public struct Attribution: Codable, Sendable {
         gclid: String? = nil,
         ttclid: String? = nil,
         queryParams: [String: String] = [:],
+        customData: [String: String] = [:],
         createdAt: Date = Date()
     ) {
         self.network = network
@@ -113,6 +120,7 @@ public struct Attribution: Codable, Sendable {
         self.gclid = gclid
         self.ttclid = ttclid
         self.queryParams = queryParams
+        self.customData = customData
         self.createdAt = createdAt
     }
 }
