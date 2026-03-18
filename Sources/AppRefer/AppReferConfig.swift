@@ -26,6 +26,9 @@ public struct AppReferConfig: Sendable {
         self.logLevel = logLevel
     }
 
-    /// The AppRefer backend URL.
+    /// The AppRefer backend URL (dashboard / web).
     internal static let backendURL = "https://apprefer.com"
+
+    /// Dedicated tracking endpoint — lower latency for SDK traffic.
+    internal static let trackingURL = "https://trk.apprefer.com"
 }

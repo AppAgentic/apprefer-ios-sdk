@@ -33,7 +33,8 @@ public actor AppRefer {
         self.logger = AppReferLogger(debug: config.debug, logLevel: config.logLevel)
         self.storage = AppReferStorage()
         self.httpClient = AppReferHTTPClient(
-            backendURL: AppReferConfig.backendURL,
+            primaryURL: AppReferConfig.trackingURL,
+            fallbackURL: AppReferConfig.backendURL,
             apiKey: config.apiKey,
             logger: logger
         )

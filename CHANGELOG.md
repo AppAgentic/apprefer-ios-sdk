@@ -1,3 +1,9 @@
+## 0.4.0
+
+- Use `trk.apprefer.com` as primary tracking endpoint for lower latency
+- Fallback to `apprefer.com` if the tracking endpoint is unreachable
+- HTTPClient now supports primary + fallback URL with automatic failover
+
 ## 0.3.0
 
 - Harden SDK to never crash host app

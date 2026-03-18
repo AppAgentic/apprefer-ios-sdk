@@ -1,7 +1,8 @@
 import Foundation
 
 final class AppReferHTTPClient: @unchecked Sendable {
-    private let backendURL: String
+    private let primaryURL: String
+    private let fallbackURL: String?
     private let apiKey: String
     private let logger: AppReferLogger
     private let session: URLSession
@@ -9,8 +10,9 @@ final class AppReferHTTPClient: @unchecked Sendable {
     private let maxRetries = 3
     private let requestTimeout: TimeInterval = 10
 
-    init(backendURL: String, apiKey: String, logger: AppReferLogger) {
-        self.backendURL = backendURL
+    init(primaryURL: String, fallbackURL: String? = nil, apiKey: String, logger: AppReferLogger) {
+        self.primaryURL = primaryURL
+        self.fallbackURL = fallbackURL
         self.apiKey = apiKey
         self.logger = logger
 
@@ -19,9 +21,32 @@ final class AppReferHTTPClient: @unchecked Sendable {
         self.session = URLSession(configuration: config)
     }
 
+    /// Convenience init for backwards compatibility in tests.
+    convenience init(backendURL: String, apiKey: String, logger: AppReferLogger) {
+        self.init(primaryURL: backendURL, fallbackURL: nil, apiKey: apiKey, logger: logger)
+    }
+
     func post(_ path: String, body: [String: Any]) async -> [String: Any]? {
-        guard let url = URL(string: "\(backendURL)\(path)") else {
-            logger.error("Invalid URL: \(backendURL)\(path)")
+        // Try primary URL first
+        if let result = await performPost(baseURL: primaryURL, path: path, body: body) {
+            return result
+        }
+
+        // Fallback if primary failed and a fallback URL is configured
+        if let fallbackURL = fallbackURL, fallbackURL != primaryURL {
+            logger.info("Primary URL failed, retrying on fallback: \(fallbackURL)\(path)")
+            if let result = await performPost(baseURL: fallbackURL, path: path, body: body) {
+                return result
+            }
+        }
+
+        logger.error("POST \(path) failed on all endpoints")
+        return nil
+    }
+
+    private func performPost(baseURL: String, path: String, body: [String: Any]) async -> [String: Any]? {
+        guard let url = URL(string: "\(baseURL)\(path)") else {
+            logger.error("Invalid URL: \(baseURL)\(path)")
             return nil
         }
 
@@ -81,7 +106,7 @@ final class AppReferHTTPClient: @unchecked Sendable {
             }
         }
 
-        logger.error("POST \(path) failed after \(maxRetries) attempts")
+        logger.error("POST \(path) failed after \(maxRetries) attempts on \(baseURL)")
         return nil
     }
 
