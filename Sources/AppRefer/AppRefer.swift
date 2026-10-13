@@ -23,6 +23,11 @@ public actor AppRefer {
         _shared = sdk
     }
 
+    /// SDK key passed to `configure`, used by AppReferBilling.
+    static func currentApiKey() -> String? {
+        getShared()?.config.apiKey
+    }
+
     private let config: AppReferConfig
     private let storage: AppReferStorage
     private let httpClient: AppReferHTTPClient
