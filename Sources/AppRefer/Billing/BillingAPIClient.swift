@@ -54,14 +54,6 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
         }
     }
 
-    /// No answer from AppRefer at all (as opposed to an error status).
-    var isUnreachable: Bool {
-        switch self {
-        case .network, .missingApiKey, .notConfigured: return true
-        default: return false
-        }
-    }
-
     /// How long the server asked us to wait, if it did.
     var retryAfter: TimeInterval? {
         if case .server(_, _, let retryAfter) = self { return retryAfter }
@@ -223,10 +215,10 @@ struct BillingAPIClient: Sendable {
             do {
                 response = try await transport.send(request)
             } catch let error as AppReferBillingError {
-                lastError = error
+                lastError = Self.keepingServerAnswer(lastError, over: error)
                 continue
             } catch {
-                lastError = .network(error.localizedDescription)
+                lastError = Self.keepingServerAnswer(lastError, over: .network(error.localizedDescription))
                 continue
             }
 
@@ -250,7 +242,7 @@ struct BillingAPIClient: Sendable {
                 status: status, message: message, retryAfter: Self.parseRetryAfter(response.retryAfter, now: Date())
             )
             if status >= 500 {
-                lastError = error
+                lastError = Self.keepingServerAnswer(lastError, over: error)
                 continue
             }
             throw error
@@ -259,6 +251,16 @@ struct BillingAPIClient: Sendable {
     }
 
     static let defaultRetryAfter: TimeInterval = 30
+
+    /// The error to report after another host failed. A host that answered beats one that
+    /// didn't (AppRefer is up, and its `Retry-After` must be honoured), and a later 5xx
+    /// without `Retry-After` keeps the wait an earlier host asked for.
+    static func keepingServerAnswer(_ earlier: AppReferBillingError, over later: AppReferBillingError) -> AppReferBillingError {
+        guard case .server(_, _, let earlierWait) = earlier else { return later }
+        guard case .server(let status, let message, let wait) = later else { return earlier }
+        let longest = [earlierWait, wait].compactMap { $0 }.max()
+        return .server(status: status, message: message, retryAfter: longest)
+    }
 
     /// False only when a 2xx purchase answer says the ledger write failed.
     static func isRecorded(_ data: Data) -> Bool {

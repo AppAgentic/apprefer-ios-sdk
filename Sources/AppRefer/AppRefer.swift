@@ -33,10 +33,10 @@ public actor AppRefer {
     private let httpClient: AppReferHTTPClient
     private let logger: AppReferLogger
 
-    private init(config: AppReferConfig) {
+    init(config: AppReferConfig, storage: AppReferStorage = AppReferStorage()) {
         self.config = config
         self.logger = AppReferLogger(debug: config.debug, logLevel: config.logLevel)
-        self.storage = AppReferStorage()
+        self.storage = storage
         self.httpClient = AppReferHTTPClient(
             primaryURL: AppReferConfig.trackingURL,
             fallbackURL: AppReferConfig.backendURL,
@@ -155,13 +155,15 @@ public actor AppRefer {
         storage.getCachedAttribution()
     }
 
-    private func _getDeviceId() -> String {
-        storage.getDeviceId()
+    /// Nil while the Keychain can't be read or can't save a new id: a random id that
+    /// was never saved would split this device's attribution in two.
+    func _getDeviceId() -> String? {
+        storage.deviceId()
     }
 
     // MARK: - Internal Implementation
 
-    private func _configure() async -> Attribution? {
+    func _configure() async -> Attribution? {
         logger.info("AppRefer SDK initialized")
 
         // Set user ID if provided at init time
@@ -189,7 +191,12 @@ public actor AppRefer {
     }
 
     private func resolveAttribution() async -> Attribution? {
-        let deviceId = storage.getDeviceId()
+        guard let deviceId = storage.deviceId() else {
+            // Not marked as attempted: the match runs on the next launch, once the
+            // device id can be read or saved.
+            logger.warn("Device id unavailable (Keychain); attribution deferred")
+            return nil
+        }
         let deviceInfo = AppReferDeviceInfo.collect()
 
         // Get AdServices token + IDFA
@@ -259,8 +266,10 @@ public actor AppRefer {
         currency: String?
     ) async {
         guard storage.isSdkEnabled() else { return }
-
-        let deviceId = storage.getDeviceId()
+        guard let deviceId = storage.deviceId() else {
+            logger.warn("Device id unavailable (Keychain); event \(eventName) not sent")
+            return
+        }
         var body: [String: Any] = [
             "device_id": deviceId,
             "event_name": eventName,
@@ -298,7 +307,10 @@ public actor AppRefer {
 
         if hashedData.isEmpty { return }
 
-        let deviceId = storage.getDeviceId()
+        guard let deviceId = storage.deviceId() else {
+            logger.warn("Device id unavailable (Keychain); advanced matching not sent")
+            return
+        }
         let body: [String: Any] = [
             "device_id": deviceId,
             "event_name": "_advanced_matching",
@@ -314,8 +326,7 @@ public actor AppRefer {
         logger.info("User ID set: \(userId)")
 
         // Sync userId to server so webhook userId fallback can find this attribution
-        guard storage.isSdkEnabled() else { return }
-        let deviceId = storage.getDeviceId()
+        guard storage.isSdkEnabled(), let deviceId = storage.deviceId() else { return }
         let body: [String: Any] = [
             "device_id": deviceId,
             "event_name": "_set_user_id",

@@ -124,11 +124,14 @@ final class PendingPurchaseQueue {
     }
 
     /// Drops entries that have failed too often or are too old. The server still gets
-    /// those purchases from App Store Server Notifications.
+    /// those purchases from App Store Server Notifications. An entry that isn't saved yet
+    /// is kept: its StoreKit transaction is still unfinished, and dropping it would leave
+    /// the purchase with neither a retry copy nor a server record.
     @discardableResult
     func prune(now: Date = Date()) -> [PendingPurchase] {
         let dropped = entries.filter {
-            $0.attempts >= Self.maxAttempts || now.timeIntervalSince($0.enqueuedAt) > Self.maxAge
+            isDurable(transactionId: $0.transactionId)
+                && ($0.attempts >= Self.maxAttempts || now.timeIntervalSince($0.enqueuedAt) > Self.maxAge)
         }
         guard !dropped.isEmpty else { return [] }
         let ids = Set(dropped.map(\.transactionId))

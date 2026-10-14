@@ -215,14 +215,31 @@ actor BillingEngine {
     /// transaction counts as this user's when it has no appAccountToken, carries this
     /// user's token, or is still queued for them.
     private func withPendingLocal(_ info: AppReferCustomerInfo) async -> AppReferCustomerInfo {
-        let user = info.appUserId
+        let transactions = await ownedTransactions(info.appUserId)
+        guard !transactions.isEmpty else { return info }
+        return mergeLocal(into: info, transactions: transactions, user: info.appUserId, source: info.source)
+    }
+
+    /// This user's verified StoreKit entitlements (see `withPendingLocal`).
+    private func ownedTransactions(_ user: String) async -> [StoreTransaction] {
         let token = storage.accountToken(for: user)
         let queued = Set(queue.entries.filter { $0.appUserId == user }.map(\.transactionId))
-        let transactions = await storeKit.currentEntitlements().filter {
+        return await storeKit.currentEntitlements().filter {
             $0.appAccountToken == nil || $0.appAccountToken == token || queued.contains($0.id)
         }
-        guard !transactions.isEmpty else { return info }
-        return mergeLocal(into: info, transactions: transactions, user: user, source: info.source)
+    }
+
+    /// AppRefer is reachable, so access comes from it: the user's own server answer, or,
+    /// if that request fails, their cached answer merged with only their own StoreKit
+    /// purchases. Never the unrestricted device fallback.
+    private func reachableAnswer(for user: String) async -> AppReferCustomerInfo {
+        if let info = try? await fetchFromServer(user, drain: false) { return info }
+        let cached = storage.cachedCustomerInfo().flatMap { $0.appUserId == user ? $0.reevaluated(at: now()) : nil }
+        let merged = mergeLocal(
+            into: cached, transactions: await ownedTransactions(user), user: user,
+            source: cached?.source ?? .localFallback
+        )
+        return publish(merged)
     }
 
     /// Before first unlock: the user is unknown, so nothing is sent, cached or published.
@@ -231,12 +248,12 @@ actor BillingEngine {
         mergeLocal(into: nil, transactions: await storeKit.currentEntitlements(), user: "", source: .localFallback)
     }
 
-    /// After a purchase upload failed. If AppRefer answered at all, the customer endpoint
-    /// decides, merged with this customer's own StoreKit purchases (`withPendingLocal`);
-    /// only a total outage unlocks every verified purchase on the device.
-    private func answerAfterUploadFailure(_ error: AppReferBillingError?) async -> AppReferCustomerInfo {
-        if error?.isUnreachable != true, let user = activeUser(),
-           let info = try? await fetchFromServer(user, drain: false) {
+    /// After a purchase upload failed, for any reason (a network error too): one customer
+    /// fetch decides, merged with this customer's own StoreKit purchases
+    /// (`withPendingLocal`). Only when that fails as well (a total outage) does every
+    /// verified purchase on the device unlock.
+    private func answerAfterUploadFailure() async -> AppReferCustomerInfo {
+        if let user = activeUser(), let info = try? await fetchFromServer(user, drain: false) {
             return info
         }
         return await localFallback()
@@ -323,7 +340,10 @@ actor BillingEngine {
             await finish(update)
             let info = await accept(response, for: owner)
             await drainQueue()
-            return owner == user ? info : await currentAnswerWithoutNetwork()
+            if owner == user { return info }
+            // Someone else's purchase: the signed-in user still gets only their own access.
+            guard let current = activeUser() else { return await lockedFallback() }
+            return await reachableAnswer(for: current)
         } catch let error as AppReferBillingError where error.isRetryable {
             pause(after: error)
             let durable = queue.add(PendingPurchase(
@@ -342,13 +362,13 @@ actor BillingEngine {
                 logger.error("Billing: couldn't save transaction \(transaction.id) for retry; leaving it unfinished")
                 heldUpdates[transaction.id] = update
             }
-            return await answerAfterUploadFailure(error)
+            return await answerAfterUploadFailure()
         } catch {
             // Rejected as malformed: retrying won't help. StoreKit verified it, so it still
             // counts for its owner; App Store notifications reach the server.
             logger.error("Billing: AppRefer rejected transaction \(transaction.id): \(error.localizedDescription)")
             await finish(update)
-            return await answerAfterUploadFailure(error as? AppReferBillingError)
+            return await answerAfterUploadFailure()
         }
     }
 
@@ -398,7 +418,6 @@ actor BillingEngine {
         await flushPendingIdentifies()
         let deviceId = appreferId()
         var last: BillingCustomerResponse?
-        var lastError: AppReferBillingError?
         var paused = false
         for transaction in transactions {
             var entry = PendingPurchase(
@@ -417,18 +436,17 @@ actor BillingEngine {
                     signedTransaction: transaction.signedTransaction, attributes: [:], restore: true
                 ))
             } catch let error as AppReferBillingError where error.isRetryable {
-                lastError = error
                 entry.attempts = Self.countsAsAttempt(error) ? 1 : 0
                 queue.add(entry)
                 pause(after: error)
                 paused = error.isConnectivity || error.isBackoff || error.retryAfter != nil
             } catch {
-                lastError = error as? AppReferBillingError
+                logger.error("Billing: AppRefer rejected restored transaction \(transaction.id): \(error.localizedDescription)")
             }
         }
         // AppRefer answered: its answer plus this customer's own (and queued) purchases.
         if let last { return await accept(last, for: user) }
-        return await answerAfterUploadFailure(lastError)
+        return await answerAfterUploadFailure()
     }
 
     /// Re-sends queued transactions. Stops at the first connectivity failure. A
@@ -443,9 +461,10 @@ actor BillingEngine {
         guard !queue.isEmpty else { return }
         if let backoff = drainBackoff, now() < backoff.until { return }
 
+        // Only saved entries are pruned, and their transactions were finished when they
+        // saved; an unsaved one stays held until it is saved or AppRefer records it.
         for dropped in queue.prune(now: now()) {
             logger.error("Billing: gave up resending transaction \(dropped.transactionId) after \(dropped.attempts) attempts")
-            if let held = heldUpdates[dropped.transactionId] { await finish(held) }
         }
         for entry in queue.entries {
             do {

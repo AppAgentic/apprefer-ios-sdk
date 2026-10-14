@@ -8,6 +8,7 @@
   - Outage safety: falls back to verified `Transaction.currentEntitlements` merged with the cached server answer; transactions AppRefer can't accept are queued on disk, finished, and resent later
   - Sends the AppRefer attribution device id as `appreferId` automatically
   - Uses the attribution SDK key and the `trk.apprefer.com` → `apprefer.com` fallback
+- `AppRefer.getDeviceId()` returns nil (and first-launch attribution waits for the next launch) while the Keychain can't read or save the device id, instead of a random id that was never saved
 
 ## 0.4.0
 

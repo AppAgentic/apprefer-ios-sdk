@@ -36,10 +36,6 @@ final class AppReferStorage: @unchecked Sendable {
 
     // MARK: - Device ID (Keychain — persists across reinstalls)
 
-    func getDeviceId() -> String {
-        deviceId() ?? UUID().uuidString.lowercased()
-    }
-
     /// The device id, minted once. Nil while the Keychain is locked (before first unlock
     /// after a reboot) or failing: minting then would replace the real id. A new id is
     /// only returned once the Keychain has saved it.
