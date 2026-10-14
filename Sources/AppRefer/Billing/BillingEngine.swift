@@ -320,7 +320,10 @@ actor BillingEngine {
     /// carry, else the user whose saved intent matches (see `PurchaseIntentStore.match`),
     /// else the current user. While the intents can't be read, a delivery that needs them
     /// is left unfinished and retried rather than given to the current user.
-    func process(_ update: StoreKitUpdate, initiator: String? = nil, intent: PurchaseIntent? = nil) async -> AppReferCustomerInfo {
+    func process(_ update: StoreKitUpdate, initiator: String? = nil, intent suppliedIntent: PurchaseIntent? = nil) async -> AppReferCustomerInfo {
+        // A renewal never uses or consumes an intent, even one the purchase sheet supplied:
+        // its owner comes from the initiator, its account token or the current user.
+        var intent = (update.verified ?? update.unverifiedPayload)?.isRenewal == true ? nil : suppliedIntent
         guard let transaction = update.verified else {
             let claimed = update.unverifiedPayload
             let entry = AppReferRejectedPurchase(
@@ -350,7 +353,6 @@ actor BillingEngine {
             return await lockedFallback()
         }
         let tokenOwner = transaction.appAccountToken.flatMap(storage.appUserId(forAccountToken:))
-        var intent = intent
         var supportNote: String?
         if intent == nil, initiator == nil {
             switch intents.match(transaction) {

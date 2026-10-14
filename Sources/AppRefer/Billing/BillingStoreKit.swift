@@ -19,6 +19,10 @@ struct StoreTransaction: Sendable, Equatable {
     let signedTransaction: String
     /// The `appAccountToken` the purchase was tagged with (the buyer's AppRefer account token).
     var appAccountToken: UUID? = nil
+
+    /// A later transaction in a subscription chain (`originalId != id`). Renewals never
+    /// match or consume a purchase intent: they belong to the original purchase's owner.
+    var isRenewal: Bool { originalId != id }
 }
 
 /// One transaction delivered by StoreKit (purchase, update or unfinished).
@@ -254,7 +258,17 @@ extension BillingEngine {
     /// Whether a `Product.purchase` error means no transaction can follow. Network,
     /// system and unknown errors don't: the purchase may still arrive, so its intent stays.
     static func endsPurchase(_ error: Error) -> Bool {
-        if error is Product.PurchaseError { return true }
+        if let error = error as? Product.PurchaseError {
+            switch error {
+            case .productUnavailable, .purchaseNotAllowed, .ineligibleForOffer,
+                 .invalidOfferIdentifier, .invalidOfferPrice, .invalidOfferSignature,
+                 .missingOfferParameters, .invalidQuantity:
+                return true
+            default:
+                // Newer cases (e.g. payment-method binding) aren't known to end it: keep.
+                return false
+            }
+        }
         switch error as? StoreKitError {
         case .userCancelled?, .notAvailableInStorefront?, .notEntitled?: return true
         default: return false

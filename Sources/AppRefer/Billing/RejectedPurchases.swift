@@ -31,6 +31,14 @@ public struct AppReferRejectedPurchase: Codable, Equatable, Sendable {
 /// Where a durable list is kept (the retry queue's store abstraction, reused).
 typealias BillingDataStore = PendingPurchaseStore
 
+/// Decodes one list element, nil instead of failing the whole list.
+private struct Salvaged<Element: Decodable>: Decodable {
+    let value: Element?
+    init(from decoder: Decoder) throws {
+        value = try? Element(from: decoder)
+    }
+}
+
 /// A JSON list on disk that knows exactly which contents were last written. A file that
 /// exists but can't be read is never overwritten: writes fail until it reads again, then
 /// what changed in memory meanwhile is merged over it. Not thread-safe; owned by `BillingEngine`.
@@ -44,11 +52,20 @@ final class DurableList<Element: Codable & Equatable> {
     private var removedWhileUnreadable = Set<String>()
     /// Runs before an undecodable file is moved aside; false keeps it unreadable instead.
     private let beforeQuarantine: (() -> Bool)?
+    /// When the file is partly malformed, keep the entries that decode (the raw original is
+    /// still moved aside and the file rewritten with them). Otherwise nothing is kept.
+    private let keepsParseableEntries: Bool
 
-    init(store: BillingDataStore, key: @escaping (Element) -> String, beforeQuarantine: (() -> Bool)? = nil) {
+    init(
+        store: BillingDataStore,
+        key: @escaping (Element) -> String,
+        beforeQuarantine: (() -> Bool)? = nil,
+        keepsParseableEntries: Bool = false
+    ) {
         self.store = store
         self.key = key
         self.beforeQuarantine = beforeQuarantine
+        self.keepsParseableEntries = keepsParseableEntries
         _ = load()
     }
 
@@ -90,6 +107,7 @@ final class DurableList<Element: Codable & Equatable> {
     /// Reads the file and merges it under what is in memory (memory is newer).
     private func load() -> Bool {
         var onDisk: [Element] = []
+        var salvaged = false
         do {
             if let data = try store.read() {
                 if let decoded = try? JSONDecoder().decode([Element].self, from: data) {
@@ -97,6 +115,12 @@ final class DurableList<Element: Codable & Equatable> {
                 } else if beforeQuarantine?() == false || !store.quarantine() {
                     isUnreadable = true
                     return false
+                } else {
+                    // Moved aside. Keep what still decodes (none if not even the list does).
+                    salvaged = true
+                    if keepsParseableEntries {
+                        onDisk = ((try? JSONDecoder().decode([Salvaged<Element>].self, from: data)) ?? []).compactMap(\.value)
+                    }
                 }
             }
         } catch {
@@ -104,10 +128,12 @@ final class DurableList<Element: Codable & Equatable> {
             return false
         }
         isUnreadable = false
-        saved = Dictionary(onDisk.map { (key($0), $0) }, uniquingKeysWith: { _, last in last })
+        // After a quarantine nothing is on disk until the kept entries are written back.
+        saved = salvaged ? [:] : Dictionary(onDisk.map { (key($0), $0) }, uniquingKeysWith: { _, last in last })
         let inMemory = Set(items.map(key))
         items = onDisk.filter { !inMemory.contains(key($0)) && !removedWhileUnreadable.contains(key($0)) } + items
         removedWhileUnreadable.removeAll()
+        if salvaged, !items.isEmpty { write() }
         return true
     }
 }
@@ -201,7 +227,8 @@ final class IntentsLostMarker {
 /// Disk-backed purchase intents. Intents are removed only on a definitive outcome: the
 /// purchase recorded, durably queued or archived, or the sheet cancelled or failed for
 /// good. Never by age, since Ask to Buy can stay pending. An undecodable file is moved
-/// aside only after an `IntentsLostMarker` is saved.
+/// aside only after an `IntentsLostMarker` is saved; the intents in it that still decode
+/// are kept and written back.
 final class PurchaseIntentStore {
     /// How long an untagged purchase waits for its owner while intents are lost: inside
     /// Google's 3-day acknowledgement window, so every SDK behaves the same.
@@ -230,7 +257,10 @@ final class PurchaseIntentStore {
     init(store: BillingDataStore, lostMarker markerStore: BillingDataStore, now: @escaping () -> Date = { Date() }) {
         let marker = IntentsLostMarker(store: markerStore)
         lostMarker = marker
-        list = DurableList(store: store, key: { $0.id.uuidString }, beforeQuarantine: { marker.markLost(at: now()) })
+        list = DurableList(
+            store: store, key: { $0.id.uuidString },
+            beforeQuarantine: { marker.markLost(at: now()) }, keepsParseableEntries: true
+        )
     }
 
     /// Nil when the stored intents can't be read.
@@ -258,7 +288,7 @@ final class PurchaseIntentStore {
     /// Renewals (`originalId != id`) never match: they belong to the original purchase's
     /// owner. While intents are lost, untagged purchases get `.lost`.
     func match(_ transaction: StoreTransaction) -> Match {
-        guard transaction.originalId == transaction.id else { return .none }
+        guard !transaction.isRenewal else { return .none }
         guard let intents else { return .unreadable }
         if let token = transaction.appAccountToken {
             return intents.first { $0.accountToken == token }.map(Match.found) ?? .none
@@ -268,6 +298,7 @@ final class PurchaseIntentStore {
         case .unreadable: return .unreadable
         case .absent: break
         }
+        // Oldest by `startedAt` explicitly, never by stored order; `min` keeps the first of a tie.
         return intents
             .filter { $0.productId == transaction.productId }
             .min { $0.startedAt < $1.startedAt }
