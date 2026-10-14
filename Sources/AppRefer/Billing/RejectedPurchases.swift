@@ -23,6 +23,9 @@ public struct AppReferRejectedPurchase: Codable, Equatable, Sendable {
     /// Why AppRefer did not take it.
     public let reason: String
     public let rejectedAt: Date
+    /// Set when the owner was a guess support should check (the purchase intents were
+    /// lost, so it went to whoever was signed in after the 48 hour wait).
+    public var supportNote: String? = nil
 }
 
 /// Where a durable list is kept (the retry queue's store abstraction, reused).
@@ -39,10 +42,13 @@ final class DurableList<Element: Codable & Equatable> {
     private var saved: [String: Element] = [:]
     private(set) var isUnreadable = false
     private var removedWhileUnreadable = Set<String>()
+    /// Runs before an undecodable file is moved aside; false keeps it unreadable instead.
+    private let beforeQuarantine: (() -> Bool)?
 
-    init(store: BillingDataStore, key: @escaping (Element) -> String) {
+    init(store: BillingDataStore, key: @escaping (Element) -> String, beforeQuarantine: (() -> Bool)? = nil) {
         self.store = store
         self.key = key
+        self.beforeQuarantine = beforeQuarantine
         _ = load()
     }
 
@@ -88,7 +94,7 @@ final class DurableList<Element: Codable & Equatable> {
             if let data = try store.read() {
                 if let decoded = try? JSONDecoder().decode([Element].self, from: data) {
                     onDisk = decoded
-                } else if !store.quarantine() {
+                } else if beforeQuarantine?() == false || !store.quarantine() {
                     isUnreadable = true
                     return false
                 }
@@ -107,7 +113,8 @@ final class DurableList<Element: Codable & Equatable> {
 }
 
 /// Disk-backed list of rejected purchases. A transaction may be finished only once its
-/// entry, with these exact contents, is on disk.
+/// entry, with these exact contents, is on disk. No size cap: entries leave only when
+/// AppRefer records the purchase.
 final class RejectedPurchaseLog {
     private let list: DurableList<AppReferRejectedPurchase>
 
@@ -155,27 +162,75 @@ struct PurchaseIntent: Codable, Equatable, Sendable {
     let startedAt: Date
 }
 
-/// Disk-backed purchase intents. Intents are removed when their purchase is recorded,
-/// queued, rejected or cancelled; never by age, since Ask to Buy can stay pending.
+/// Saved when an undecodable intents file is moved aside: who started the purchases in it
+/// is unknown, so untagged deliveries wait (see `PurchaseIntentStore.Match.lost`).
+final class IntentsLostMarker {
+    enum State: Equatable {
+        case absent
+        case lost(since: Date)
+        case unreadable
+    }
+
+    private let store: BillingDataStore
+    private struct Contents: Codable { let lostAt: Date }
+
+    init(store: BillingDataStore) {
+        self.store = store
+    }
+
+    var state: State {
+        let data: Data?
+        do { data = try store.read() } catch { return .unreadable }
+        guard let data else { return .absent }
+        guard let contents = try? JSONDecoder().decode(Contents.self, from: data) else { return .unreadable }
+        return .lost(since: contents.lostAt)
+    }
+
+    /// Records the loss, keeping an earlier date. True when the marker is on disk.
+    func markLost(at date: Date) -> Bool {
+        if case .lost = state { return true }
+        guard let data = try? JSONEncoder().encode(Contents(lostAt: date)) else { return false }
+        return (try? store.write(data)) != nil && state == .lost(since: date)
+    }
+
+    func clear() {
+        try? store.remove()
+    }
+}
+
+/// Disk-backed purchase intents. Intents are removed only on a definitive outcome: the
+/// purchase recorded, durably queued or archived, or the sheet cancelled or failed for
+/// good. Never by age, since Ask to Buy can stay pending. An undecodable file is moved
+/// aside only after an `IntentsLostMarker` is saved.
 final class PurchaseIntentStore {
-    /// StoreKit's purchase date can be a little before our clock's start time.
-    static let clockSlack: TimeInterval = 300
+    /// How long an untagged purchase waits for its owner while intents are lost: inside
+    /// Google's 3-day acknowledgement window, so every SDK behaves the same.
+    static let lostIntentsWait: TimeInterval = 48 * 3600
 
     enum Match: Equatable {
         case found(PurchaseIntent)
         case none
         /// The stored intents can't be read: the owner can't be known yet.
         case unreadable
+        /// The intents file was undecodable and moved aside on this date.
+        case lost(since: Date)
     }
 
     private let list: DurableList<PurchaseIntent>
+    let lostMarker: IntentsLostMarker
 
-    convenience init(fileURL: URL) {
-        self.init(store: FilePendingPurchaseStore(fileURL: fileURL))
+    convenience init(fileURL: URL, now: @escaping () -> Date = { Date() }) {
+        self.init(
+            store: FilePendingPurchaseStore(fileURL: fileURL),
+            lostMarker: FilePendingPurchaseStore(fileURL: fileURL.deletingPathExtension().appendingPathExtension("lost.json")),
+            now: now
+        )
     }
 
-    init(store: BillingDataStore) {
-        list = DurableList(store: store, key: { $0.id.uuidString })
+    init(store: BillingDataStore, lostMarker markerStore: BillingDataStore, now: @escaping () -> Date = { Date() }) {
+        let marker = IntentsLostMarker(store: markerStore)
+        lostMarker = marker
+        list = DurableList(store: store, key: { $0.id.uuidString }, beforeQuarantine: { marker.markLost(at: now()) })
     }
 
     /// Nil when the stored intents can't be read.
@@ -198,19 +253,24 @@ final class PurchaseIntentStore {
         list.write()
     }
 
-    /// The intent a delivered original purchase belongs to: the one carrying its account
-    /// token, or for an untagged purchase the oldest for the same product started before
-    /// it (untagged intents first). Renewals never match: they belong to the original
-    /// purchase's owner.
+    /// The intent a delivered new purchase belongs to: the one carrying its account token,
+    /// or for an untagged purchase the oldest for the same product, tagged or not.
+    /// Renewals (`originalId != id`) never match: they belong to the original purchase's
+    /// owner. While intents are lost, untagged purchases get `.lost`.
     func match(_ transaction: StoreTransaction) -> Match {
         guard transaction.originalId == transaction.id else { return .none }
         guard let intents else { return .unreadable }
         if let token = transaction.appAccountToken {
             return intents.first { $0.accountToken == token }.map(Match.found) ?? .none
         }
-        let candidates = intents
-            .filter { $0.productId == transaction.productId && $0.startedAt <= transaction.purchaseDate.addingTimeInterval(Self.clockSlack) }
-            .sorted { ($0.accountToken == nil ? 0 : 1, $0.startedAt) < ($1.accountToken == nil ? 0 : 1, $1.startedAt) }
-        return candidates.first.map(Match.found) ?? .none
+        switch lostMarker.state {
+        case .lost(let since): return .lost(since: since)
+        case .unreadable: return .unreadable
+        case .absent: break
+        }
+        return intents
+            .filter { $0.productId == transaction.productId }
+            .min { $0.startedAt < $1.startedAt }
+            .map(Match.found) ?? .none
     }
 }

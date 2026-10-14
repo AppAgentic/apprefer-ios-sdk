@@ -248,3 +248,16 @@ enum LocalEntitlements {
         )
     }
 }
+
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
+extension BillingEngine {
+    /// Whether a `Product.purchase` error means no transaction can follow. Network,
+    /// system and unknown errors don't: the purchase may still arrive, so its intent stays.
+    static func endsPurchase(_ error: Error) -> Bool {
+        if error is Product.PurchaseError { return true }
+        switch error as? StoreKitError {
+        case .userCancelled?, .notAvailableInStorefront?, .notEntitled?: return true
+        default: return false
+        }
+    }
+}

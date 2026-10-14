@@ -24,6 +24,11 @@ final class FlakyPendingPurchaseStore: PendingPurchaseStore {
         return true
     }
 
+    func remove() throws {
+        if failWrites { throw CocoaError(.fileWriteUnknown) }
+        data = nil
+    }
+
     var storedEntries: [PendingPurchase] {
         data.flatMap { try? JSONDecoder().decode([PendingPurchase].self, from: $0) } ?? []
     }

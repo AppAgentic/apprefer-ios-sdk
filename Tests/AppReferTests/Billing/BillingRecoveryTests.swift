@@ -262,7 +262,7 @@ final class BillingRecoveryTests: XCTestCase {
     func testBeginPurchaseThrowsWhenIntentCantBeSaved() async {
         let store = FlakyPendingPurchaseStore()
         store.failWrites = true
-        let engine = BillingEngineFactory.make(env, transport: MockBillingTransport.unreachable(), intents: PurchaseIntentStore(store: store))
+        let engine = BillingEngineFactory.make(env, transport: MockBillingTransport.unreachable(), intents: PurchaseIntentStore(store: store, lostMarker: FlakyPendingPurchaseStore()))
         do {
             _ = try await engine.beginPurchase(productId: "pro_yearly")
             XCTFail("must not open the sheet")
@@ -270,7 +270,7 @@ final class BillingRecoveryTests: XCTestCase {
             XCTAssertEqual(error as? AppReferBillingError, .purchaseIntentNotSaved)
         }
         store.failWrites = false
-        XCTAssertEqual(PurchaseIntentStore(store: store).intents, [])
+        XCTAssertEqual(PurchaseIntentStore(store: store, lostMarker: FlakyPendingPurchaseStore()).intents, [])
     }
 
     func testUntaggedDeliveryAfterRestartAndUserSwitchGoesToSavedIntent() async throws {
@@ -311,13 +311,13 @@ final class BillingRecoveryTests: XCTestCase {
         let storage = env.storage()
         storage.loggedInAppUserId = "user_a"
         let first = BillingEngineFactory.make(env, transport: MockBillingTransport.unreachable(), storage: storage,
-                                              intents: PurchaseIntentStore(store: store))
+                                              intents: PurchaseIntentStore(store: store, lostMarker: FlakyPendingPurchaseStore()))
         _ = try await first.beginPurchase(productId: "pro_yearly")
 
         storage.loggedInAppUserId = "user_b"
         store.failReads = true
         let transport = MockBillingTransport.ok(BillingFixtures.emptyCustomerJSON(appUserId: "user_a"))
-        let restarted = BillingEngineFactory.make(env, transport: transport, storage: storage, intents: PurchaseIntentStore(store: store))
+        let restarted = BillingEngineFactory.make(env, transport: transport, storage: storage, intents: PurchaseIntentStore(store: store, lostMarker: FlakyPendingPurchaseStore()))
         let counter = FinishCounter()
         _ = await restarted.process(BillingFixtures.update(original(), counter: counter))
         XCTAssertEqual(counter.count, 0, "left unfinished")
@@ -334,12 +334,12 @@ final class BillingRecoveryTests: XCTestCase {
         let storage = env.storage()
         storage.loggedInAppUserId = "user_a"
         let first = BillingEngineFactory.make(env, transport: MockBillingTransport.unreachable(), storage: storage,
-                                              intents: PurchaseIntentStore(store: store))
+                                              intents: PurchaseIntentStore(store: store, lostMarker: FlakyPendingPurchaseStore()))
         _ = try await first.beginPurchase(productId: "pro_yearly")
         storage.loggedInAppUserId = "user_b"
         store.failReads = true
         let transport = MockBillingTransport.ok(BillingFixtures.emptyCustomerJSON(appUserId: "user_b"))
-        let engine = BillingEngineFactory.make(env, transport: transport, storage: storage, intents: PurchaseIntentStore(store: store))
+        let engine = BillingEngineFactory.make(env, transport: transport, storage: storage, intents: PurchaseIntentStore(store: store, lostMarker: FlakyPendingPurchaseStore()))
         // Fixture transactions are renewals (originalId != id).
         _ = await engine.process(BillingFixtures.update(BillingFixtures.transaction(), counter: FinishCounter()))
         XCTAssertEqual(transport.requests(to: purchasesPath).last?.jsonBody?["appUserId"] as? String, "user_b")

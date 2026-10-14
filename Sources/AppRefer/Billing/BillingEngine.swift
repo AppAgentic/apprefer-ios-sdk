@@ -49,6 +49,8 @@ actor BillingEngine {
     /// Who started each purchase still waiting in `deferredUpdates`.
     private var deferredInitiators: [String: String] = [:]
     private var deferredIntents: [String: PurchaseIntent] = [:]
+    /// Untagged purchases in `deferredUpdates` waiting because the intents were lost.
+    private var lostIntentDeferrals = Set<String>()
 
     init(
         api: BillingAPIClient,
@@ -68,7 +70,7 @@ actor BillingEngine {
         self.storage = storage
         self.queue = queue
         self.rejected = rejected ?? RejectedPurchaseLog(fileURL: storage.directory.appendingPathComponent("rejected_purchases.json"))
-        self.intents = intents ?? PurchaseIntentStore(fileURL: storage.directory.appendingPathComponent("purchase_intents.json"))
+        self.intents = intents ?? PurchaseIntentStore(fileURL: storage.directory.appendingPathComponent("purchase_intents.json"), now: now)
         self.storeKit = storeKit
         self.options = options
         self.appreferId = appreferId
@@ -159,6 +161,7 @@ actor BillingEngine {
         for update in await storeKit.unfinishedTransactions() {
             _ = await process(update)
         }
+        clearIntentsLostMarkerIfIdle()
         _ = await customerInfo(policy: .fetchCurrent)
     }
 
@@ -348,6 +351,7 @@ actor BillingEngine {
         }
         let tokenOwner = transaction.appAccountToken.flatMap(storage.appUserId(forAccountToken:))
         var intent = intent
+        var supportNote: String?
         if intent == nil, initiator == nil {
             switch intents.match(transaction) {
             case .found(let saved): intent = saved
@@ -357,6 +361,19 @@ actor BillingEngine {
                 deferUpdate(update, initiator: nil, intent: nil)
                 return await currentAnswerWithoutNetwork()
             case .unreadable: break
+            case .lost(let since):
+                // Who started it was in the lost file. Wait for them (left unfinished, retried
+                // on foreground), then within Google's acknowledgement window give it to
+                // whoever is signed in and say so.
+                if now() < min(since, transaction.purchaseDate).addingTimeInterval(PurchaseIntentStore.lostIntentsWait) {
+                    logger.warn("Billing: purchase intents were lost; transaction \(transaction.id) deferred")
+                    deferUpdate(update, initiator: nil, intent: nil)
+                    lostIntentDeferrals.insert(update.transactionId)
+                    return await currentAnswerWithoutNetwork()
+                }
+                supportNote = "Purchase intents on this device were unreadable since \(ISO8601DateFormatter().string(from: since)); "
+                    + "after waiting 48 hours this purchase was assigned to the signed-in user \(user). Confirm the buyer."
+                logger.error("Billing: transaction \(transaction.id): \(supportNote ?? "")")
             }
         }
         let owner = initiator ?? tokenOwner ?? intent?.appUserId ?? user
@@ -413,7 +430,8 @@ actor BillingEngine {
                 transactionId: transaction.id, productId: transaction.productId, appUserId: owner,
                 appreferId: deviceId, signedTransaction: transaction.signedTransaction,
                 accountToken: transaction.appAccountToken, kind: transaction.kind.rawValue,
-                verifiedByStoreKit: true, reason: error.localizedDescription, rejectedAt: now()
+                verifiedByStoreKit: true, reason: error.localizedDescription, rejectedAt: now(),
+                supportNote: supportNote
             )
             if await secureRejected(entry, update: update) { dropIntent(intent) }
             return await answerAfterUploadFailure()
@@ -638,9 +656,18 @@ actor BillingEngine {
         deferredUpdates = []
         deferredInitiators = [:]
         deferredIntents = [:]
+        lostIntentDeferrals = []
         for update in updates {
             _ = await process(update, initiator: initiators[update.transactionId], intent: savedIntents[update.transactionId])
         }
+        clearIntentsLostMarkerIfIdle()
+    }
+
+    /// The lost-intents marker goes once no purchase is waiting for its owner.
+    private func clearIntentsLostMarkerIfIdle() {
+        guard deferredUpdates.isEmpty, lostIntentDeferrals.isEmpty,
+              case .lost = intents.lostMarker.state else { return }
+        intents.lostMarker.clear()
     }
 
     // MARK: - Purchases
@@ -664,7 +691,7 @@ actor BillingEngine {
         return intent
     }
 
-    /// The purchase sheet closed without a purchase (cancelled or failed).
+    /// The purchase sheet closed without a purchase (cancelled or failed for good).
     func endPurchase(_ intent: PurchaseIntent) {
         dropIntent(intent)
     }

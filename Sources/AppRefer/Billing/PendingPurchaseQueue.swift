@@ -24,6 +24,8 @@ protocol PendingPurchaseStore {
     func write(_ data: Data) throws
     /// Moves undecodable contents aside so they are kept but no longer block the queue.
     func quarantine() -> Bool
+    /// Deletes the file.
+    func remove() throws
 }
 
 struct FilePendingPurchaseStore: PendingPurchaseStore {
@@ -43,6 +45,11 @@ struct FilePendingPurchaseStore: PendingPurchaseStore {
         let aside = fileURL.deletingPathExtension()
             .appendingPathExtension("corrupt-\(Int(Date().timeIntervalSince1970)).json")
         return (try? FileManager.default.moveItem(at: fileURL, to: aside)) != nil
+    }
+
+    func remove() throws {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        try FileManager.default.removeItem(at: fileURL)
     }
 }
 

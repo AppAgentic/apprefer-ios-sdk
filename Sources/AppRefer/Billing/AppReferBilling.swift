@@ -274,7 +274,7 @@ public enum AppReferBilling {
         do {
             result = try await product.purchase(options: options)
         } catch {
-            await engine.endPurchase(intent)
+            if BillingEngine.endsPurchase(error) { await engine.endPurchase(intent) }
             throw error
         }
         switch result {
