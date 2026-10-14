@@ -2,7 +2,7 @@
 
 First-party mobile attribution for iOS apps. Captures click IDs, resolves attribution, and forwards conversions to ad networks — without third-party SDKs.
 
-[![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org)
+[![Swift 5.10+](https://img.shields.io/badge/Swift-5.10+-orange.svg)](https://swift.org)
 [![iOS 14+](https://img.shields.io/badge/iOS-14+-blue.svg)](https://developer.apple.com/ios/)
 [![SPM](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://swift.org/package-manager/)
 
@@ -236,7 +236,7 @@ Testing: use a sandbox Apple ID. Transactions from an Xcode StoreKit configurati
 ## Requirements
 
 - iOS 14.0+ (AppRefer Billing: iOS 15.0+)
-- Swift 5.9+
+- Swift 5.10+ (Xcode 15.3+)
 - Zero external dependencies
 
 ## License
