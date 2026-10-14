@@ -26,6 +26,7 @@ public struct AppReferRejectedPurchase: Codable, Equatable, Sendable {
     /// Set when the owner was a guess support should check (the purchase intents were
     /// lost, so it went to whoever was signed in after the 48 hour wait).
     public var supportNote: String? = nil
+    public var migrationOnly: Bool? = nil
 }
 
 /// Where a durable list is kept (the retry queue's store abstraction, reused).
@@ -158,7 +159,7 @@ final class RejectedPurchaseLog {
     }
 
     func contains(transactionId: String) -> Bool {
-        entries.contains { $0.transactionId == transactionId }
+        entries.contains { $0.migrationOnly != true && $0.transactionId == transactionId }
     }
 
     /// Adds or replaces the entry. True only when this entry is on disk.

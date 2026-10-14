@@ -159,41 +159,57 @@ actor BillingEngine {
                 }
             }
         }
-        await migrationSync()
         for update in await storeKit.unfinishedTransactions() {
             _ = await process(update)
         }
         clearIntentsLostMarkerIfIdle()
         _ = await customerInfo(policy: .fetchCurrent)
+        Task { await self.migrationSync() }
     }
 
     /// Read-only import. A distinct queue key keeps migration retries separate from
     /// purchase/restore handling and from another user's import of the same proof.
     func migrationSync(forUser: String? = nil) async {
-        guard activeUser() != nil, let user = forUser ?? activeUser(), !storage.migrationSynced(user),
+        guard let active = activeUser() else { return }
+        let user = forUser ?? active
+        guard user == active, !storage.migrationSynced(user),
               migratingUsers.insert(user).inserted else { return }
         defer { migratingUsers.remove(user) }
+        let open = Set(await storeKit.unfinishedTransactions().map(\.transactionId))
         let transactions = await storeKit.currentEntitlements()
+        guard activeUser() == user else { return }
         let deviceId = appreferId()
         var durable = true
         for transaction in transactions {
+            guard activeUser() == user else { return }
+            if open.contains(transaction.id) { durable = false; continue }
+            if let token = transaction.appAccountToken, storage.appUserId(forAccountToken: token) != user {
+                continue // A foreign or unknown token must never be claimed by this user.
+            }
+            let progress = "\(Data(user.utf8).base64EncodedString()):\(transaction.id)"
+            if storage.isMigrationPurchase(progress) { continue }
             if let existing = queue.entry(transactionId: transaction.id), existing.appUserId == user,
-               queue.isDurable(transactionId: transaction.id) { continue }
+               queue.isDurable(transactionId: transaction.id) {
+                if !storage.markMigrationPurchase(progress) { durable = false }
+                continue
+            }
             switch intents.match(transaction) {
             case .found, .unreadable, .lost: durable = false; continue
             case .none: break
             }
-            if transaction.signedTransaction.isEmpty { durable = false; continue }
-            if !storage.markMigrationPurchase(transaction.id) { durable = false }
+            if transaction.id.isEmpty || transaction.signedTransaction.isEmpty { durable = false; continue }
             let key = "migration:\(Data(user.utf8).base64EncodedString()):\(transaction.id)"
-            if queue.isDurable(transactionId: key) { continue }
+            if queue.isDurable(transactionId: key) {
+                if !storage.markMigrationPurchase(progress) { durable = false }
+                continue
+            }
             let entry = PendingPurchase(
                 transactionId: key, productId: transaction.productId, appUserId: user,
                 appreferId: deviceId, signedTransaction: transaction.signedTransaction,
                 enqueuedAt: now(), attempts: 0, kind: transaction.kind.rawValue,
                 accountToken: transaction.appAccountToken
             )
-            if !queue.add(entry) { durable = false }
+            if !queue.add(entry) || !storage.markMigrationPurchase(progress) { durable = false }
         }
         if durable { storage.markMigrationSynced(user) }
         await drainQueue()
@@ -412,9 +428,6 @@ actor BillingEngine {
                 logger.error("Billing: transaction \(transaction.id): \(supportNote ?? "")")
             }
         }
-        if initiator == nil, intent == nil, storage.isMigrationPurchase(transaction.id) {
-            return await currentAnswerWithoutNetwork()
-        }
         let owner = initiator ?? tokenOwner ?? intent?.appUserId ?? user
         // Attributes belong to whoever is signed in now.
         let attributes = owner == user ? storage.pendingAttributes : [:]
@@ -509,11 +522,15 @@ actor BillingEngine {
     }
 
     private func rejectedEntry(from entry: PendingPurchase, reason: String) -> AppReferRejectedPurchase {
-        AppReferRejectedPurchase(
-            transactionId: entry.transactionId, productId: entry.productId, appUserId: entry.appUserId,
+        let prefix = "migration:\(Data(entry.appUserId.utf8).base64EncodedString()):"
+        let migrationOnly = entry.transactionId.hasPrefix(prefix)
+        return AppReferRejectedPurchase(
+            transactionId: migrationOnly ? String(entry.transactionId.dropFirst(prefix.count)) : entry.transactionId,
+            productId: entry.productId, appUserId: entry.appUserId,
             appreferId: entry.appreferId, signedTransaction: entry.signedTransaction,
             accountToken: entry.accountToken, kind: entry.kind ?? heldUpdates[entry.transactionId]?.verified?.kind.rawValue,
-            verifiedByStoreKit: true, reason: reason, rejectedAt: now()
+            verifiedByStoreKit: true, reason: reason, rejectedAt: now(),
+            migrationOnly: migrationOnly
         )
     }
 

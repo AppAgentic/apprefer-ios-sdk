@@ -63,7 +63,7 @@ final class BillingMigrationTests: XCTestCase {
         XCTAssertTrue(queue.isEmpty)
         XCTAssertEqual(store.syncCalls, 0)
     }
-    func testStartupAndRestartNeverFinishImportedTransactions() async {
+    func testStartupAndRestartProcessOpenTransactionsNormally() async {
         let env = BillingTestEnvironment()
         let store = FakeStoreKit(entitlements: [BillingFixtures.transaction()])
         let counter = FinishCounter()
@@ -73,8 +73,8 @@ final class BillingMigrationTests: XCTestCase {
         await first.start()
         let second = env.engine(transport: transport, storeKit: store, appUserId: "alice")
         await second.start()
-        XCTAssertEqual(counter.count, 0)
-        XCTAssertEqual(transport.requests(to: "/api/billing/v1/purchases").count, 1)
+        XCTAssertEqual(counter.count, 2)
+        XCTAssertEqual(transport.requests(to: "/api/billing/v1/purchases").count, 2)
     }
 
     func testMigrationBackoffKeepsEveryImportDurableWithoutRestore() async {

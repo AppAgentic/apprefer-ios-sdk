@@ -118,8 +118,11 @@ final class BillingStorage {
         importedIds.contains(id) || FileManager.default.fileExists(atPath: importURL(id).path)
     }
     func markMigrationPurchase(_ id: String) -> Bool {
-        importedIds.insert(id)
-        do { try Self.writeChecked(Data("readonly".utf8), to: importURL(id)); return true }
+        do {
+            try Self.writeChecked(Data("readonly".utf8), to: importURL(id))
+            importedIds.insert(id)
+            return true
+        }
         catch { return false }
     }
     private func importURL(_ id: String) -> URL {

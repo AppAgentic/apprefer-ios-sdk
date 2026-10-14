@@ -59,13 +59,18 @@ final class FakeStoreKit: BillingStoreKit, @unchecked Sendable {
     var entitlements: [StoreTransaction]
     var unfinished: [StoreKitUpdate] = []
     var syncCalls = 0
+    var unfinishedCalls = 0
+    var onEntitlements: (() async -> Void)?
 
     init(entitlements: [StoreTransaction] = []) {
         self.entitlements = entitlements
     }
 
-    func currentEntitlements() async -> [StoreTransaction] { entitlements }
-    func unfinishedTransactions() async -> [StoreKitUpdate] { unfinished }
+    func currentEntitlements() async -> [StoreTransaction] {
+        await onEntitlements?()
+        return entitlements
+    }
+    func unfinishedTransactions() async -> [StoreKitUpdate] { unfinishedCalls += 1; return unfinished }
     func transactionUpdates() -> AsyncStream<StoreKitUpdate> { AsyncStream { $0.finish() } }
     func sync() async throws { syncCalls += 1 }
 }
