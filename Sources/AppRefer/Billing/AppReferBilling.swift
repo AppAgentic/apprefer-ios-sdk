@@ -152,7 +152,7 @@ public enum AppReferBilling {
         _engine = engine
         lock.unlock()
 
-        Task { await engine.start() }
+        DispatchQueue.main.async { Task { await engine.start() } }
         observeForeground(engine)
     }
 
@@ -163,6 +163,7 @@ public enum AppReferBilling {
         ) { _ in
             Task {
                 _ = await engine.customerInfo(policy: .cachedOrFetched)
+                await engine.migrationSync()
                 await engine.drainQueue()
             }
         }

@@ -30,6 +30,7 @@ actor BillingEngine {
     private var registeredUsers = Set<String>()
     private var updatesTask: Task<Void, Never>?
     private var isDraining = false
+    private var migratingUsers = Set<String>()
     /// Retry queue pause after 401/403/404/409/429 (doubling) or a `Retry-After`.
     private var drainBackoff: (until: Date, delay: TimeInterval)?
     /// Transactions whose retry copy isn't on disk yet: left unfinished until it is saved
@@ -158,11 +159,44 @@ actor BillingEngine {
                 }
             }
         }
+        await migrationSync()
         for update in await storeKit.unfinishedTransactions() {
             _ = await process(update)
         }
         clearIntentsLostMarkerIfIdle()
         _ = await customerInfo(policy: .fetchCurrent)
+    }
+
+    /// Read-only import. A distinct queue key keeps migration retries separate from
+    /// purchase/restore handling and from another user's import of the same proof.
+    func migrationSync(forUser: String? = nil) async {
+        guard activeUser() != nil, let user = forUser ?? activeUser(), !storage.migrationSynced(user),
+              migratingUsers.insert(user).inserted else { return }
+        defer { migratingUsers.remove(user) }
+        let transactions = await storeKit.currentEntitlements()
+        let deviceId = appreferId()
+        var durable = true
+        for transaction in transactions {
+            if let existing = queue.entry(transactionId: transaction.id), existing.appUserId == user,
+               queue.isDurable(transactionId: transaction.id) { continue }
+            switch intents.match(transaction) {
+            case .found, .unreadable, .lost: durable = false; continue
+            case .none: break
+            }
+            if transaction.signedTransaction.isEmpty { durable = false; continue }
+            if !storage.markMigrationPurchase(transaction.id) { durable = false }
+            let key = "migration:\(Data(user.utf8).base64EncodedString()):\(transaction.id)"
+            if queue.isDurable(transactionId: key) { continue }
+            let entry = PendingPurchase(
+                transactionId: key, productId: transaction.productId, appUserId: user,
+                appreferId: deviceId, signedTransaction: transaction.signedTransaction,
+                enqueuedAt: now(), attempts: 0, kind: transaction.kind.rawValue,
+                accountToken: transaction.appAccountToken
+            )
+            if !queue.add(entry) { durable = false }
+        }
+        if durable { storage.markMigrationSynced(user) }
+        await drainQueue()
     }
 
     /// Empty while protected data is unavailable.
@@ -377,6 +411,9 @@ actor BillingEngine {
                     + "after waiting 48 hours this purchase was assigned to the signed-in user \(user). Confirm the buyer."
                 logger.error("Billing: transaction \(transaction.id): \(supportNote ?? "")")
             }
+        }
+        if initiator == nil, intent == nil, storage.isMigrationPurchase(transaction.id) {
+            return await currentAnswerWithoutNetwork()
         }
         let owner = initiator ?? tokenOwner ?? intent?.appUserId ?? user
         // Attributes belong to whoever is signed in now.
@@ -719,7 +756,9 @@ actor BillingEngine {
             throw AppReferBillingError.invalidAppUserId
         }
         pendingIdentityChanges.append(.logIn(appUserId))
-        return await customerInfo(policy: .fetchCurrent)
+        let info = await customerInfo(policy: .fetchCurrent)
+        Task { await self.migrationSync(forUser: appUserId) }
+        return info
     }
 
     func logOut() async -> AppReferCustomerInfo {

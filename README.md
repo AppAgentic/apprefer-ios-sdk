@@ -206,6 +206,8 @@ A paying user is never locked out because AppRefer is down:
 
 ### Migrating from RevenueCat
 
+**No RevenueCat data export is needed.** On first billing configure for each install and user, AppRefer imports the store's active purchases in the background using StoreKit 2's signed current entitlements, including previously finished purchases. Logging in as a new user runs the import for that user. Each purchase is sent without `restore: true`, so it fills unowned purchases and records state without transferring purchases already owned by another user. The completion flag is saved only after every purchase is accepted or durably queued for retry. Migration never finishes, acknowledges or consumes a purchase on device; retry uploads use the same rule. Purchases older than 24 hours update state without an ad conversion. Keep the same app user IDs and configure store notifications for renewals.
+
 | RevenueCat | AppRefer Billing |
 |---|---|
 | `Purchases.configure(withAPIKey:appUserID:)` | `AppReferBilling.configure(appUserId:entitlementsByProduct:)` (after `AppRefer.configure(apiKey:)`) |

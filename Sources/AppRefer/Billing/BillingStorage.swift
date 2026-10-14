@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Security
 
 /// Small key-value store for values that must survive reinstalls (the anonymous id).
@@ -110,6 +111,35 @@ final class BillingStorage {
 
     static func isAnonymous(_ appUserId: String) -> Bool {
         appUserId.hasPrefix(anonymousPrefix)
+    }
+
+    private var importedIds = Set<String>()
+    func isMigrationPurchase(_ id: String) -> Bool {
+        importedIds.contains(id) || FileManager.default.fileExists(atPath: importURL(id).path)
+    }
+    func markMigrationPurchase(_ id: String) -> Bool {
+        importedIds.insert(id)
+        do { try Self.writeChecked(Data("readonly".utf8), to: importURL(id)); return true }
+        catch { return false }
+    }
+    private func importURL(_ id: String) -> URL {
+        let key = SHA256.hash(data: Data(id.utf8)).map { String(format: "%02x", $0) }.joined()
+        return directory.appendingPathComponent("migration-purchase-\(key).flag")
+    }
+
+    func migrationSynced(_ user: String) -> Bool {
+        (try? Data(contentsOf: migrationURL(user))) == Data("done".utf8)
+    }
+
+    @discardableResult
+    func markMigrationSynced(_ user: String) -> Bool {
+        do { try Self.writeChecked(Data("done".utf8), to: migrationURL(user)); return true }
+        catch { return false }
+    }
+
+    private func migrationURL(_ user: String) -> URL {
+        let key = SHA256.hash(data: Data(user.utf8)).map { String(format: "%02x", $0) }.joined()
+        return directory.appendingPathComponent("migration-\(key).flag")
     }
 
     // MARK: - Identity
