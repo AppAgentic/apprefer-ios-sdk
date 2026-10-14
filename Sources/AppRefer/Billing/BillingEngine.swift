@@ -649,7 +649,12 @@ actor BillingEngine {
     }
 
     private func processDeferredUpdates() async {
-        guard !deferredUpdates.isEmpty, activeUser() != nil else { return }
+        guard activeUser() != nil else { return }
+        guard !deferredUpdates.isEmpty else {
+            // The marker may only now be old enough to clear.
+            clearIntentsLostMarkerIfIdle()
+            return
+        }
         let updates = deferredUpdates
         let initiators = deferredInitiators
         let savedIntents = deferredIntents
@@ -663,10 +668,12 @@ actor BillingEngine {
         clearIntentsLostMarkerIfIdle()
     }
 
-    /// The lost-intents marker goes once no purchase is waiting for its owner.
+    /// The lost-intents marker goes once no purchase is waiting for its owner and it is at
+    /// least `lostIntentsWait` old, so a slow Ask to Buy purchase arriving later still waits.
     private func clearIntentsLostMarkerIfIdle() {
         guard deferredUpdates.isEmpty, lostIntentDeferrals.isEmpty,
-              case .lost = intents.lostMarker.state else { return }
+              case .lost(let since) = intents.lostMarker.state,
+              now() >= since.addingTimeInterval(PurchaseIntentStore.lostIntentsWait) else { return }
         intents.lostMarker.clear()
     }
 

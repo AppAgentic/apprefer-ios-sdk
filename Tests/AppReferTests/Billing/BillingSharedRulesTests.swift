@@ -127,15 +127,42 @@ final class BillingSharedRulesTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: markerURL.path), "cleared: nothing deferred")
     }
 
-    func testIntentsLostMarkerIsClearedWhenNoPurchaseIsWaiting() async throws {
+    func testIntentsLostMarkerClearsOnlyWhenNothingWaitsAndItIs48HoursOld() async throws {
         try FileManager.default.createDirectory(at: env.directory, withIntermediateDirectories: true)
         try Data("[{]".utf8).write(to: intentsURL)
+        let clock = TestClock()
         let storage = env.storage()
         storage.loggedInAppUserId = "user_b"
-        let engine = env.engine(transport: MockBillingTransport.ok(BillingFixtures.emptyCustomerJSON(appUserId: "user_b")), storage: storage)
+        let engine = env.engine(transport: MockBillingTransport.ok(BillingFixtures.emptyCustomerJSON(appUserId: "user_b")),
+                                storage: storage, now: { clock.now })
         XCTAssertTrue(FileManager.default.fileExists(atPath: markerURL.path))
         await engine.start() // no unfinished transactions
+        XCTAssertTrue(FileManager.default.fileExists(atPath: markerURL.path), "kept: a slow Ask to Buy purchase may still arrive")
+
+        clock.advance(PurchaseIntentStore.lostIntentsWait)
+        _ = await engine.customerInfo(policy: .cachedOrFetched) // foreground
         XCTAssertFalse(FileManager.default.fileExists(atPath: markerURL.path))
+    }
+
+    func testLostIntentsWaitStartsAtTheEarlierOfPurchaseAndLoss() async throws {
+        try FileManager.default.createDirectory(at: env.directory, withIntermediateDirectories: true)
+        try Data("{not json".utf8).write(to: intentsURL)
+        let clock = TestClock()
+        let storage = env.storage()
+        storage.loggedInAppUserId = "user_b"
+        let transport = MockBillingTransport.ok(BillingFixtures.emptyCustomerJSON(appUserId: "user_b"))
+        let engine = env.engine(transport: transport, storage: storage, now: { clock.now })
+        // Bought 47 hours before the intents were found lost.
+        let purchase = original(at: clock.now.addingTimeInterval(-47 * 3600))
+        let counter = FinishCounter()
+        _ = await engine.process(BillingFixtures.update(purchase, counter: counter))
+        XCTAssertTrue(transport.requests(to: purchasesPath).isEmpty, "held")
+
+        // 48 hours after the purchase (one after the loss): sent.
+        clock.advance(3600)
+        _ = await engine.customerInfo(policy: .cachedOrFetched)
+        XCTAssertEqual(transport.requests(to: purchasesPath).map { $0.jsonBody?["appUserId"] as? String }, ["user_b"])
+        XCTAssertEqual(counter.count, 1)
     }
 
     func testMalformedIntentsStayInPlaceWhenTheMarkerCantBeSaved() {
