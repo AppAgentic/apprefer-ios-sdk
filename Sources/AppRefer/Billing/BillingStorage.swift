@@ -4,7 +4,9 @@ import Security
 /// Small key-value store for values that must survive reinstalls (the anonymous id).
 protocol BillingSecureStore: AnyObject {
     func read(_ key: String) -> KeychainReadResult
-    func set(_ value: String?, forKey key: String)
+    /// Returns whether the value is now stored.
+    @discardableResult
+    func set(_ value: String?, forKey key: String) -> Bool
 }
 
 /// Keychain-backed store. If the Keychain write fails (e.g. a macOS CLI without
@@ -22,22 +24,29 @@ final class KeychainBillingSecureStore: BillingSecureStore {
         switch result {
         case .found, .unavailable:
             return result
-        case .notFound, .failed:
+        case .notFound:
             return defaults.string(forKey: fallbackPrefix + key).map { .found($0) } ?? result
+        case .failed(let status):
+            if let value = defaults.string(forKey: fallbackPrefix + key) { return .found(value) }
+            // No Keychain at all (macOS CLI without entitlements): the UserDefaults copy is
+            // the store, so its absence is a real absence. Other failures stay unknown.
+            return status == errSecMissingEntitlement ? .notFound : result
         }
     }
 
-    func set(_ value: String?, forKey key: String) {
+    @discardableResult
+    func set(_ value: String?, forKey key: String) -> Bool {
         guard let value else {
             KeychainHelper.delete(key: key)
             defaults.removeObject(forKey: fallbackPrefix + key)
-            return
+            return true
         }
         if KeychainHelper.save(key: key, value: value) {
             defaults.removeObject(forKey: fallbackPrefix + key)
-        } else {
-            defaults.set(value, forKey: fallbackPrefix + key)
+            return true
         }
+        defaults.set(value, forKey: fallbackPrefix + key)
+        return defaults.string(forKey: fallbackPrefix + key) == value
     }
 }
 
@@ -45,15 +54,22 @@ final class InMemoryBillingSecureStore: BillingSecureStore {
     private var values: [String: String] = [:]
     /// Simulates the Keychain before first unlock.
     var isLocked = false
+    /// Simulates any other Keychain read failure.
+    var readFailure: OSStatus?
+    /// Simulates a Keychain write failure.
+    var failWrites = false
 
     func read(_ key: String) -> KeychainReadResult {
         if isLocked { return .unavailable(errSecInteractionNotAllowed) }
+        if let readFailure { return .failed(readFailure) }
         return values[key].map { .found($0) } ?? .notFound
     }
 
-    func set(_ value: String?, forKey key: String) {
-        if isLocked { return }
+    @discardableResult
+    func set(_ value: String?, forKey key: String) -> Bool {
+        if isLocked || failWrites { return false }
         values[key] = value
+        return true
     }
 }
 
@@ -107,21 +123,39 @@ final class BillingStorage {
         return true
     }
 
-    /// `$ARAnon:<UUID>`, minted once and kept in the Keychain (survives reinstalls).
-    /// Nil while the Keychain is locked, so a new id never replaces the real one.
-    func anonymousId() -> String? {
+    enum StoredAnonymousId: Equatable {
+        case found(String)
+        /// Confirmed: no anonymous id was ever saved.
+        case absent
+        /// The Keychain couldn't be read (locked or failing): the id may exist.
+        case unknown
+    }
+
+    /// The saved anonymous id, without minting one.
+    var storedAnonymousId: StoredAnonymousId {
         switch secure.read(Key.anonymousId) {
-        case .found(let existing) where Self.isAnonymous(existing): return existing
-        case .unavailable: return nil
-        default: return resetAnonymousId()
+        case .found(let existing): return Self.isAnonymous(existing) ? .found(existing) : .absent
+        case .notFound: return .absent
+        case .unavailable, .failed: return .unknown
         }
     }
 
+    /// `$ARAnon:<UUID>`, minted once and kept in the Keychain (survives reinstalls).
+    /// Minted only when the Keychain confirms there is none, and returned only once it
+    /// is saved; nil otherwise, so an unsaved or replacement id is never used.
+    func anonymousId() -> String? {
+        switch storedAnonymousId {
+        case .found(let existing): return existing
+        case .absent: return resetAnonymousId()
+        case .unknown: return nil
+        }
+    }
+
+    /// A new anonymous id, or nil when it couldn't be saved.
     @discardableResult
-    func resetAnonymousId() -> String {
+    func resetAnonymousId() -> String? {
         let id = Self.anonymousPrefix + UUID().uuidString
-        secure.set(id, forKey: Key.anonymousId)
-        return id
+        return secure.set(id, forKey: Key.anonymousId) ? id : nil
     }
 
     /// The logged-in app user id, or nil while anonymous.
@@ -141,6 +175,12 @@ final class BillingStorage {
     func accountToken(for appUserId: String) -> UUID? {
         guard let raw = (defaults.dictionary(forKey: Key.accountTokens) as? [String: String])?[appUserId] else { return nil }
         return UUID(uuidString: raw)
+    }
+
+    /// The app user a purchase's `appAccountToken` belongs to, if this device knows it.
+    func appUserId(forAccountToken token: UUID) -> String? {
+        let all = defaults.dictionary(forKey: Key.accountTokens) as? [String: String] ?? [:]
+        return all.first { UUID(uuidString: $0.value) == token }?.key
     }
 
     func setAccountToken(_ token: String, for appUserId: String) {
@@ -248,10 +288,14 @@ final class BillingStorage {
     }
 
     static func write(_ data: Data, to url: URL) {
+        try? writeChecked(data, to: url)
+    }
+
+    static func writeChecked(_ data: Data, to url: URL) throws {
         #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
-        try? data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         #else
-        try? data.write(to: url, options: [.atomic])
+        try data.write(to: url, options: [.atomic])
         #endif
     }
 }

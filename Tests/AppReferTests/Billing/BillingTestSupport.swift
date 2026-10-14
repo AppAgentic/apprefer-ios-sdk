@@ -5,6 +5,7 @@ import Foundation
 final class MockBillingTransport: BillingTransport, @unchecked Sendable {
     private let lock = NSLock()
     private var _requests: [URLRequest] = []
+    private var _retryAfter: String?
     var handler: @Sendable (URLRequest) throws -> (Data, Int)
 
     init(handler: @escaping @Sendable (URLRequest) throws -> (Data, Int)) {
@@ -17,8 +18,15 @@ final class MockBillingTransport: BillingTransport, @unchecked Sendable {
         return _requests
     }
 
-    func send(_ request: URLRequest) async throws -> (Data, Int) {
-        try record(request)(request)
+    /// `Retry-After` header sent with every non-2xx answer.
+    var retryAfter: String? {
+        get { lock.lock(); defer { lock.unlock() }; return _retryAfter }
+        set { lock.lock(); _retryAfter = newValue; lock.unlock() }
+    }
+
+    func send(_ request: URLRequest) async throws -> BillingHTTPResponse {
+        let (data, status) = try record(request)(request)
+        return BillingHTTPResponse(data: data, status: status, retryAfter: (200..<300).contains(status) ? nil : retryAfter)
     }
 
     private func record(_ request: URLRequest) -> @Sendable (URLRequest) throws -> (Data, Int) {

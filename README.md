@@ -195,8 +195,9 @@ The AppRefer attribution device id is sent automatically as `appreferId`, so pur
 
 A paying user is never locked out because AppRefer is down:
 
-- If AppRefer can't be reached or returns an error, entitlements come from StoreKit's verified `Transaction.currentEntitlements` (not revoked, not expired, not upgraded away), mapped through `entitlementsByProduct`, merged with the last server answer for the same user.
-- A transaction AppRefer can't accept right now is saved to a retry queue on disk and then finished, so StoreKit doesn't redeliver it forever. The queue is resent on the next launch, on foreground and after the next successful call. App Store Server Notifications also reach AppRefer on their own.
+- If AppRefer can't be reached at all, entitlements come from StoreKit's verified `Transaction.currentEntitlements` (not revoked, not expired, not upgraded away), mapped through `entitlementsByProduct`, merged with the last server answer for the same user.
+- While AppRefer answers, its answer is merged with the customer's own verified StoreKit purchases (untagged, tagged with their account token, or still queued for them), never another app user's.
+- A transaction AppRefer can't accept right now is saved to a retry queue on disk and finished only once that copy is saved, so StoreKit doesn't redeliver it forever and never loses it. The queue is resent on the next launch, on foreground and after the next successful call, honouring the server's `Retry-After`. App Store Server Notifications also reach AppRefer on their own.
 - Unverified transactions are finished without granting access.
 
 ### Migrating from RevenueCat

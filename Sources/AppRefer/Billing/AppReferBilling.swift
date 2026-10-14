@@ -254,7 +254,9 @@ public enum AppReferBilling {
     ) async throws -> PurchaseResult {
         let engine = try requireEngine()
         var options = extraOptions
-        if let token = await engine.accountToken() {
+        // Whoever is signed in now owns the purchase, even if logIn/logOut runs during the sheet.
+        let (initiator, accountToken) = await engine.beginPurchase()
+        if let token = accountToken {
             options.insert(.appAccountToken(token))
         }
         if let offer = promotionalOffer {
@@ -269,10 +271,10 @@ public enum AppReferBilling {
         case .success(let verification):
             let update = LiveBillingStoreKit.update(from: verification)
             guard case .verified(let transaction) = verification else {
-                _ = await engine.process(update) // finishes without granting access
+                _ = await engine.process(update, initiator: initiator) // finishes without granting access
                 throw AppReferBillingError.unverifiedTransaction
             }
-            let info = await engine.process(update)
+            let info = await engine.process(update, initiator: initiator)
             return PurchaseResult(outcome: .purchased, transaction: transaction, customerInfo: info)
         case .userCancelled:
             return PurchaseResult(outcome: .userCancelled, transaction: nil, customerInfo: await engine.customerInfo(policy: .cachedOrFetched))

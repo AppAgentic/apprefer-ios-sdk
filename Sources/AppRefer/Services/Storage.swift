@@ -41,22 +41,27 @@ final class AppReferStorage: @unchecked Sendable {
     }
 
     /// The device id, minted once. Nil while the Keychain is locked (before first unlock
-    /// after a reboot): minting then would replace the real id.
+    /// after a reboot) or failing: minting then would replace the real id. A new id is
+    /// only returned once the Keychain has saved it.
     func deviceId() -> String? {
         Self.deviceIdLock.lock()
         defer { Self.deviceIdLock.unlock() }
 
         switch keychain.load(key: Self.keyDeviceId) {
         case .found(let existing): return existing
-        case .unavailable: return nil
-        case .notFound, .failed: break
+        case .unavailable, .failed: return nil
+        case .notFound: break
         }
         let newId = UUID().uuidString.lowercased()
-        if keychain.add(key: Self.keyDeviceId, value: newId) == errSecDuplicateItem {
+        switch keychain.add(key: Self.keyDeviceId, value: newId) {
+        case errSecSuccess:
+            return newId
+        case errSecDuplicateItem:
             // Another process (e.g. an app extension) added one first: use theirs.
-            return keychain.load(key: Self.keyDeviceId).value ?? newId
+            return keychain.load(key: Self.keyDeviceId).value
+        default:
+            return nil
         }
-        return newId
     }
 
     // MARK: - First Run Date

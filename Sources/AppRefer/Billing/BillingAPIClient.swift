@@ -8,8 +8,8 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
     case missingApiKey
     /// AppRefer could not be reached.
     case network(String)
-    /// AppRefer answered with an error status.
-    case server(status: Int, message: String?)
+    /// AppRefer answered with an error status. `retryAfter` is the server's `Retry-After`, in seconds.
+    case server(status: Int, message: String?, retryAfter: TimeInterval? = nil)
     /// AppRefer answered 2xx with a body the SDK could not read.
     case invalidResponse
     /// StoreKit could not verify the transaction's signature; no access was granted.
@@ -22,7 +22,7 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
         case .notConfigured: return "AppReferBilling.configure() has not been called"
         case .missingApiKey: return "AppRefer SDK key missing: call AppRefer.configure(apiKey:) or pass apiKey to AppReferBilling.configure"
         case .network(let detail): return "AppRefer unreachable: \(detail)"
-        case .server(let status, let message): return "AppRefer error \(status)\(message.map { ": \($0)" } ?? "")"
+        case .server(let status, let message, _): return "AppRefer error \(status)\(message.map { ": \($0)" } ?? "")"
         case .invalidResponse: return "AppRefer returned an unreadable response"
         case .unverifiedTransaction: return "StoreKit could not verify the transaction"
         case .invalidAppUserId: return "Invalid app user id"
@@ -34,7 +34,7 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
     var isRetryable: Bool {
         switch self {
         case .notConfigured, .missingApiKey, .network, .invalidResponse: return true
-        case .server(let status, _): return ![400, 413, 422].contains(status)
+        case .server(let status, _, _): return ![400, 413, 422].contains(status)
         case .unverifiedTransaction, .invalidAppUserId: return false
         }
     }
@@ -42,23 +42,44 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
     /// Statuses that mean "not now" rather than "never" (auth/config not set up yet, rate
     /// limited): the retry queue backs off and keeps the purchase without counting an attempt.
     var isBackoff: Bool {
-        if case .server(let status, _) = self { return [401, 403, 404, 409, 429].contains(status) }
+        if case .server(let status, _, _) = self { return [401, 403, 404, 409, 429].contains(status) }
         return false
     }
 
     var isConnectivity: Bool {
         switch self {
         case .network, .missingApiKey, .notConfigured: return true
-        case .server(let status, _): return status >= 500
+        case .server(let status, _, _): return status >= 500
         default: return false
         }
     }
+
+    /// No answer from AppRefer at all (as opposed to an error status).
+    var isUnreachable: Bool {
+        switch self {
+        case .network, .missingApiKey, .notConfigured: return true
+        default: return false
+        }
+    }
+
+    /// How long the server asked us to wait, if it did.
+    var retryAfter: TimeInterval? {
+        if case .server(_, _, let retryAfter) = self { return retryAfter }
+        return nil
+    }
+}
+
+/// One HTTP answer: body, status and the raw `Retry-After` header.
+struct BillingHTTPResponse: Sendable {
+    let data: Data
+    let status: Int
+    var retryAfter: String? = nil
 }
 
 /// Sends one HTTP request. Abstracted so request building and failover are testable.
 protocol BillingTransport: Sendable {
-    /// Returns body and status code; throws `AppReferBillingError.network` when unreachable.
-    func send(_ request: URLRequest) async throws -> (Data, Int)
+    /// Returns the answer; throws `AppReferBillingError.network` when unreachable.
+    func send(_ request: URLRequest) async throws -> BillingHTTPResponse
 }
 
 @available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
@@ -76,11 +97,11 @@ struct URLSessionBillingTransport: BillingTransport {
         }
     }
 
-    func send(_ request: URLRequest) async throws -> (Data, Int) {
+    func send(_ request: URLRequest) async throws -> BillingHTTPResponse {
         do {
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw AppReferBillingError.invalidResponse }
-            return (data, http.statusCode)
+            return BillingHTTPResponse(data: data, status: http.statusCode, retryAfter: http.value(forHTTPHeaderField: "Retry-After"))
         } catch let error as AppReferBillingError {
             throw error
         } catch {
@@ -198,10 +219,9 @@ struct BillingAPIClient: Sendable {
 
         for baseURL in baseURLs {
             let request = try Self.makeRequest(endpoint, baseURL: baseURL, apiKey: key, timeout: timeout)
-            let data: Data
-            let status: Int
+            let response: BillingHTTPResponse
             do {
-                (data, status) = try await transport.send(request)
+                response = try await transport.send(request)
             } catch let error as AppReferBillingError {
                 lastError = error
                 continue
@@ -210,7 +230,15 @@ struct BillingAPIClient: Sendable {
                 continue
             }
 
+            let (data, status) = (response.data, response.status)
             if (200..<300).contains(status) {
+                if case .purchase = endpoint, !Self.isRecorded(data) {
+                    // Older servers answered 200 when the purchase was verified but not
+                    // recorded; treat it like today's 503 so the retry copy is kept.
+                    throw AppReferBillingError.server(
+                        status: 503, message: "Purchase verified but not recorded yet", retryAfter: Self.defaultRetryAfter
+                    )
+                }
                 do {
                     return try JSONDecoder().decode(BillingCustomerResponse.self, from: data)
                 } catch {
@@ -218,7 +246,9 @@ struct BillingAPIClient: Sendable {
                 }
             }
             let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
-            let error = AppReferBillingError.server(status: status, message: message)
+            let error = AppReferBillingError.server(
+                status: status, message: message, retryAfter: Self.parseRetryAfter(response.retryAfter, now: Date())
+            )
             if status >= 500 {
                 lastError = error
                 continue
@@ -226,5 +256,25 @@ struct BillingAPIClient: Sendable {
             throw error
         }
         throw lastError
+    }
+
+    static let defaultRetryAfter: TimeInterval = 30
+
+    /// False only when a 2xx purchase answer says the ledger write failed.
+    static func isRecorded(_ data: Data) -> Bool {
+        let purchase = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["purchase"] as? [String: Any]
+        return purchase?["conversion"] as? String != "failed"
+    }
+
+    /// `Retry-After` as delay-seconds or an HTTP date; nil when absent or unreadable.
+    static func parseRetryAfter(_ raw: String?, now: Date) -> TimeInterval? {
+        guard let value = raw?.trimmingCharacters(in: .whitespaces), !value.isEmpty else { return nil }
+        if let seconds = Int(value) { return seconds >= 0 ? TimeInterval(seconds) : nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        guard let date = formatter.date(from: value) else { return nil }
+        return max(0, date.timeIntervalSince(now))
     }
 }
