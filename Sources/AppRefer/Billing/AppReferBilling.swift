@@ -24,6 +24,7 @@ public protocol AppReferBillingDelegate: AnyObject {
 public enum AppReferBilling {
     public typealias CustomerInfo = AppReferCustomerInfo
     public typealias EntitlementInfo = AppReferEntitlementInfo
+    public typealias RejectedPurchase = AppReferRejectedPurchase
 
     public enum FetchPolicy: Sendable, Equatable {
         /// The cached answer if it is under 5 minutes old, otherwise the server.
@@ -246,7 +247,10 @@ public enum AppReferBilling {
     }
 
     /// Buys a product. Tags the purchase with the customer's AppRefer account token,
-    /// verifies it, records it with AppRefer and finishes it.
+    /// verifies it, records it with AppRefer and finishes it. Who is buying is saved on the
+    /// device before the sheet opens, so a purchase that completes later (Ask to Buy, slow
+    /// payment, after a restart or user switch) still goes to them; if that can't be saved
+    /// it throws `AppReferBillingError.purchaseIntentNotSaved` without opening the sheet.
     public static func purchase(
         _ product: Product,
         promotionalOffer: PromotionalOffer? = nil,
@@ -255,8 +259,8 @@ public enum AppReferBilling {
         let engine = try requireEngine()
         var options = extraOptions
         // Whoever is signed in now owns the purchase, even if logIn/logOut runs during the sheet.
-        let (initiator, accountToken) = await engine.beginPurchase()
-        if let token = accountToken {
+        let intent = try await engine.beginPurchase(productId: product.id)
+        if let token = intent.accountToken {
             options.insert(.appAccountToken(token))
         }
         if let offer = promotionalOffer {
@@ -266,30 +270,47 @@ public enum AppReferBilling {
             ))
         }
 
-        let result = try await product.purchase(options: options)
+        let result: Product.PurchaseResult
+        do {
+            result = try await product.purchase(options: options)
+        } catch {
+            await engine.endPurchase(intent)
+            throw error
+        }
         switch result {
         case .success(let verification):
             let update = LiveBillingStoreKit.update(from: verification)
             guard case .verified(let transaction) = verification else {
-                _ = await engine.process(update, initiator: initiator) // finishes without granting access
+                _ = await engine.process(update, initiator: intent.appUserId, intent: intent) // rejected list; no access
                 throw AppReferBillingError.unverifiedTransaction
             }
-            let info = await engine.process(update, initiator: initiator)
+            let info = await engine.process(update, initiator: intent.appUserId, intent: intent)
             return PurchaseResult(outcome: .purchased, transaction: transaction, customerInfo: info)
         case .userCancelled:
+            await engine.endPurchase(intent)
             return PurchaseResult(outcome: .userCancelled, transaction: nil, customerInfo: await engine.customerInfo(policy: .cachedOrFetched))
         case .pending:
+            // The intent stays: the purchase arrives later through the transaction listener.
             return PurchaseResult(outcome: .pending, transaction: nil, customerInfo: await engine.customerInfo(policy: .cachedOrFetched))
         @unknown default:
             return PurchaseResult(outcome: .pending, transaction: nil, customerInfo: await engine.customerInfo(policy: .cachedOrFetched))
         }
     }
 
-    /// `AppStore.sync()` then sends every current entitlement to AppRefer.
+    /// `AppStore.sync()` then sends every current entitlement to AppRefer, and again any
+    /// verifiable purchase in `rejectedPurchases()` StoreKit no longer lists.
     /// Throws if the user cancels the App Store sign-in.
     @discardableResult
     public static func restorePurchases() async throws -> AppReferCustomerInfo {
         try await requireEngine().restore()
+    }
+
+    /// Purchases AppRefer refused for good (400/413/422), that StoreKit could not verify,
+    /// or that could not be delivered within 50 attempts / 90 days. Each was saved here
+    /// before its transaction was finished (consumables are left unfinished), for support,
+    /// and `restorePurchases()` sends the verifiable ones again. Empty before configure.
+    public static func rejectedPurchases() async -> [RejectedPurchase] {
+        await engine?.rejectedPurchases() ?? []
     }
 }
 

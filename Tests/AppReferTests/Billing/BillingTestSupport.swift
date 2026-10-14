@@ -57,6 +57,7 @@ final class MockBillingTransport: BillingTransport, @unchecked Sendable {
 
 final class FakeStoreKit: BillingStoreKit, @unchecked Sendable {
     var entitlements: [StoreTransaction]
+    var unfinished: [StoreKitUpdate] = []
     var syncCalls = 0
 
     init(entitlements: [StoreTransaction] = []) {
@@ -64,7 +65,7 @@ final class FakeStoreKit: BillingStoreKit, @unchecked Sendable {
     }
 
     func currentEntitlements() async -> [StoreTransaction] { entitlements }
-    func unfinishedTransactions() async -> [StoreKitUpdate] { [] }
+    func unfinishedTransactions() async -> [StoreKitUpdate] { unfinished }
     func transactionUpdates() -> AsyncStream<StoreKitUpdate> { AsyncStream { $0.finish() } }
     func sync() async throws { syncCalls += 1 }
 }

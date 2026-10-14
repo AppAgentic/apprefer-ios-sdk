@@ -54,12 +54,12 @@ final class BillingFinalRoundTests: XCTestCase {
             signedTransaction: "jws", enqueuedAt: BillingFixtures.now, attempts: PendingPurchaseQueue.maxAttempts
         )
         queue.add(stale)
-        XCTAssertTrue(queue.prune(now: BillingFixtures.now).isEmpty)
+        XCTAssertTrue(queue.prune(now: BillingFixtures.now, archive: { _ in true }).isEmpty)
 
         store.failWrites = false
         stale.attempts += 1
         XCTAssertTrue(queue.add(stale))
-        XCTAssertEqual(queue.prune(now: BillingFixtures.now).map(\.transactionId), ["t1"], "pruned once durable")
+        XCTAssertEqual(queue.prune(now: BillingFixtures.now, archive: { _ in true }).map(\.transactionId), ["t1"], "pruned once durable")
     }
 
     // MARK: - 2. Another owner's successful upload keeps the current user filtered

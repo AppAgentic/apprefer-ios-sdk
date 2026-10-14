@@ -16,6 +16,8 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
     case unverifiedTransaction
     /// App user ids must be 1-256 characters with no whitespace.
     case invalidAppUserId
+    /// Who is buying couldn't be saved on the device, so the purchase sheet wasn't opened.
+    case purchaseIntentNotSaved
 
     public var errorDescription: String? {
         switch self {
@@ -26,6 +28,7 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
         case .invalidResponse: return "AppRefer returned an unreadable response"
         case .unverifiedTransaction: return "StoreKit could not verify the transaction"
         case .invalidAppUserId: return "Invalid app user id"
+        case .purchaseIntentNotSaved: return "Couldn't save the purchase on this device; the purchase wasn't started"
         }
     }
 
@@ -33,7 +36,7 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
     /// and local verification failures are final.
     var isRetryable: Bool {
         switch self {
-        case .notConfigured, .missingApiKey, .network, .invalidResponse: return true
+        case .notConfigured, .missingApiKey, .network, .invalidResponse, .purchaseIntentNotSaved: return true
         case .server(let status, _, _): return ![400, 413, 422].contains(status)
         case .unverifiedTransaction, .invalidAppUserId: return false
         }

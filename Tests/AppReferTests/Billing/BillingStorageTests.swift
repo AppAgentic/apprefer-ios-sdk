@@ -162,7 +162,7 @@ final class BillingStorageTests: XCTestCase {
         queue.add(entry("tired", attempts: PendingPurchaseQueue.maxAttempts))
         queue.add(entry("old", enqueuedAt: BillingFixtures.now.addingTimeInterval(-PendingPurchaseQueue.maxAge - 1)))
 
-        let dropped = queue.prune(now: BillingFixtures.now)
+        let dropped = queue.prune(now: BillingFixtures.now, archive: { _ in true })
         XCTAssertEqual(Set(dropped.map(\.transactionId)), ["tired", "old"])
         XCTAssertEqual(env.queue().entries.map(\.transactionId), ["fresh"])
     }

@@ -11,6 +11,9 @@ struct PendingPurchase: Codable, Equatable, Sendable {
     var attempts: Int
     /// Queued by Restore Purchases, so the retry is still sent as a restore.
     var restore: Bool? = nil
+    /// `StoreTransaction.Kind` raw value, so a rejected consumable is never finished.
+    var kind: String? = nil
+    var accountToken: UUID? = nil
 }
 
 /// Where the retry queue is kept. Abstracted so write and read failures are testable.
@@ -123,15 +126,16 @@ final class PendingPurchaseQueue {
         return save(changed: nil)
     }
 
-    /// Drops entries that have failed too often or are too old. The server still gets
-    /// those purchases from App Store Server Notifications. An entry that isn't saved yet
-    /// is kept: its StoreKit transaction is still unfinished, and dropping it would leave
-    /// the purchase with neither a retry copy nor a server record.
+    /// Drops entries that have failed too often or are too old, each only once `archive`
+    /// confirms it saved a durable copy (the rejected list); the rest stay queued. An entry
+    /// that isn't saved yet is kept: its StoreKit transaction is still unfinished, and
+    /// dropping it would leave the purchase with neither a retry copy nor a server record.
     @discardableResult
-    func prune(now: Date = Date()) -> [PendingPurchase] {
+    func prune(now: Date = Date(), archive: (PendingPurchase) -> Bool) -> [PendingPurchase] {
         let dropped = entries.filter {
             isDurable(transactionId: $0.transactionId)
                 && ($0.attempts >= Self.maxAttempts || now.timeIntervalSince($0.enqueuedAt) > Self.maxAge)
+                && archive($0)
         }
         guard !dropped.isEmpty else { return [] }
         let ids = Set(dropped.map(\.transactionId))

@@ -27,6 +27,8 @@ struct StoreKitUpdate: Sendable {
     let verified: StoreTransaction?
     let transactionId: String
     let finish: @Sendable () async -> Void
+    /// What an unverified transaction claims (its JWS included), kept for the rejected list.
+    var unverifiedPayload: StoreTransaction? = nil
 }
 
 /// StoreKit behind a protocol so the engine can be tested with fakes.
@@ -111,7 +113,8 @@ struct LiveBillingStoreKit: BillingStoreKit {
             return StoreKitUpdate(
                 verified: nil,
                 transactionId: String(transaction.id),
-                finish: { await transaction.finish() }
+                finish: { await transaction.finish() },
+                unverifiedPayload: map(transaction, jws: verification.jwsRepresentation)
             )
         }
     }

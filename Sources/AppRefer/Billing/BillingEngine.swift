@@ -15,6 +15,8 @@ actor BillingEngine {
     private let api: BillingAPIClient
     private let storage: BillingStorage
     private let queue: PendingPurchaseQueue
+    private let rejected: RejectedPurchaseLog
+    private let intents: PurchaseIntentStore
     private let storeKit: BillingStoreKit
     private let options: Options
     private let appreferId: @Sendable () -> String?
@@ -46,11 +48,14 @@ actor BillingEngine {
     private var deferredUpdates: [StoreKitUpdate] = []
     /// Who started each purchase still waiting in `deferredUpdates`.
     private var deferredInitiators: [String: String] = [:]
+    private var deferredIntents: [String: PurchaseIntent] = [:]
 
     init(
         api: BillingAPIClient,
         storage: BillingStorage,
         queue: PendingPurchaseQueue,
+        rejected: RejectedPurchaseLog? = nil,
+        intents: PurchaseIntentStore? = nil,
         storeKit: BillingStoreKit,
         options: Options,
         appUserId: String?,
@@ -62,6 +67,8 @@ actor BillingEngine {
         self.api = api
         self.storage = storage
         self.queue = queue
+        self.rejected = rejected ?? RejectedPurchaseLog(fileURL: storage.directory.appendingPathComponent("rejected_purchases.json"))
+        self.intents = intents ?? PurchaseIntentStore(fileURL: storage.directory.appendingPathComponent("purchase_intents.json"))
         self.storeKit = storeKit
         self.options = options
         self.appreferId = appreferId
@@ -301,14 +308,34 @@ actor BillingEngine {
     /// it now, the signed transaction is queued on disk and finished once the queue entry
     /// is saved, so StoreKit doesn't keep redelivering it; access comes from the verified
     /// transaction meanwhile. If the save fails it stays unfinished until it succeeds.
+    /// A transaction AppRefer refuses for good, or StoreKit can't verify, is saved to the
+    /// rejected list first (see `secureRejected`).
     ///
     /// `initiator` is the app user who started the purchase (captured before the account
-    /// token was fetched and the sheet opened). Listener updates have none: they belong
-    /// to the user whose account token they carry, else the current user.
-    func process(_ update: StoreKitUpdate, initiator: String? = nil) async -> AppReferCustomerInfo {
+    /// token was fetched and the sheet opened) and `intent` the intent saved for it.
+    /// Listener updates have neither: they belong to the user whose account token they
+    /// carry, else the user whose saved intent matches (see `PurchaseIntentStore.match`),
+    /// else the current user. While the intents can't be read, a delivery that needs them
+    /// is left unfinished and retried rather than given to the current user.
+    func process(_ update: StoreKitUpdate, initiator: String? = nil, intent: PurchaseIntent? = nil) async -> AppReferCustomerInfo {
         guard let transaction = update.verified else {
-            logger.error("Billing: unverified transaction \(update.transactionId) finished without granting access")
-            await update.finish()
+            let claimed = update.unverifiedPayload
+            let entry = AppReferRejectedPurchase(
+                transactionId: update.transactionId,
+                productId: claimed?.productId ?? "",
+                appUserId: initiator ?? activeUser(),
+                appreferId: appreferId(),
+                signedTransaction: claimed?.signedTransaction,
+                accountToken: claimed?.appAccountToken,
+                kind: claimed?.kind.rawValue,
+                verifiedByStoreKit: false,
+                reason: AppReferBillingError.unverifiedTransaction.localizedDescription,
+                rejectedAt: now()
+            )
+            if await secureRejected(entry, update: update) {
+                logger.error("Billing: unverified transaction \(update.transactionId) kept in the rejected list; no access granted")
+                dropIntent(intent)
+            }
             return await currentAnswerWithoutNetwork()
         }
 
@@ -316,13 +343,23 @@ actor BillingEngine {
             // Before first unlock: whose purchase this is can't be read. Keep it
             // unfinished and send it once the identity is readable.
             logger.warn("Billing: protected data unavailable; transaction \(transaction.id) deferred")
-            if !deferredUpdates.contains(where: { $0.transactionId == update.transactionId }) {
-                deferredUpdates.append(update)
-            }
-            if let initiator { deferredInitiators[update.transactionId] = initiator }
+            deferUpdate(update, initiator: initiator, intent: intent)
             return await lockedFallback()
         }
-        let owner = initiator ?? transaction.appAccountToken.flatMap(storage.appUserId(forAccountToken:)) ?? user
+        let tokenOwner = transaction.appAccountToken.flatMap(storage.appUserId(forAccountToken:))
+        var intent = intent
+        if intent == nil, initiator == nil {
+            switch intents.match(transaction) {
+            case .found(let saved): intent = saved
+            case .none: break
+            case .unreadable where tokenOwner == nil:
+                logger.warn("Billing: purchase intents unreadable; transaction \(transaction.id) deferred")
+                deferUpdate(update, initiator: nil, intent: nil)
+                return await currentAnswerWithoutNetwork()
+            case .unreadable: break
+            }
+        }
+        let owner = initiator ?? tokenOwner ?? intent?.appUserId ?? user
         // Attributes belong to whoever is signed in now.
         let attributes = owner == user ? storage.pendingAttributes : [:]
         let deviceId = appreferId()
@@ -338,6 +375,8 @@ actor BillingEngine {
             ))
             storage.clearSentAttributes(attributes)
             await finish(update)
+            rejected.remove(transactionId: transaction.id)
+            dropIntent(intent)
             let info = await accept(response, for: owner)
             await drainQueue()
             if owner == user { return info }
@@ -353,11 +392,14 @@ actor BillingEngine {
                 appreferId: deviceId,
                 signedTransaction: transaction.signedTransaction,
                 enqueuedAt: now(),
-                attempts: Self.countsAsAttempt(error) ? 1 : 0
+                attempts: Self.countsAsAttempt(error) ? 1 : 0,
+                kind: transaction.kind.rawValue,
+                accountToken: transaction.appAccountToken
             ))
             if durable {
                 logger.warn("Billing: queued transaction \(transaction.id) for retry (\(error.localizedDescription))")
                 await finish(update)
+                dropIntent(intent)
             } else {
                 logger.error("Billing: couldn't save transaction \(transaction.id) for retry; leaving it unfinished")
                 heldUpdates[transaction.id] = update
@@ -367,9 +409,55 @@ actor BillingEngine {
             // Rejected as malformed: retrying won't help. StoreKit verified it, so it still
             // counts for its owner; App Store notifications reach the server.
             logger.error("Billing: AppRefer rejected transaction \(transaction.id): \(error.localizedDescription)")
-            await finish(update)
+            let entry = AppReferRejectedPurchase(
+                transactionId: transaction.id, productId: transaction.productId, appUserId: owner,
+                appreferId: deviceId, signedTransaction: transaction.signedTransaction,
+                accountToken: transaction.appAccountToken, kind: transaction.kind.rawValue,
+                verifiedByStoreKit: true, reason: error.localizedDescription, rejectedAt: now()
+            )
+            if await secureRejected(entry, update: update) { dropIntent(intent) }
             return await answerAfterUploadFailure()
         }
+    }
+
+    private func deferUpdate(_ update: StoreKitUpdate, initiator: String?, intent: PurchaseIntent?) {
+        if !deferredUpdates.contains(where: { $0.transactionId == update.transactionId }) {
+            deferredUpdates.append(update)
+        }
+        if let initiator { deferredInitiators[update.transactionId] = initiator }
+        if let intent { deferredIntents[update.transactionId] = intent }
+    }
+
+    /// Saves a purchase AppRefer won't take to the rejected list, and only once that copy
+    /// is on disk finishes its transaction. A consumable is never finished: StoreKit
+    /// offers it again at the next launch, when it is sent again. Until the copy is saved
+    /// nothing is finished, so StoreKit delivers it again. Returns whether it is saved.
+    private func secureRejected(_ entry: AppReferRejectedPurchase, update: StoreKitUpdate?) async -> Bool {
+        guard rejected.add(entry) else {
+            logger.error("Billing: couldn't save rejected transaction \(entry.transactionId); leaving it unfinished")
+            return false
+        }
+        if let update {
+            if entry.kind == StoreTransaction.Kind.consumable.rawValue {
+                heldUpdates[update.transactionId] = nil
+            } else {
+                await finish(update)
+            }
+        }
+        return true
+    }
+
+    private func dropIntent(_ intent: PurchaseIntent?) {
+        if let intent { intents.remove(intent) }
+    }
+
+    private func rejectedEntry(from entry: PendingPurchase, reason: String) -> AppReferRejectedPurchase {
+        AppReferRejectedPurchase(
+            transactionId: entry.transactionId, productId: entry.productId, appUserId: entry.appUserId,
+            appreferId: entry.appreferId, signedTransaction: entry.signedTransaction,
+            accountToken: entry.accountToken, kind: entry.kind ?? heldUpdates[entry.transactionId]?.verified?.kind.rawValue,
+            verifiedByStoreKit: true, reason: reason, rejectedAt: now()
+        )
     }
 
     private func finish(_ update: StoreKitUpdate) async {
@@ -407,12 +495,17 @@ actor BillingEngine {
     }
 
     /// `AppStore.sync()` then sends every current entitlement to AppRefer as a restore for
-    /// the user who asked (captured before the App Store sign-in sheet).
+    /// the user who asked (captured before the App Store sign-in sheet), followed by
+    /// rejected-list purchases StoreKit no longer lists (finished or consumable ones).
     func restore() async throws -> AppReferCustomerInfo {
         let initiator = activeUser()
         try await storeKit.sync()
         let transactions = await storeKit.currentEntitlements()
-        guard !transactions.isEmpty else { return await customerInfo(policy: .fetchCurrent) }
+        let listed = Set(transactions.map(\.id))
+        let archived = rejected.entries.filter {
+            !($0.signedTransaction ?? "").isEmpty && !listed.contains($0.transactionId)
+        }
+        guard !transactions.isEmpty || !archived.isEmpty else { return await customerInfo(policy: .fetchCurrent) }
 
         guard let user = initiator, activeUser() != nil else { return await lockedFallback() }
         await flushPendingIdentifies()
@@ -423,7 +516,8 @@ actor BillingEngine {
             var entry = PendingPurchase(
                 transactionId: transaction.id, productId: transaction.productId, appUserId: user,
                 appreferId: deviceId, signedTransaction: transaction.signedTransaction,
-                enqueuedAt: now(), attempts: 0, restore: true
+                enqueuedAt: now(), attempts: 0, restore: true,
+                kind: transaction.kind.rawValue, accountToken: transaction.appAccountToken
             )
             if paused {
                 // AppRefer can't take more now: queue the rest of the restore unsent.
@@ -435,6 +529,7 @@ actor BillingEngine {
                     appUserId: user, appreferId: deviceId,
                     signedTransaction: transaction.signedTransaction, attributes: [:], restore: true
                 ))
+                rejected.remove(transactionId: transaction.id)
             } catch let error as AppReferBillingError where error.isRetryable {
                 entry.attempts = Self.countsAsAttempt(error) ? 1 : 0
                 queue.add(entry)
@@ -442,11 +537,41 @@ actor BillingEngine {
                 paused = error.isConnectivity || error.isBackoff || error.retryAfter != nil
             } catch {
                 logger.error("Billing: AppRefer rejected restored transaction \(transaction.id): \(error.localizedDescription)")
+                // For support; StoreKit still lists it, so there's nothing to finish.
+                _ = await secureRejected(rejectedEntry(from: entry, reason: error.localizedDescription), update: nil)
+            }
+        }
+        var recordedConsumables = Set<String>()
+        for entry in archived where !paused {
+            do {
+                last = try await api.send(.purchase(
+                    appUserId: user, appreferId: deviceId,
+                    signedTransaction: entry.signedTransaction ?? "", attributes: [:], restore: true
+                ))
+                rejected.remove(transactionId: entry.transactionId)
+                if entry.kind == StoreTransaction.Kind.consumable.rawValue { recordedConsumables.insert(entry.transactionId) }
+            } catch let error as AppReferBillingError where error.isRetryable {
+                // Stays in the rejected list for the next restore.
+                pause(after: error)
+                paused = error.isConnectivity || error.isBackoff || error.retryAfter != nil
+            } catch {
+                logger.error("Billing: AppRefer rejected archived transaction \(entry.transactionId) again: \(error.localizedDescription)")
+            }
+        }
+        // A consumable left unfinished can be finished now that AppRefer recorded it.
+        if !recordedConsumables.isEmpty {
+            for update in await storeKit.unfinishedTransactions() where recordedConsumables.contains(update.transactionId) {
+                await finish(update)
             }
         }
         // AppRefer answered: its answer plus this customer's own (and queued) purchases.
         if let last { return await accept(last, for: user) }
         return await answerAfterUploadFailure()
+    }
+
+    /// Purchases kept in the rejected list (see `AppReferBilling.rejectedPurchases()`).
+    func rejectedPurchases() -> [AppReferRejectedPurchase] {
+        rejected.entries
     }
 
     /// Re-sends queued transactions. Stops at the first connectivity failure. A
@@ -462,9 +587,13 @@ actor BillingEngine {
         if let backoff = drainBackoff, now() < backoff.until { return }
 
         // Only saved entries are pruned, and their transactions were finished when they
-        // saved; an unsaved one stays held until it is saved or AppRefer records it.
-        for dropped in queue.prune(now: now()) {
-            logger.error("Billing: gave up resending transaction \(dropped.transactionId) after \(dropped.attempts) attempts")
+        // saved; an unsaved one stays held until it is saved or AppRefer records it. Each
+        // leaves the queue only once its copy is in the rejected list.
+        let dropped = queue.prune(now: now()) { entry in
+            rejected.add(rejectedEntry(from: entry, reason: "not recorded after \(entry.attempts) attempts"))
+        }
+        for entry in dropped {
+            logger.error("Billing: gave up resending transaction \(entry.transactionId) after \(entry.attempts) attempts; kept in the rejected list")
         }
         for entry in queue.entries {
             do {
@@ -484,8 +613,10 @@ actor BillingEngine {
                 queue.recordAttempt(transactionId: entry.transactionId)
                 if error.isConnectivity { return }
             } catch {
+                // Leaves the queue only once its copy is in the rejected list.
+                let archived = rejectedEntry(from: entry, reason: error.localizedDescription)
+                guard await secureRejected(archived, update: heldUpdates[entry.transactionId]) else { continue }
                 queue.remove(transactionId: entry.transactionId)
-                if let held = heldUpdates[entry.transactionId] { await finish(held) }
             }
         }
     }
@@ -503,26 +634,46 @@ actor BillingEngine {
         guard !deferredUpdates.isEmpty, activeUser() != nil else { return }
         let updates = deferredUpdates
         let initiators = deferredInitiators
+        let savedIntents = deferredIntents
         deferredUpdates = []
         deferredInitiators = [:]
-        for update in updates { _ = await process(update, initiator: initiators[update.transactionId]) }
+        deferredIntents = [:]
+        for update in updates {
+            _ = await process(update, initiator: initiators[update.transactionId], intent: savedIntents[update.transactionId])
+        }
     }
 
     // MARK: - Purchases
 
-    /// The user starting a purchase and their Apple `appAccountToken` (fetched from
-    /// AppRefer if not cached). Capture this before opening the purchase sheet and pass
-    /// the user to `process(_:initiator:)`, so a logIn during the sheet can't take the
-    /// purchase. The token is nil when AppRefer is unreachable: the purchase still goes ahead.
-    func beginPurchase() async -> (initiator: String?, accountToken: UUID?) {
-        guard let user = activeUser() else { return (nil, nil) }
-        if let token = storage.accountToken(for: user) { return (user, token) }
-        _ = try? await fetchFromServer(user, drain: false)
-        return (user, storage.accountToken(for: user))
+    /// Saves who is starting a purchase, with their Apple `appAccountToken` (fetched from
+    /// AppRefer if not cached), before the purchase sheet opens. Pass the intent to
+    /// `process(_:initiator:intent:)`, so a logIn during the sheet can't take the purchase;
+    /// a purchase delivered later (Ask to Buy, restart, user switch) finds it on disk. The
+    /// token is nil when AppRefer is unreachable: the purchase still goes ahead. Throws
+    /// `purchaseIntentNotSaved` when the intent can't be saved: the sheet must not open.
+    func beginPurchase(productId: String) async throws -> PurchaseIntent {
+        guard let user = activeUser() else { throw AppReferBillingError.purchaseIntentNotSaved }
+        if storage.accountToken(for: user) == nil { _ = try? await fetchFromServer(user, drain: false) }
+        let intent = PurchaseIntent(
+            appUserId: user, productId: productId, accountToken: storage.accountToken(for: user), startedAt: now()
+        )
+        guard intents.add(intent) else {
+            logger.error("Billing: couldn't save the purchase intent; not opening the purchase sheet")
+            throw AppReferBillingError.purchaseIntentNotSaved
+        }
+        return intent
+    }
+
+    /// The purchase sheet closed without a purchase (cancelled or failed).
+    func endPurchase(_ intent: PurchaseIntent) {
+        dropIntent(intent)
     }
 
     func accountToken() async -> UUID? {
-        await beginPurchase().accountToken
+        guard let user = activeUser() else { return nil }
+        if let token = storage.accountToken(for: user) { return token }
+        _ = try? await fetchFromServer(user, drain: false)
+        return storage.accountToken(for: user)
     }
 
     // MARK: - Identity

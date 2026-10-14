@@ -130,13 +130,13 @@ final class BillingSecondRoundTests: XCTestCase {
         let queue = env.queue()
         let engine = env.engine(transport: transport, storage: storage, queue: queue)
 
-        let started = await engine.beginPurchase()
-        XCTAssertEqual(started.initiator, "user_a")
+        let started = try await engine.beginPurchase(productId: "pro_yearly")
+        XCTAssertEqual(started.appUserId, "user_a")
         XCTAssertEqual(started.accountToken, BillingFixtures.otherAccountToken)
 
         _ = try await engine.logIn("user_b") // during the purchase sheet
         let transaction = BillingFixtures.transaction(appAccountToken: started.accountToken)
-        _ = await engine.process(BillingFixtures.update(transaction, counter: FinishCounter()), initiator: started.initiator)
+        _ = await engine.process(BillingFixtures.update(transaction, counter: FinishCounter()), initiator: started.appUserId, intent: started)
         XCTAssertEqual(transport.requests(to: purchasesPath).last?.jsonBody?["appUserId"] as? String, "user_a")
         XCTAssertEqual(queue.entries.first?.appUserId, "user_a")
 

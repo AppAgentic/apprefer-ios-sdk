@@ -168,6 +168,10 @@ let info = try await AppReferBilling.restorePurchases()  // AppStore.sync() + se
 
 `purchase` sets Apple's `appAccountToken` to the customer's AppRefer account token, verifies the transaction, sends it to AppRefer and only then finishes it. Signed promotional offers: `AppReferBilling.purchase(product, promotionalOffer: .init(offerId:keyId:nonce:signature:timestamp:))`.
 
+Before the sheet opens, `purchase` saves who is buying on the device, so a purchase that completes later (Ask to Buy, slow payment, after a restart, logout or user switch) still goes to that customer. If that can't be saved it throws `AppReferBillingError.purchaseIntentNotSaved` and the sheet doesn't open.
+
+A purchase AppRefer refuses for good (400/413/422), that StoreKit can't verify, or that couldn't be delivered within 50 attempts / 90 days is saved to `await AppReferBilling.rejectedPurchases()` before its transaction is finished (consumables are left unfinished), for support. `restorePurchases()` sends those again.
+
 ### Entitlements
 
 ```swift
