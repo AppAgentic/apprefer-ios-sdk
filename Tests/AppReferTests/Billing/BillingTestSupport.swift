@@ -18,11 +18,18 @@ final class MockBillingTransport: BillingTransport, @unchecked Sendable {
     }
 
     func send(_ request: URLRequest) async throws -> (Data, Int) {
+        try record(request)(request)
+    }
+
+    private func record(_ request: URLRequest) -> @Sendable (URLRequest) throws -> (Data, Int) {
         lock.lock()
+        defer { lock.unlock() }
         _requests.append(request)
-        let handler = self.handler
-        lock.unlock()
-        return try handler(request)
+        return handler
+    }
+
+    func requests(to path: String) -> [URLRequest] {
+        requests.filter { $0.url?.path == path }
     }
 
     func setHandler(_ handler: @escaping @Sendable (URLRequest) throws -> (Data, Int)) {
@@ -79,15 +86,19 @@ enum BillingFixtures {
         kind: StoreTransaction.Kind = .autoRenewable,
         expires: Date? = now.addingTimeInterval(86_400),
         revoked: Date? = nil,
-        upgraded: Bool = false
+        upgraded: Bool = false,
+        appAccountToken: UUID? = nil
     ) -> StoreTransaction {
         StoreTransaction(
             id: id, originalId: "orig-\(id)", productId: productId, kind: kind,
             purchaseDate: now.addingTimeInterval(-3600), expirationDate: expires,
             revocationDate: revoked, isUpgraded: upgraded, periodType: .normal,
-            signedTransaction: "jws.\(id).sig"
+            signedTransaction: "jws.\(id).sig", appAccountToken: appAccountToken
         )
     }
+
+    static let accountToken = UUID(uuidString: "6F9619FF-8B86-D011-B42D-00C04FC964FF")!
+    static let otherAccountToken = UUID(uuidString: "11111111-2222-3333-4444-555555555555")!
 
     static func update(_ t: StoreTransaction?, id: String = "1", counter: FinishCounter) -> StoreKitUpdate {
         StoreKitUpdate(verified: t, transactionId: t?.id ?? id, finish: { counter.increment() })
@@ -149,7 +160,8 @@ struct BillingTestEnvironment {
         appUserId: String? = nil,
         storage: BillingStorage? = nil,
         queue: PendingPurchaseQueue? = nil,
-        apiKey: String? = "pk_test_123"
+        apiKey: String? = "pk_test_123",
+        now: @escaping @Sendable () -> Date = { BillingFixtures.now }
     ) -> BillingEngine {
         BillingEngine(
             api: BillingAPIClient(
@@ -165,7 +177,7 @@ struct BillingTestEnvironment {
             appUserId: appUserId,
             appreferId: { "device-abc" },
             logger: AppReferLogger(debug: false, logLevel: 0),
-            now: { BillingFixtures.now }
+            now: now
         )
     }
 
@@ -178,5 +190,21 @@ struct BillingTestEnvironment {
 extension URLRequest {
     var jsonBody: [String: Any]? {
         httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    }
+}
+
+/// Settable clock for back-off tests.
+final class TestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _now = BillingFixtures.now
+    var now: Date {
+        lock.lock()
+        defer { lock.unlock() }
+        return _now
+    }
+    func advance(_ seconds: TimeInterval) {
+        lock.lock()
+        _now = _now.addingTimeInterval(seconds)
+        lock.unlock()
     }
 }

@@ -226,7 +226,7 @@ final class BillingEngineTests: XCTestCase {
         let identify = try XCTUnwrap(transport.requests.first { $0.url?.path == "/api/billing/v1/identify" })
         XCTAssertEqual(identify.jsonBody?["anonymousId"] as? String, anon)
         XCTAssertEqual(identify.jsonBody?["appUserId"] as? String, "user_1")
-        XCTAssertNil(storage.pendingIdentify)
+        XCTAssertTrue(storage.pendingIdentifies.isEmpty)
         let isAnonymous = await engine.isAnonymous
         XCTAssertFalse(isAnonymous)
     }
@@ -238,11 +238,11 @@ final class BillingEngineTests: XCTestCase {
         let engine = env.engine(transport: transport, storage: storage)
 
         _ = try await engine.logIn("user_1")
-        XCTAssertEqual(storage.pendingIdentify?.appUserId, "user_1")
+        XCTAssertEqual(storage.pendingIdentifies.map(\.appUserId), ["user_1"])
 
         transport.setHandler { _ in (Data(BillingFixtures.customerJSON(appUserId: "user_1").utf8), 200) }
         _ = await engine.customerInfo(policy: .fetchCurrent)
-        XCTAssertNil(storage.pendingIdentify)
+        XCTAssertTrue(storage.pendingIdentifies.isEmpty)
     }
 
     func testLogInRejectsInvalidIds() async {
@@ -274,12 +274,12 @@ final class BillingEngineTests: XCTestCase {
         _ = storage.anonymousId()
         _ = env.engine(transport: MockBillingTransport.unreachable(), appUserId: "user_1", storage: storage)
         XCTAssertEqual(storage.loggedInAppUserId, "user_1")
-        XCTAssertEqual(storage.pendingIdentify?.appUserId, "user_1")
+        XCTAssertEqual(storage.pendingIdentifies.map(\.appUserId), ["user_1"])
     }
 
     func testConfigureWithAppUserIdOnFreshInstallSkipsIdentify() {
         let storage = env.storage()
         _ = env.engine(transport: MockBillingTransport.unreachable(), appUserId: "user_1", storage: storage)
-        XCTAssertNil(storage.pendingIdentify)
+        XCTAssertTrue(storage.pendingIdentifies.isEmpty)
     }
 }

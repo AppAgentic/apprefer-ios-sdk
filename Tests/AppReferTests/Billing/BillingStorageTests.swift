@@ -17,7 +17,7 @@ final class BillingStorageTests: XCTestCase {
     // MARK: - Anonymous id
 
     func testAnonymousIdFormatMatchesServer() throws {
-        let id = env.storage().anonymousId()
+        let id = try XCTUnwrap(env.storage().anonymousId())
         // Server: /^\$ARAnon:[0-9a-fA-F-]{36}$/
         let regex = try NSRegularExpression(pattern: "^\\$ARAnon:[0-9a-fA-F-]{36}$")
         XCTAssertEqual(regex.numberOfMatches(in: id, range: NSRange(id.startIndex..., in: id)), 1, id)
@@ -50,7 +50,25 @@ final class BillingStorageTests: XCTestCase {
         storage.loggedInAppUserId = "user_1"
         XCTAssertEqual(storage.currentAppUserId, "user_1")
         storage.loggedInAppUserId = nil
-        XCTAssertTrue(BillingStorage.isAnonymous(storage.currentAppUserId))
+        XCTAssertTrue(BillingStorage.isAnonymous(storage.currentAppUserId ?? ""))
+    }
+
+    func testLockedKeychainNeverMintsAnonymousId() {
+        let storage = env.storage()
+        let first = storage.anonymousId()
+        env.secure.isLocked = true
+        XCTAssertFalse(storage.isProtectedDataAvailable)
+        XCTAssertNil(storage.anonymousId(), "a locked Keychain must not be mistaken for a missing id")
+        XCTAssertNil(storage.currentAppUserId)
+        env.secure.isLocked = false
+        XCTAssertEqual(storage.anonymousId(), first)
+    }
+
+    func testKeychainReadResultDistinguishesNotFoundFromLocked() {
+        XCTAssertEqual(KeychainReadResult.from(status: errSecItemNotFound, data: nil), .notFound)
+        XCTAssertEqual(KeychainReadResult.from(status: errSecInteractionNotAllowed, data: nil), .unavailable(errSecInteractionNotAllowed))
+        XCTAssertEqual(KeychainReadResult.from(status: errSecSuccess, data: Data("abc".utf8)), .found("abc"))
+        XCTAssertEqual(KeychainReadResult.from(status: -34018, data: nil), .failed(-34018))
     }
 
     // MARK: - Other state
@@ -88,11 +106,21 @@ final class BillingStorageTests: XCTestCase {
         XCTAssertEqual(env.storage().cachedCustomerInfo(), info)
     }
 
-    func testPendingIdentifyPersists() {
-        env.storage().pendingIdentify = ("$ARAnon:6F9619FF-8B86-D011-B42D-00C04FC964FF", "user_1")
-        XCTAssertEqual(env.storage().pendingIdentify?.appUserId, "user_1")
-        env.storage().pendingIdentify = nil
-        XCTAssertNil(env.storage().pendingIdentify)
+    func testPendingIdentifiesPersistInOrderWithoutDuplicates() {
+        env.storage().addPendingIdentify(anonymousId: "$ARAnon:6F9619FF-8B86-D011-B42D-00C04FC964FF", appUserId: "user_1")
+        env.storage().addPendingIdentify(anonymousId: "$ARAnon:7F9619FF-8B86-D011-B42D-00C04FC964FF", appUserId: "user_2")
+        env.storage().addPendingIdentify(anonymousId: "$ARAnon:6F9619FF-8B86-D011-B42D-00C04FC964FF", appUserId: "user_1")
+        XCTAssertEqual(env.storage().pendingIdentifies.map(\.appUserId), ["user_1", "user_2"])
+        env.storage().removePendingIdentify(env.storage().pendingIdentifies[0])
+        XCTAssertEqual(env.storage().pendingIdentifies.map(\.appUserId), ["user_2"])
+    }
+
+    func testPendingIdentifyFromEarlierBuildIsRead() {
+        env.defaults.set(
+            ["anonymousId": "$ARAnon:6F9619FF-8B86-D011-B42D-00C04FC964FF", "appUserId": "user_1"],
+            forKey: "apprefer_billing_pending_identify"
+        )
+        XCTAssertEqual(env.storage().pendingIdentifies.map(\.appUserId), ["user_1"])
     }
 
     // MARK: - Retry queue

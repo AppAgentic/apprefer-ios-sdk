@@ -14,9 +14,11 @@ struct StoreTransaction: Sendable, Equatable {
     let expirationDate: Date?
     let revocationDate: Date?
     let isUpgraded: Bool
-    let periodType: BillingPeriodType
+    var periodType: BillingPeriodType
     /// StoreKit 2 `jwsRepresentation`, sent to AppRefer as `signedTransaction`.
     let signedTransaction: String
+    /// The `appAccountToken` the purchase was tagged with (the buyer's AppRefer account token).
+    var appAccountToken: UUID? = nil
 }
 
 /// One transaction delivered by StoreKit (purchase, update or unfinished).
@@ -39,16 +41,38 @@ protocol BillingStoreKit: Sendable {
     func sync() async throws
 }
 
-@available(iOS 15.0, macOS 12.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 struct LiveBillingStoreKit: BillingStoreKit {
     func currentEntitlements() async -> [StoreTransaction] {
         var result: [StoreTransaction] = []
         for await verification in Transaction.currentEntitlements {
             if case .verified(let transaction) = verification {
-                result.append(Self.map(transaction, jws: verification.jwsRepresentation))
+                var mapped = Self.map(transaction, jws: verification.jwsRepresentation)
+                if mapped.periodType == .intro, await Self.introOfferIsFreeTrial(productId: mapped.productId) {
+                    mapped.periodType = .trial
+                }
+                result.append(mapped)
             }
         }
         return result
+    }
+
+    private actor IntroOfferCache {
+        private var freeTrialByProduct: [String: Bool] = [:]
+        func get(_ productId: String) -> Bool? { freeTrialByProduct[productId] }
+        func set(_ productId: String, _ value: Bool) { freeTrialByProduct[productId] = value }
+    }
+    private static let introOfferCache = IntroOfferCache()
+
+    /// Before iOS 17.2 a transaction doesn't say how its intro offer was paid. A product
+    /// has one introductory offer, so the product's offer tells whether it was a free trial.
+    private static func introOfferIsFreeTrial(productId: String) async -> Bool {
+        if #available(iOS 17.2, macOS 14.2, tvOS 17.2, watchOS 10.2, visionOS 1.1, *) { return false }
+        if let cached = await introOfferCache.get(productId) { return cached }
+        guard let product = try? await Product.products(for: [productId]).first else { return false }
+        let isFreeTrial = product.subscription?.introductoryOffer?.paymentMode == .freeTrial
+        await introOfferCache.set(productId, isFreeTrial)
+        return isFreeTrial
     }
 
     func unfinishedTransactions() async -> [StoreKitUpdate] {
@@ -110,7 +134,8 @@ struct LiveBillingStoreKit: BillingStoreKit {
             revocationDate: t.revocationDate,
             isUpgraded: t.isUpgraded,
             periodType: periodType(of: t),
-            signedTransaction: jws
+            signedTransaction: jws,
+            appAccountToken: t.appAccountToken
         )
     }
 
@@ -120,10 +145,27 @@ struct LiveBillingStoreKit: BillingStoreKit {
             if offer.type == .introductory { return offer.paymentMode == .freeTrial ? .trial : .intro }
             return .promotional
         }
+        let offer: LegacyOffer
         switch t.offerType {
-        case .some(.introductory): return .intro
-        case .some: return .promotional
+        case .some(.introductory): offer = .introductory
+        case .some: offer = .promotional
+        case .none: offer = .none
+        }
+        return legacyPeriodType(offer: offer, signedPayload: t.jsonRepresentation)
+    }
+
+    enum LegacyOffer { case none, introductory, promotional }
+
+    /// iOS 15–17.1: the signed payload's `offerDiscountType` (`FREE_TRIAL`, `PAY_AS_YOU_GO`,
+    /// `PAY_UP_FRONT`) tells a free trial apart from a paid intro when Apple includes it;
+    /// otherwise `currentEntitlements` checks the product's intro offer.
+    static func legacyPeriodType(offer: LegacyOffer, signedPayload: Data) -> BillingPeriodType {
+        switch offer {
         case .none: return .normal
+        case .promotional: return .promotional
+        case .introductory:
+            let payload = (try? JSONSerialization.jsonObject(with: signedPayload)) as? [String: Any]
+            return payload?["offerDiscountType"] as? String == "FREE_TRIAL" ? .trial : .intro
         }
     }
 }

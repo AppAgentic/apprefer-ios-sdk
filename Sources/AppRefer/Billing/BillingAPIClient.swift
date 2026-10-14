@@ -39,6 +39,13 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
         }
     }
 
+    /// Statuses that mean "not now" rather than "never" (auth/config not set up yet, rate
+    /// limited): the retry queue backs off and keeps the purchase without counting an attempt.
+    var isBackoff: Bool {
+        if case .server(let status, _) = self { return [401, 403, 404, 409, 429].contains(status) }
+        return false
+    }
+
     var isConnectivity: Bool {
         switch self {
         case .network, .missingApiKey, .notConfigured: return true
@@ -54,7 +61,7 @@ protocol BillingTransport: Sendable {
     func send(_ request: URLRequest) async throws -> (Data, Int)
 }
 
-@available(iOS 15.0, macOS 12.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 struct URLSessionBillingTransport: BillingTransport {
     let session: URLSession
 
@@ -88,7 +95,9 @@ struct BillingAPIClient: Sendable {
     enum Endpoint: Equatable {
         case createCustomer(appUserId: String, appreferId: String?, attributes: [String: String])
         case getCustomer(appUserId: String)
-        case purchase(appUserId: String, appreferId: String?, signedTransaction: String, attributes: [String: String])
+        /// `restore` is true only for Restore Purchases: it lets the server move a purchase
+        /// that already belongs to another app user to this one.
+        case purchase(appUserId: String, appreferId: String?, signedTransaction: String, attributes: [String: String], restore: Bool)
         case identify(anonymousId: String, appUserId: String)
     }
 
@@ -132,7 +141,7 @@ struct BillingAPIClient: Sendable {
             path = "/api/billing/v1/customers"
             method = "GET"
             query = [URLQueryItem(name: "appUserId", value: appUserId)]
-        case let .purchase(appUserId, appreferId, signedTransaction, attributes):
+        case let .purchase(appUserId, appreferId, signedTransaction, attributes, restore):
             path = "/api/billing/v1/purchases"
             var b: [String: Any] = [
                 "appUserId": appUserId,
@@ -141,6 +150,7 @@ struct BillingAPIClient: Sendable {
             ]
             if let appreferId { b["appreferId"] = appreferId }
             if !attributes.isEmpty { b["attributes"] = attributes }
+            if restore { b["restore"] = true }
             body = b
         case let .identify(anonymousId, appUserId):
             path = "/api/billing/v1/identify"

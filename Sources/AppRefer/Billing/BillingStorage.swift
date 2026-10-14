@@ -1,8 +1,9 @@
 import Foundation
+import Security
 
 /// Small key-value store for values that must survive reinstalls (the anonymous id).
 protocol BillingSecureStore: AnyObject {
-    func string(forKey key: String) -> String?
+    func read(_ key: String) -> KeychainReadResult
     func set(_ value: String?, forKey key: String)
 }
 
@@ -16,8 +17,14 @@ final class KeychainBillingSecureStore: BillingSecureStore {
         self.defaults = defaults
     }
 
-    func string(forKey key: String) -> String? {
-        KeychainHelper.load(key: key) ?? defaults.string(forKey: fallbackPrefix + key)
+    func read(_ key: String) -> KeychainReadResult {
+        let result = KeychainHelper.load(key: key)
+        switch result {
+        case .found, .unavailable:
+            return result
+        case .notFound, .failed:
+            return defaults.string(forKey: fallbackPrefix + key).map { .found($0) } ?? result
+        }
     }
 
     func set(_ value: String?, forKey key: String) {
@@ -36,8 +43,18 @@ final class KeychainBillingSecureStore: BillingSecureStore {
 
 final class InMemoryBillingSecureStore: BillingSecureStore {
     private var values: [String: String] = [:]
-    func string(forKey key: String) -> String? { values[key] }
-    func set(_ value: String?, forKey key: String) { values[key] = value }
+    /// Simulates the Keychain before first unlock.
+    var isLocked = false
+
+    func read(_ key: String) -> KeychainReadResult {
+        if isLocked { return .unavailable(errSecInteractionNotAllowed) }
+        return values[key].map { .found($0) } ?? .notFound
+    }
+
+    func set(_ value: String?, forKey key: String) {
+        if isLocked { return }
+        values[key] = value
+    }
 }
 
 /// Persistent billing state. Not thread-safe; owned by `BillingEngine` (an actor).
@@ -51,6 +68,7 @@ final class BillingStorage {
         static let pendingAttributes = "apprefer_billing_pending_attributes"
         static let learnedEntitlements = "apprefer_billing_learned_entitlements"
         static let pendingIdentify = "apprefer_billing_pending_identify"
+        static let pendingIdentifies = "apprefer_billing_pending_identifies"
     }
 
     let directory: URL
@@ -80,14 +98,23 @@ final class BillingStorage {
 
     // MARK: - Identity
 
-    var hasAnonymousId: Bool { secure.string(forKey: Key.anonymousId) != nil }
+    var hasAnonymousId: Bool { secure.read(Key.anonymousId).value != nil }
+
+    /// False before first unlock after a reboot: the Keychain (and UserDefaults) can't
+    /// be read, so the user's identity is unknown and nothing may be minted or sent.
+    var isProtectedDataAvailable: Bool {
+        if case .unavailable = secure.read(Key.anonymousId) { return false }
+        return true
+    }
 
     /// `$ARAnon:<UUID>`, minted once and kept in the Keychain (survives reinstalls).
-    func anonymousId() -> String {
-        if let existing = secure.string(forKey: Key.anonymousId), Self.isAnonymous(existing) {
-            return existing
+    /// Nil while the Keychain is locked, so a new id never replaces the real one.
+    func anonymousId() -> String? {
+        switch secure.read(Key.anonymousId) {
+        case .found(let existing) where Self.isAnonymous(existing): return existing
+        case .unavailable: return nil
+        default: return resetAnonymousId()
         }
-        return resetAnonymousId()
     }
 
     @discardableResult
@@ -103,7 +130,11 @@ final class BillingStorage {
         set { defaults.set(newValue, forKey: Key.appUserId) }
     }
 
-    var currentAppUserId: String { loggedInAppUserId ?? anonymousId() }
+    /// Nil only while protected data is unavailable.
+    var currentAppUserId: String? {
+        guard isProtectedDataAvailable else { return nil }
+        return loggedInAppUserId ?? anonymousId()
+    }
 
     // MARK: - Account tokens (Apple appAccountToken per app user)
 
@@ -158,21 +189,48 @@ final class BillingStorage {
         if changed { defaults.set(map, forKey: Key.learnedEntitlements) }
     }
 
-    // MARK: - logIn that still needs to reach the server
+    // MARK: - logIns that still need to reach the server
 
-    var pendingIdentify: (anonymousId: String, appUserId: String)? {
+    struct PendingIdentify: Codable, Equatable {
+        let anonymousId: String
+        let appUserId: String
+    }
+
+    /// Anonymous → user merges not yet confirmed by the server, oldest first. Kept across
+    /// logOut so a purchase made while anonymous still reaches the user it belongs to.
+    var pendingIdentifies: [PendingIdentify] {
         get {
-            guard let d = defaults.dictionary(forKey: Key.pendingIdentify) as? [String: String],
-                  let anon = d["anonymousId"], let user = d["appUserId"] else { return nil }
-            return (anon, user)
+            if let data = defaults.data(forKey: Key.pendingIdentifies),
+               let list = try? JSONDecoder().decode([PendingIdentify].self, from: data) {
+                return list
+            }
+            // Written by earlier builds as a single dictionary.
+            if let d = defaults.dictionary(forKey: Key.pendingIdentify) as? [String: String],
+               let anon = d["anonymousId"], let user = d["appUserId"] {
+                return [PendingIdentify(anonymousId: anon, appUserId: user)]
+            }
+            return []
         }
         set {
-            if let newValue {
-                defaults.set(["anonymousId": newValue.anonymousId, "appUserId": newValue.appUserId], forKey: Key.pendingIdentify)
-            } else {
-                defaults.removeObject(forKey: Key.pendingIdentify)
+            defaults.removeObject(forKey: Key.pendingIdentify)
+            if newValue.isEmpty {
+                defaults.removeObject(forKey: Key.pendingIdentifies)
+            } else if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: Key.pendingIdentifies)
             }
         }
+    }
+
+    func addPendingIdentify(anonymousId: String, appUserId: String) {
+        let entry = PendingIdentify(anonymousId: anonymousId, appUserId: appUserId)
+        var list = pendingIdentifies
+        guard !list.contains(entry) else { return }
+        list.append(entry)
+        pendingIdentifies = list
+    }
+
+    func removePendingIdentify(_ entry: PendingIdentify) {
+        pendingIdentifies = pendingIdentifies.filter { $0 != entry }
     }
 
     // MARK: - Cached CustomerInfo (last server answer)

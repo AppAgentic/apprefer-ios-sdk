@@ -1,4 +1,16 @@
 import Foundation
+import Security
+
+/// Keychain access for the device id, abstracted so the mint race is testable.
+protocol DeviceIdKeychain: Sendable {
+    func load(key: String) -> KeychainReadResult
+    func add(key: String, value: String) -> OSStatus
+}
+
+struct LiveDeviceIdKeychain: DeviceIdKeychain {
+    func load(key: String) -> KeychainReadResult { KeychainHelper.load(key: key) }
+    func add(key: String, value: String) -> OSStatus { KeychainHelper.add(key: key, value: value) }
+}
 
 final class AppReferStorage: @unchecked Sendable {
     private static let keyDeviceId = "apprefer_device_id"
@@ -10,20 +22,40 @@ final class AppReferStorage: @unchecked Sendable {
     private static let keyLastConfigFetch = "apprefer_last_config_fetch"
     private static let keyUserId = "apprefer_user_id"
 
-    private let defaults: UserDefaults
+    /// Process-wide: attribution and billing each create their own storage and may
+    /// both ask for the device id on first launch.
+    private static let deviceIdLock = NSLock()
 
-    init(defaults: UserDefaults = .standard) {
+    private let defaults: UserDefaults
+    private let keychain: DeviceIdKeychain
+
+    init(defaults: UserDefaults = .standard, keychain: DeviceIdKeychain = LiveDeviceIdKeychain()) {
         self.defaults = defaults
+        self.keychain = keychain
     }
 
     // MARK: - Device ID (Keychain — persists across reinstalls)
 
     func getDeviceId() -> String {
-        if let existing = KeychainHelper.load(key: Self.keyDeviceId) {
-            return existing
+        deviceId() ?? UUID().uuidString.lowercased()
+    }
+
+    /// The device id, minted once. Nil while the Keychain is locked (before first unlock
+    /// after a reboot): minting then would replace the real id.
+    func deviceId() -> String? {
+        Self.deviceIdLock.lock()
+        defer { Self.deviceIdLock.unlock() }
+
+        switch keychain.load(key: Self.keyDeviceId) {
+        case .found(let existing): return existing
+        case .unavailable: return nil
+        case .notFound, .failed: break
         }
         let newId = UUID().uuidString.lowercased()
-        _ = KeychainHelper.save(key: Self.keyDeviceId, value: newId)
+        if keychain.add(key: Self.keyDeviceId, value: newId) == errSecDuplicateItem {
+            // Another process (e.g. an app extension) added one first: use theirs.
+            return keychain.load(key: Self.keyDeviceId).value ?? newId
+        }
         return newId
     }
 

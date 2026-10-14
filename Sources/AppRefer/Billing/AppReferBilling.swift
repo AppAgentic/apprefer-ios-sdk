@@ -20,7 +20,7 @@ public protocol AppReferBillingDelegate: AnyObject {
 /// let result = try await AppReferBilling.purchase(products[0])
 /// if result.customerInfo.entitlements["premium"]?.isActive == true { unlock() }
 /// ```
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 public enum AppReferBilling {
     public typealias CustomerInfo = AppReferCustomerInfo
     public typealias EntitlementInfo = AppReferEntitlementInfo
@@ -139,7 +139,7 @@ public enum AppReferBilling {
             storeKit: LiveBillingStoreKit(),
             options: .init(productEntitlements: entitlementsByProduct, defaultEntitlement: defaultEntitlement),
             appUserId: appUserId,
-            appreferId: { AppReferStorage().getDeviceId() },
+            appreferId: { AppReferStorage().deviceId() },
             logger: logger,
             onChange: { info in
                 broadcaster.publish(info)

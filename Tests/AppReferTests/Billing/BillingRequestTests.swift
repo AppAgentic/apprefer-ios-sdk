@@ -43,7 +43,7 @@ final class BillingRequestTests: XCTestCase {
 
     func testPurchaseRequest() throws {
         let request = try BillingAPIClient.makeRequest(
-            .purchase(appUserId: "u", appreferId: "d", signedTransaction: "eyJ.jws.sig", attributes: [:]),
+            .purchase(appUserId: "u", appreferId: "d", signedTransaction: "eyJ.jws.sig", attributes: [:], restore: false),
             baseURL: base, apiKey: "k"
         )
         XCTAssertEqual(request.url?.path, "/api/billing/v1/purchases")
@@ -53,6 +53,26 @@ final class BillingRequestTests: XCTestCase {
         XCTAssertEqual(body["appUserId"] as? String, "u")
         XCTAssertEqual(body["appreferId"] as? String, "d")
         XCTAssertNil(body["attributes"])
+        XCTAssertNil(body["restore"], "only Restore Purchases sends restore")
+    }
+
+    func testRestorePurchaseRequestSendsRestoreTrue() throws {
+        let request = try BillingAPIClient.makeRequest(
+            .purchase(appUserId: "u", appreferId: nil, signedTransaction: "eyJ.jws.sig", attributes: [:], restore: true),
+            baseURL: base, apiKey: "k"
+        )
+        XCTAssertEqual(request.jsonBody?["restore"] as? Bool, true)
+    }
+
+    func testBackoffStatuses() {
+        for status in [401, 403, 404, 409, 429] {
+            let error = AppReferBillingError.server(status: status, message: nil)
+            XCTAssertTrue(error.isBackoff, "\(status)")
+            XCTAssertTrue(error.isRetryable, "\(status)")
+        }
+        XCTAssertFalse(AppReferBillingError.server(status: 400, message: nil).isBackoff)
+        XCTAssertFalse(AppReferBillingError.server(status: 503, message: nil).isBackoff)
+        XCTAssertFalse(AppReferBillingError.network("x").isBackoff)
     }
 
     func testIdentifyRequest() throws {

@@ -9,6 +9,8 @@ struct PendingPurchase: Codable, Equatable, Sendable {
     let signedTransaction: String
     let enqueuedAt: Date
     var attempts: Int
+    /// Queued by Restore Purchases, so the retry is still sent as a restore.
+    var restore: Bool? = nil
 }
 
 /// Disk-backed retry queue. Transactions are finished with StoreKit as soon as they
@@ -37,9 +39,11 @@ final class PendingPurchaseQueue {
         entries.contains { $0.appUserId == appUserId }
     }
 
-    /// Adds or refreshes an entry; one entry per transaction id.
+    /// Adds or refreshes an entry; one entry per transaction id. A restore stays a restore.
     func add(_ entry: PendingPurchase) {
         if let index = entries.firstIndex(where: { $0.transactionId == entry.transactionId }) {
+            var entry = entry
+            if entries[index].restore == true { entry.restore = true }
             entries[index] = entry
         } else {
             entries.append(entry)

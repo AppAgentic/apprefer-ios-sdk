@@ -3,7 +3,7 @@ import Foundation
 /// Core of AppReferBilling: identity, server sync, transaction processing, retry queue
 /// and the outage fallback. StoreKit purchase UI lives in `AppReferBilling`; everything
 /// here goes through `BillingStoreKit` and `BillingAPIClient` so it can be tested.
-@available(iOS 15.0, macOS 12.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 actor BillingEngine {
     struct Options: Sendable {
         var productEntitlements: [String: [String]] = [:]
@@ -28,6 +28,18 @@ actor BillingEngine {
     private var registeredUsers = Set<String>()
     private var updatesTask: Task<Void, Never>?
     private var isDraining = false
+    /// Retry queue back-off after 401/403/404/409/429.
+    private var drainBackoff: (until: Date, delay: TimeInterval)?
+    static let minBackoff: TimeInterval = 30
+    static let maxBackoff: TimeInterval = 3600
+
+    /// Identity changes requested while protected data was unavailable (before first
+    /// unlock), applied in order once the Keychain can be read.
+    private enum IdentityChange { case configure(String), logIn(String), logOut }
+    private var pendingIdentityChanges: [IdentityChange] = []
+    /// Transactions delivered while protected data was unavailable. Left unfinished so
+    /// StoreKit keeps them; processed once the user's identity can be read.
+    private var deferredUpdates: [StoreKitUpdate] = []
 
     init(
         api: BillingAPIClient,
@@ -51,13 +63,54 @@ actor BillingEngine {
         self.now = now
         self.onChange = onChange
 
-        // configure(appUserId:) behaves like logIn: purchases made while anonymous
-        // on this device move to the user (sent to /identify when reachable).
-        if let appUserId, !appUserId.isEmpty, appUserId != storage.loggedInAppUserId {
-            if storage.loggedInAppUserId == nil, storage.hasAnonymousId, !BillingStorage.isAnonymous(appUserId) {
-                storage.pendingIdentify = (storage.anonymousId(), appUserId)
+        if let appUserId, !appUserId.isEmpty {
+            if storage.isProtectedDataAvailable {
+                Self.applyConfigure(appUserId, storage: storage)
+            } else {
+                pendingIdentityChanges = [.configure(appUserId)]
             }
-            storage.loggedInAppUserId = BillingStorage.isAnonymous(appUserId) ? nil : appUserId
+        }
+    }
+
+    /// configure(appUserId:) behaves like logIn: purchases made while anonymous on this
+    /// device move to the user (sent to /identify when reachable).
+    private static func applyConfigure(_ appUserId: String, storage: BillingStorage) {
+        guard appUserId != storage.loggedInAppUserId else { return }
+        if storage.loggedInAppUserId == nil, storage.hasAnonymousId, !BillingStorage.isAnonymous(appUserId),
+           let anonymousId = storage.anonymousId() {
+            storage.addPendingIdentify(anonymousId: anonymousId, appUserId: appUserId)
+        }
+        storage.loggedInAppUserId = BillingStorage.isAnonymous(appUserId) ? nil : appUserId
+    }
+
+    /// The current app user, or nil while protected data is unavailable. Applies identity
+    /// changes that were waiting for the Keychain.
+    private func activeUser() -> String? {
+        guard storage.isProtectedDataAvailable else { return nil }
+        if !pendingIdentityChanges.isEmpty {
+            let changes = pendingIdentityChanges
+            pendingIdentityChanges = []
+            for change in changes { apply(change) }
+        }
+        return storage.currentAppUserId
+    }
+
+    private func apply(_ change: IdentityChange) {
+        switch change {
+        case .configure(let appUserId):
+            Self.applyConfigure(appUserId, storage: storage)
+        case .logIn(let appUserId):
+            guard appUserId != storage.currentAppUserId else { return }
+            if storage.loggedInAppUserId == nil, let anonymousId = storage.anonymousId() {
+                storage.addPendingIdentify(anonymousId: anonymousId, appUserId: appUserId)
+            }
+            storage.loggedInAppUserId = appUserId
+            lastServerFetch = nil
+        case .logOut:
+            // Pending identifies stay: they still have to reach the server.
+            storage.loggedInAppUserId = nil
+            storage.resetAnonymousId()
+            lastServerFetch = nil
         }
     }
 
@@ -85,13 +138,15 @@ actor BillingEngine {
         _ = await customerInfo(policy: .fetchCurrent)
     }
 
-    var currentAppUserId: String { storage.currentAppUserId }
-    var isAnonymous: Bool { storage.loggedInAppUserId == nil }
+    /// Empty while protected data is unavailable.
+    var currentAppUserId: String { activeUser() ?? "" }
+    var isAnonymous: Bool { activeUser().map(BillingStorage.isAnonymous) ?? true }
 
     // MARK: - CustomerInfo
 
     func customerInfo(policy: AppReferBilling.FetchPolicy) async -> AppReferCustomerInfo {
-        let user = currentAppUserId
+        guard let user = activeUser() else { return await lockedFallback() }
+        await processDeferredUpdates()
         if policy == .cachedOrFetched,
            let fetched = lastServerFetch, fetched.appUserId == user,
            now().timeIntervalSince(fetched.at) < options.cacheTTL,
@@ -99,16 +154,15 @@ actor BillingEngine {
             return publish(await withPendingLocal(cached.reevaluated(at: now())))
         }
         do {
-            return try await fetchFromServer()
+            return try await fetchFromServer(user)
         } catch {
             logger.warn("Billing: customer refresh failed (\(error.localizedDescription)); using StoreKit fallback")
             return await localFallback()
         }
     }
 
-    private func fetchFromServer() async throws -> AppReferCustomerInfo {
-        await flushPendingIdentify()
-        let user = currentAppUserId
+    private func fetchFromServer(_ user: String) async throws -> AppReferCustomerInfo {
+        await flushPendingIdentifies()
         let attributes = storage.pendingAttributes
         let needsRegister = !registeredUsers.contains(user) || !attributes.isEmpty || storage.accountToken(for: user) == nil
         let response = try await api.send(
@@ -129,7 +183,7 @@ actor BillingEngine {
     private func accept(_ response: BillingCustomerResponse, for user: String) async -> AppReferCustomerInfo {
         if let token = response.accountToken { storage.setAccountToken(token, for: response.info.appUserId) }
         storage.learnEntitlements(from: response.info)
-        guard response.info.appUserId == user, user == currentAppUserId else {
+        guard response.info.appUserId == user, user == activeUser() else {
             // Answer for a user who is no longer current (logIn/logOut raced it).
             return response.info
         }
@@ -138,18 +192,32 @@ actor BillingEngine {
         return publish(await withPendingLocal(response.info))
     }
 
-    /// While a purchase for this user is still queued, the server can't know it yet,
-    /// so device entitlements are merged in.
+    /// Merges this user's verified StoreKit entitlements into a server answer, so a payer
+    /// is never locked out when the server didn't get the purchase (upload dropped or
+    /// rejected, or no appAccountToken for the App Store notification to match). A
+    /// transaction counts as this user's when it has no appAccountToken, carries this
+    /// user's token, or is still queued for them.
     private func withPendingLocal(_ info: AppReferCustomerInfo) async -> AppReferCustomerInfo {
-        guard queue.contains(appUserId: info.appUserId) else { return info }
-        let transactions = await storeKit.currentEntitlements()
-        return mergeLocal(into: info, transactions: transactions, user: info.appUserId, source: info.source)
+        let user = info.appUserId
+        let token = storage.accountToken(for: user)
+        let queued = Set(queue.entries.filter { $0.appUserId == user }.map(\.transactionId))
+        let transactions = await storeKit.currentEntitlements().filter {
+            $0.appAccountToken == nil || $0.appAccountToken == token || queued.contains($0.id)
+        }
+        guard !transactions.isEmpty else { return info }
+        return mergeLocal(into: info, transactions: transactions, user: user, source: info.source)
+    }
+
+    /// Before first unlock: the user is unknown, so nothing is sent, cached or published.
+    /// Verified StoreKit entitlements still answer.
+    private func lockedFallback() async -> AppReferCustomerInfo {
+        mergeLocal(into: nil, transactions: await storeKit.currentEntitlements(), user: "", source: .localFallback)
     }
 
     /// Outage path: verified StoreKit entitlements merged with the cached server answer.
     /// A paying user is never locked out because AppRefer is down.
     func localFallback() async -> AppReferCustomerInfo {
-        let user = currentAppUserId
+        guard let user = activeUser() else { return await lockedFallback() }
         let transactions = await storeKit.currentEntitlements()
         let cached = storage.cachedCustomerInfo().flatMap { $0.appUserId == user ? $0.reevaluated(at: now()) : nil }
         let merged = mergeLocal(into: cached, transactions: transactions, user: user, source: .localFallback)
@@ -194,15 +262,26 @@ actor BillingEngine {
             return await localFallback()
         }
 
-        let user = currentAppUserId
+        guard let user = activeUser() else {
+            // Before first unlock: whose purchase this is can't be read. Keep it
+            // unfinished and send it once the identity is readable.
+            logger.warn("Billing: protected data unavailable; transaction \(transaction.id) deferred")
+            if !deferredUpdates.contains(where: { $0.transactionId == update.transactionId }) {
+                deferredUpdates.append(update)
+            }
+            return await lockedFallback()
+        }
         let attributes = storage.pendingAttributes
         let deviceId = appreferId()
         do {
+            // Never a restore: purchases and Transaction.updates (renewals included) must
+            // not move a purchase owned by another app user to whoever is signed in.
             let response = try await api.send(.purchase(
                 appUserId: user,
                 appreferId: deviceId,
                 signedTransaction: transaction.signedTransaction,
-                attributes: attributes
+                attributes: attributes,
+                restore: false
             ))
             storage.clearSentAttributes(attributes)
             await update.finish()
@@ -218,7 +297,7 @@ actor BillingEngine {
                 appreferId: deviceId,
                 signedTransaction: transaction.signedTransaction,
                 enqueuedAt: now(),
-                attempts: 1
+                attempts: error.isBackoff ? 0 : 1
             ))
         } catch {
             // Rejected as malformed: retrying won't help. StoreKit verified it, so the
@@ -235,8 +314,8 @@ actor BillingEngine {
         let transactions = await storeKit.currentEntitlements()
         guard !transactions.isEmpty else { return await customerInfo(policy: .fetchCurrent) }
 
-        await flushPendingIdentify()
-        let user = currentAppUserId
+        guard let user = activeUser() else { return await lockedFallback() }
+        await flushPendingIdentifies()
         let deviceId = appreferId()
         var last: BillingCustomerResponse?
         var failed = false
@@ -244,16 +323,16 @@ actor BillingEngine {
             do {
                 last = try await api.send(.purchase(
                     appUserId: user, appreferId: deviceId,
-                    signedTransaction: transaction.signedTransaction, attributes: [:]
+                    signedTransaction: transaction.signedTransaction, attributes: [:], restore: true
                 ))
             } catch let error as AppReferBillingError where error.isRetryable {
                 failed = true
                 queue.add(PendingPurchase(
                     transactionId: transaction.id, productId: transaction.productId, appUserId: user,
                     appreferId: deviceId, signedTransaction: transaction.signedTransaction,
-                    enqueuedAt: now(), attempts: 1
+                    enqueuedAt: now(), attempts: error.isBackoff ? 0 : 1, restore: true
                 ))
-                if error.isConnectivity { break }
+                if error.isConnectivity || error.isBackoff { break }
             } catch {
                 failed = true
             }
@@ -263,11 +342,16 @@ actor BillingEngine {
         return await localFallback()
     }
 
-    /// Re-sends queued transactions. Stops at the first connectivity failure.
+    /// Re-sends queued transactions. Stops at the first connectivity failure. A
+    /// 401/403/404/409/429 stops the drain and backs off without counting an attempt,
+    /// so a server-side setup problem never uses up a purchase's retries.
     func drainQueue() async {
-        guard !isDraining, !queue.isEmpty else { return }
+        guard !isDraining, activeUser() != nil else { return }
         isDraining = true
         defer { isDraining = false }
+        await processDeferredUpdates()
+        guard !queue.isEmpty else { return }
+        if let backoff = drainBackoff, now() < backoff.until { return }
 
         for dropped in queue.prune(now: now()) {
             logger.error("Billing: gave up resending transaction \(dropped.transactionId) after \(dropped.attempts) attempts")
@@ -276,11 +360,19 @@ actor BillingEngine {
             do {
                 let response = try await api.send(.purchase(
                     appUserId: entry.appUserId, appreferId: entry.appreferId,
-                    signedTransaction: entry.signedTransaction, attributes: [:]
+                    signedTransaction: entry.signedTransaction, attributes: [:],
+                    restore: entry.restore == true
                 ))
                 queue.remove(transactionId: entry.transactionId)
-                if entry.appUserId == currentAppUserId { _ = await accept(response, for: entry.appUserId) }
+                drainBackoff = nil
+                if entry.appUserId == activeUser() { _ = await accept(response, for: entry.appUserId) }
             } catch let error as AppReferBillingError where error.isRetryable {
+                if error.isBackoff {
+                    let delay = min(max((drainBackoff?.delay ?? 0) * 2, Self.minBackoff), Self.maxBackoff)
+                    drainBackoff = (now().addingTimeInterval(delay), delay)
+                    logger.warn("Billing: AppRefer answered \(error.localizedDescription); retrying queued purchases in \(Int(delay))s")
+                    return
+                }
                 queue.recordAttempt(transactionId: entry.transactionId)
                 if error.isConnectivity { return }
             } catch {
@@ -289,14 +381,21 @@ actor BillingEngine {
         }
     }
 
+    private func processDeferredUpdates() async {
+        guard !deferredUpdates.isEmpty, activeUser() != nil else { return }
+        let updates = deferredUpdates
+        deferredUpdates = []
+        for update in updates { _ = await process(update) }
+    }
+
     // MARK: - Purchases
 
     /// The Apple `appAccountToken` for the current user, fetched from AppRefer if not cached.
     /// Nil when AppRefer is unreachable: the purchase still goes ahead.
     func accountToken() async -> UUID? {
-        let user = currentAppUserId
+        guard let user = activeUser() else { return nil }
         if let token = storage.accountToken(for: user) { return token }
-        _ = try? await fetchFromServer()
+        _ = try? await fetchFromServer(user)
         return storage.accountToken(for: user)
     }
 
@@ -306,19 +405,12 @@ actor BillingEngine {
         guard Self.isValid(appUserId), !BillingStorage.isAnonymous(appUserId) else {
             throw AppReferBillingError.invalidAppUserId
         }
-        if appUserId != currentAppUserId {
-            if isAnonymous { storage.pendingIdentify = (storage.anonymousId(), appUserId) }
-            storage.loggedInAppUserId = appUserId
-            lastServerFetch = nil
-        }
+        pendingIdentityChanges.append(.logIn(appUserId))
         return await customerInfo(policy: .fetchCurrent)
     }
 
     func logOut() async -> AppReferCustomerInfo {
-        storage.loggedInAppUserId = nil
-        storage.pendingIdentify = nil
-        storage.resetAnonymousId()
-        lastServerFetch = nil
+        pendingIdentityChanges.append(.logOut)
         return await customerInfo(policy: .fetchCurrent)
     }
 
@@ -326,15 +418,18 @@ actor BillingEngine {
         storage.mergePendingAttributes(attributes)
     }
 
-    private func flushPendingIdentify() async {
-        guard let pending = storage.pendingIdentify else { return }
-        do {
-            _ = try await api.send(.identify(anonymousId: pending.anonymousId, appUserId: pending.appUserId))
-            storage.pendingIdentify = nil
-        } catch let error as AppReferBillingError where error.isRetryable {
-            logger.warn("Billing: identify will be retried (\(error.localizedDescription))")
-        } catch {
-            storage.pendingIdentify = nil
+    /// Sends waiting identifies in order; stops at the first one that should be retried.
+    private func flushPendingIdentifies() async {
+        for pending in storage.pendingIdentifies {
+            do {
+                _ = try await api.send(.identify(anonymousId: pending.anonymousId, appUserId: pending.appUserId))
+                storage.removePendingIdentify(pending)
+            } catch let error as AppReferBillingError where error.isRetryable {
+                logger.warn("Billing: identify will be retried (\(error.localizedDescription))")
+                return
+            } catch {
+                storage.removePendingIdentify(pending)
+            }
         }
     }
 
