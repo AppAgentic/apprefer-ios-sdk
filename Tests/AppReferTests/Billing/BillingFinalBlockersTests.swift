@@ -129,11 +129,20 @@ final class BillingFinalBlockersTests: XCTestCase {
         // The file was rewritten with the kept intents.
         XCTAssertEqual(PurchaseIntentStore(store: intents, lostMarker: marker).intents, [good1, good2])
         XCTAssertEqual(try decodeList(like: good1, from: XCTUnwrap(intents.data)), [good1, good2])
-        // Tagged deliveries still match their kept intent; untagged ones wait.
+        // Tagged deliveries still match their kept intent.
         var tagged = original()
         tagged.appAccountToken = BillingFixtures.accountToken
         XCTAssertEqual(store.match(tagged), .found(good2))
-        guard case .lost = store.match(original()) else { return XCTFail("untagged purchases wait while intents are lost") }
+        // An untagged purchase whose intent survived still goes to that intent's owner,
+        // not to whoever is signed in once the 48-hour wait ends.
+        XCTAssertEqual(store.match(original()), .found(good1))
+        // Only an untagged purchase with no surviving intent for its product waits.
+        let orphan = StoreTransaction(
+            id: "3000000000000009", originalId: "3000000000000009", productId: "pro_weekly", kind: .autoRenewable,
+            purchaseDate: BillingFixtures.now, expirationDate: BillingFixtures.now.addingTimeInterval(86_400),
+            revocationDate: nil, isUpgraded: false, periodType: .normal, signedTransaction: "jws.orphan.sig"
+        )
+        guard case .lost = store.match(orphan) else { return XCTFail("untagged purchases without a surviving intent wait while intents are lost") }
     }
 
     func testWhollyUnparseableIntentsFileKeepsNothingQuarantinesAndSetsTheMarker() {

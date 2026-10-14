@@ -286,22 +286,25 @@ final class PurchaseIntentStore {
     /// The intent a delivered new purchase belongs to: the one carrying its account token,
     /// or for an untagged purchase the oldest for the same product, tagged or not.
     /// Renewals (`originalId != id`) never match: they belong to the original purchase's
-    /// owner. While intents are lost, untagged purchases get `.lost`.
+    /// owner. While intents are lost, an untagged purchase with no surviving intent for its
+    /// product gets `.lost`; one that does still goes to that intent's owner.
     func match(_ transaction: StoreTransaction) -> Match {
         guard !transaction.isRenewal else { return .none }
         guard let intents else { return .unreadable }
         if let token = transaction.appAccountToken {
             return intents.first { $0.accountToken == token }.map(Match.found) ?? .none
         }
+        // Oldest by `startedAt` explicitly, never by stored order; `min` keeps the first of a tie.
+        // Intents that survived a partial corruption still decide ownership.
+        if let surviving = intents
+            .filter({ $0.productId == transaction.productId })
+            .min(by: { $0.startedAt < $1.startedAt }) {
+            return .found(surviving)
+        }
         switch lostMarker.state {
         case .lost(let since): return .lost(since: since)
         case .unreadable: return .unreadable
-        case .absent: break
+        case .absent: return .none
         }
-        // Oldest by `startedAt` explicitly, never by stored order; `min` keeps the first of a tie.
-        return intents
-            .filter { $0.productId == transaction.productId }
-            .min { $0.startedAt < $1.startedAt }
-            .map(Match.found) ?? .none
     }
 }
