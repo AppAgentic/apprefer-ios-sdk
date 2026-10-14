@@ -77,7 +77,6 @@ protocol BillingTransport: Sendable {
     func send(_ request: URLRequest) async throws -> BillingHTTPResponse
 }
 
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 struct URLSessionBillingTransport: BillingTransport {
     let session: URLSession
 

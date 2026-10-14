@@ -1,5 +1,6 @@
 ## Unreleased
 
+- **Breaking:** the whole package now requires iOS 15 / macOS 12 / tvOS 15 (was iOS 14 / macOS 11), matching the Flutter SDK; old availability branches removed.
 - Add AppRefer Billing (`AppReferBilling`), a StoreKit 2 purchases and entitlements module that replaces RevenueCat (iOS 15+ / macOS 12+):
   - `configure(apiKey:appUserId:entitlementsByProduct:defaultEntitlement:)` with an anonymous `$ARAnon:<UUID>` id kept in the Keychain, and a `Transaction.updates` listener started at configure
   - `products(_:)`, `purchase(_:promotionalOffer:options:)` (sets `appAccountToken`), `restorePurchases()`

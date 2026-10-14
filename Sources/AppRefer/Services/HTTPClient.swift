@@ -111,24 +111,6 @@ final class AppReferHTTPClient: @unchecked Sendable {
     }
 
     private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        if #available(iOS 15.0, macOS 12.0, *) {
-            return try await session.data(for: request)
-        } else {
-            return try await withCheckedThrowingContinuation { continuation in
-                var resumed = false
-                let task = session.dataTask(with: request) { data, response, error in
-                    guard !resumed else { return }
-                    resumed = true
-                    if let error = error {
-                        continuation.resume(throwing: error)
-                    } else if let data = data, let response = response {
-                        continuation.resume(returning: (data, response))
-                    } else {
-                        continuation.resume(throwing: URLError(.unknown))
-                    }
-                }
-                task.resume()
-            }
-        }
+        try await session.data(for: request)
     }
 }

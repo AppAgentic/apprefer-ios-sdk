@@ -3,7 +3,6 @@ import Foundation
 /// Core of AppReferBilling: identity, server sync, transaction processing, retry queue
 /// and the outage fallback. StoreKit purchase UI lives in `AppReferBilling`; everything
 /// here goes through `BillingStoreKit` and `BillingAPIClient` so it can be tested.
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 actor BillingEngine {
     struct Options: Sendable {
         var productEntitlements: [String: [String]] = [:]

@@ -5,7 +5,6 @@ import XCTest
 /// good, StoreKit can't verify, or the retry queue gives up on is saved to a rejected list
 /// before it is finished (consumables never finished) and Restore sends it again;
 /// (2) who opened the purchase sheet is saved first and owns later deliveries.
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 final class BillingRecoveryTests: XCTestCase {
     private var env: BillingTestEnvironment!
     private let purchasesPath = "/api/billing/v1/purchases"
@@ -383,7 +382,6 @@ private enum RejectedPurchaseLogTestReader {
     }
 }
 
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 private enum BillingEngineFactory {
     static func make(
         _ env: BillingTestEnvironment,

@@ -7,7 +7,6 @@ import XCTest
 /// definitive store outcomes and a second purchase start keeps the first intent; (3) the
 /// oldest intent is the minimum `startedAt`; (4) a partly malformed intents file keeps its
 /// parseable entries, is quarantined and sets the lost marker.
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 final class BillingFinalBlockersTests: XCTestCase {
     private var env: BillingTestEnvironment!
     private let purchasesPath = "/api/billing/v1/purchases"

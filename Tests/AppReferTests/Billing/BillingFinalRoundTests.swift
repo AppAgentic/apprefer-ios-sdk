@@ -5,7 +5,6 @@ import XCTest
 /// held transaction, another owner's upload never unlocks the signed-in user, a network
 /// failure on upload still asks the customer endpoint first, attribution never uses an
 /// unsaved device id, and a later host's network error keeps an earlier Retry-After.
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 final class BillingFinalRoundTests: XCTestCase {
     private var env: BillingTestEnvironment!
     private let purchasesPath = "/api/billing/v1/purchases"

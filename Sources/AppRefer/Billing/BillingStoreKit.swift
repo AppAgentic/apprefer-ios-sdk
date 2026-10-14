@@ -47,7 +47,6 @@ protocol BillingStoreKit: Sendable {
     func sync() async throws
 }
 
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 struct LiveBillingStoreKit: BillingStoreKit {
     func currentEntitlements() async -> [StoreTransaction] {
         var result: [StoreTransaction] = []
@@ -253,7 +252,6 @@ enum LocalEntitlements {
     }
 }
 
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 extension BillingEngine {
     /// Whether a `Product.purchase` error means no transaction can follow. Network,
     /// system and unknown errors don't: the purchase may still arrive, so its intent stays.

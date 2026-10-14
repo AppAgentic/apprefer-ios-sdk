@@ -7,7 +7,6 @@ import XCTest
 /// new purchases match the oldest intent for the product, tagged or not; (d) undecodable
 /// intents are quarantined behind a persisted marker that defers untagged purchases for up
 /// to 48 hours; (e) intents leave only on definitive outcomes.
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 final class BillingSharedRulesTests: XCTestCase {
     private var env: BillingTestEnvironment!
     private let purchasesPath = "/api/billing/v1/purchases"

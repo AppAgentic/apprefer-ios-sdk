@@ -3,7 +3,6 @@ import XCTest
 
 /// Regression tests for the AppRefer Billing review (Oct 2026): StoreKit merge,
 /// retry back-off, restore-only ownership transfer, locked Keychain, pending identifies.
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 final class BillingReviewFixesTests: XCTestCase {
     private var env: BillingTestEnvironment!
     private let purchasesPath = "/api/billing/v1/purchases"

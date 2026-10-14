@@ -20,7 +20,6 @@ public protocol AppReferBillingDelegate: AnyObject {
 /// let result = try await AppReferBilling.purchase(products[0])
 /// if result.customerInfo.entitlements["premium"]?.isActive == true { unlock() }
 /// ```
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 public enum AppReferBilling {
     public typealias CustomerInfo = AppReferCustomerInfo
     public typealias EntitlementInfo = AppReferEntitlementInfo

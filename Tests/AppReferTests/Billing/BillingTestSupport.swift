@@ -166,7 +166,6 @@ struct BillingTestEnvironment {
         PendingPurchaseQueue(fileURL: directory.appendingPathComponent("pending_purchases.json"))
     }
 
-    @available(iOS 15.0, macOS 12.0, *)
     func engine(
         transport: BillingTransport,
         storeKit: BillingStoreKit = FakeStoreKit(),

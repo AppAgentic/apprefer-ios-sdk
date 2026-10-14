@@ -11,7 +11,6 @@ private actor ImportGate {
     func release() { continuation?.resume(); continuation = nil }
 }
 
-@available(iOS 15.0, macOS 12.0, *)
 final class BillingMigrationReviewTests: XCTestCase {
     func testOpenPurchasesSkipImportAndOldMarkerDoesNotBlockProcessing() async {
         let env = BillingTestEnvironment()

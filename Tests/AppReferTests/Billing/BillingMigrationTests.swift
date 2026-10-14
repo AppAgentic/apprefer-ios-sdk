@@ -1,7 +1,6 @@
 import XCTest
 @testable import AppRefer
 
-@available(iOS 15.0, macOS 12.0, *)
 final class BillingMigrationTests: XCTestCase {
     func testImportIsDurableOncePerUserWithoutRestoreOrFinish() async throws {
         let env = BillingTestEnvironment()

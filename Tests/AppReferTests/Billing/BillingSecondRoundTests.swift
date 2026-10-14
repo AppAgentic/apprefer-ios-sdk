@@ -37,7 +37,6 @@ final class FlakyPendingPurchaseStore: PendingPurchaseStore {
 /// Second review round (Astra verification, Oct 2026): durable queue before finish,
 /// initiator-bound purchases, ownership-filtered answers while AppRefer answers,
 /// identity minting, restore ownership, Retry-After and legacy "conversion: failed".
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
 final class BillingSecondRoundTests: XCTestCase {
     private var env: BillingTestEnvironment!
     private let purchasesPath = "/api/billing/v1/purchases"

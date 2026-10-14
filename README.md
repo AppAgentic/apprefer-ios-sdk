@@ -3,7 +3,7 @@
 First-party mobile attribution for iOS apps. Captures click IDs, resolves attribution, and forwards conversions to ad networks — without third-party SDKs.
 
 [![Swift 5.10+](https://img.shields.io/badge/Swift-5.10+-orange.svg)](https://swift.org)
-[![iOS 14+](https://img.shields.io/badge/iOS-14+-blue.svg)](https://developer.apple.com/ios/)
+[![iOS 15+](https://img.shields.io/badge/iOS-15+-blue.svg)](https://developer.apple.com/ios/)
 [![SPM](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://swift.org/package-manager/)
 
 ## Installation
@@ -123,7 +123,7 @@ attribution.ttclid        // TikTok click ID (if present)
 
 ## Subscriptions (AppRefer Billing)
 
-AppRefer Billing replaces RevenueCat for App Store subscriptions and one-time purchases. StoreKit 2 handles the purchase, AppRefer verifies the signed transaction, keeps the entitlements and sends the conversion to your ad networks from the same attribution data. Requires iOS 15+ (macOS 12+); the attribution API still works on iOS 14.
+AppRefer Billing replaces RevenueCat for App Store subscriptions and one-time purchases. StoreKit 2 handles the purchase, AppRefer verifies the signed transaction, keeps the entitlements and sends the conversion to your ad networks from the same attribution data. Requires iOS 15+ (macOS 12+), like the rest of the SDK.
 
 Billing must be enabled for the app in AppRefer (`billing.mode` `shadow` or `primary`, with the bundle id and products configured).
 
@@ -242,7 +242,7 @@ Testing: use a sandbox Apple ID. Transactions from an Xcode StoreKit configurati
 
 ## Requirements
 
-- iOS 14.0+ (AppRefer Billing: iOS 15.0+)
+- iOS 15.0+ (macOS 12+, tvOS 15+)
 - Swift 5.10+ (Xcode 15.3+)
 - Zero external dependencies
 
