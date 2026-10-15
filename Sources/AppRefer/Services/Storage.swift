@@ -21,6 +21,7 @@ final class AppReferStorage: @unchecked Sendable {
     private static let keySdkEnabled = "apprefer_sdk_enabled"
     private static let keyLastConfigFetch = "apprefer_last_config_fetch"
     private static let keyUserId = "apprefer_user_id"
+    private static let keyReportedTrackingConsent = "apprefer_reported_tracking_consent"
 
     /// Process-wide: attribution and billing each create their own storage and may
     /// both ask for the device id on first launch.
@@ -128,6 +129,16 @@ final class AppReferStorage: @unchecked Sendable {
 
     func setUserId(_ userId: String) {
         defaults.set(userId, forKey: Self.keyUserId)
+    }
+
+    // MARK: - Tracking consent last accepted by the server
+
+    func reportedTrackingConsent() -> String? {
+        defaults.string(forKey: Self.keyReportedTrackingConsent)
+    }
+
+    func setReportedTrackingConsent(_ value: String) {
+        defaults.set(value, forKey: Self.keyReportedTrackingConsent)
     }
 
     // MARK: - Cached Attribution Parsing
