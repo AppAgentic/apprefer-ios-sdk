@@ -1,4 +1,9 @@
-## Unreleased
+## 0.5.0 - 2026-10-15
+
+- Add AppRefer Support: native home and conversations, screenshot uploads, secure sessions, unread counts and notification routing.
+- Concierge chat design with configurable accent, team presence, quick-help topics and a floating composer.
+- AI personas show their approved name and portrait, an explicit AI tag, and a hand-over pill when a person is needed.
+
 
 - **Breaking:** the whole package now requires iOS 15 / macOS 12 / tvOS 15 (was iOS 14 / macOS 11), matching the Flutter SDK; old availability branches removed.
 - Add AppRefer Billing (`AppReferBilling`), a StoreKit 2 purchases and entitlements module that replaces RevenueCat (iOS 15+ / macOS 12+):
