@@ -117,6 +117,17 @@ final class TrackingConsentTests: XCTestCase {
         XCTAssertNotNil(cached)
     }
 
+    func testConcurrentChecksShareOneReportAndBothSeeItsResult() async {
+        _ = await sdk._configure()
+        status.set(.granted)
+        trk.response = ["sdkEnabled": true, "attribution": ["network": "meta", "matchType": "probabilistic"]]
+        async let first = sdk.syncTrackingConsent()
+        async let second = sdk.syncTrackingConsent()
+        let results = await [first, second]
+        XCTAssertEqual(trk.calls.count, 1)
+        XCTAssertEqual(results.compactMap { $0?.network }, ["meta", "meta"])
+    }
+
     func testFailedReportIsRetriedNextTime() async {
         _ = await sdk._configure()
         status.set(.denied)

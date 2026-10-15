@@ -46,7 +46,7 @@ public actor AppRefer {
     private let trackingClient: AppReferPosting
     /// `apprefer.com`, for everything else. Neither falls back to the other.
     private let firstPartyClient: AppReferPosting
-    private var consentSyncInFlight = false
+    private var consentSyncTask: Task<Attribution?, Never>?
     private var consentRecheckRequested = false
 
     init(
@@ -292,7 +292,6 @@ public actor AppRefer {
             storage.setMatchRequestAttempted(true)
             return nil
         }
-        storage.setReportedTrackingConsent(consent.rawValue)
 
         // Update kill switch from server
         let sdkEnabled = response["sdkEnabled"] as? Bool ?? true
@@ -302,6 +301,7 @@ public actor AppRefer {
             storage.setMatchRequestAttempted(true)
             return nil
         }
+        storage.setReportedTrackingConsent(consent.rawValue)
 
         // Parse attribution
         var attribution: Attribution?
@@ -333,13 +333,21 @@ public actor AppRefer {
     /// attribution the server now holds, or nil when nothing was sent or it failed
     /// (tried again on the next launch or activation).
     func syncTrackingConsent() async -> Attribution? {
-        if consentSyncInFlight {
-            // Re-checked when the running sync finishes, so a newer answer isn't lost.
+        if let running = consentSyncTask {
+            // The running sync checks again before it ends, so a newer answer isn't lost;
+            // wait for it so the caller sees the attribution it produced.
             consentRecheckRequested = true
-            return nil
+            return await running.value
         }
-        consentSyncInFlight = true
-        defer { consentSyncInFlight = false }
+        let task = Task { await self.runConsentSync() }
+        consentSyncTask = task
+        let result = await task.value
+        consentSyncTask = nil
+        if consentRecheckRequested { return await syncTrackingConsent() ?? result }
+        return result
+    }
+
+    private func runConsentSync() async -> Attribution? {
         var latest: Attribution?
         repeat {
             consentRecheckRequested = false
