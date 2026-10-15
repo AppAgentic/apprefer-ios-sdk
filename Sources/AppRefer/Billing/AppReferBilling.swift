@@ -130,7 +130,9 @@ public enum AppReferBilling {
         let broadcaster = self.broadcaster
         let engine = BillingEngine(
             api: BillingAPIClient(
-                baseURLs: [AppReferConfig.trackingURL, AppReferConfig.backendURL],
+                // Purchases may be forwarded as conversions only for ATT-authorized installs,
+                // so they go to the tracking host only then; otherwise to the first-party host.
+                baseURLProvider: { [LiveTrackingStatusProvider().current().baseURL] },
                 apiKey: { explicitKey ?? AppRefer.currentApiKey() },
                 transport: URLSessionBillingTransport()
             ),

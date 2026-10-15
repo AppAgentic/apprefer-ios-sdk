@@ -116,7 +116,13 @@ struct BillingAPIClient: Sendable {
         case identify(anonymousId: String, appUserId: String)
     }
 
-    let baseURLs: [String]
+    private let baseURLProvider: @Sendable () -> [String]
+    /// Hosts tried in order, read per request (they follow the install's tracking consent).
+    var baseURLs: [String] {
+        var unique: [String] = []
+        for url in baseURLProvider() where !unique.contains(url) { unique.append(url) }
+        return unique
+    }
     let apiKey: @Sendable () -> String?
     let transport: BillingTransport
     let timeout: TimeInterval
@@ -130,9 +136,17 @@ struct BillingAPIClient: Sendable {
         timeout: TimeInterval = 15,
         keyWaitAttempts: Int = 30
     ) {
-        var unique: [String] = []
-        for url in baseURLs where !unique.contains(url) { unique.append(url) }
-        self.baseURLs = unique
+        self.init(baseURLProvider: { baseURLs }, apiKey: apiKey, transport: transport, timeout: timeout, keyWaitAttempts: keyWaitAttempts)
+    }
+
+    init(
+        baseURLProvider: @escaping @Sendable () -> [String],
+        apiKey: @escaping @Sendable () -> String?,
+        transport: BillingTransport,
+        timeout: TimeInterval = 15,
+        keyWaitAttempts: Int = 30
+    ) {
+        self.baseURLProvider = baseURLProvider
         self.apiKey = apiKey
         self.transport = transport
         self.timeout = timeout

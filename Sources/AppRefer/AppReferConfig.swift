@@ -26,9 +26,10 @@ public struct AppReferConfig: Sendable {
         self.logLevel = logLevel
     }
 
-    /// The AppRefer backend URL (dashboard / web).
+    /// First-party host: analytics, billing, support, user linking. Never used for tracking.
     internal static let backendURL = "https://apprefer.com"
 
-    /// Dedicated tracking endpoint — lower latency for SDK traffic.
+    /// Tracking host: only requests from installs whose ATT status is authorized.
+    /// Declare this one domain in `NSPrivacyTrackingDomains`.
     internal static let trackingURL = "https://trk.apprefer.com"
 }

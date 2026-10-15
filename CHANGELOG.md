@@ -1,3 +1,11 @@
+## 0.6.0 - 2026-10-15
+
+- **Tracking consent split (App Tracking Transparency).** The SDK reads the ATT status (never prompts) and sends it as `tracking_consent`. Requests from ATT-authorized installs go to `trk.apprefer.com` only; everything else goes to `apprefer.com` only. The two hosts no longer fall back to each other, so apps declare only `trk.apprefer.com` in `NSPrivacyTrackingDomains`.
+- The server matches, forwards and keeps advanced matching only for authorized installs; denied and undetermined installs get Apple AdServices or organic attribution, first-party analytics, billing and support.
+- New `AppRefer.trackingConsentDidChange()` (call after your ATT prompt) and `AppRefer.trackingConsent()`. Status changes are also reported on `configure()` and when the app becomes active.
+- `setAdvancedMatching` is skipped unless ATT is authorized. IDFA is only read when authorized (unchanged).
+- AppRefer Billing picks its host per request the same way.
+
 ## 0.5.0 - 2026-10-15
 
 - Add AppRefer Support: native home and conversations, screenshot uploads, secure sessions, unread counts and notification routing.

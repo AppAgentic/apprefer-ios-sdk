@@ -238,7 +238,21 @@ Testing: use a sandbox Apple ID. Transactions from an Xcode StoreKit configurati
 - **Don't track purchases with `trackEvent()`** — revenue events are handled automatically via RevenueCat webhooks. Use `trackEvent()` only for non-purchase milestones like `signup`, `tutorial_complete`, or `onboarding_finish`.
 - **Use the test key during development** — `pk_test_` keys create sandbox events that are isolated from production data and never forwarded to ad networks. Switch to `pk_live_` for release builds.
 - **Use the Debugger** — verify events are flowing correctly in the [AppRefer dashboard](https://apprefer.com) → Debugger before going to production. Toggle the Sandbox switch to see test events.
-- **No IDFA required** — the SDK uses Apple's AdServices framework and does not require ATT permission or the `AdSupport` framework.
+- **No IDFA required** — the SDK uses Apple's AdServices framework and works without ATT permission. It never shows the ATT prompt; it reads the status your app already has.
+
+## App Tracking Transparency (0.6.0+)
+
+AppRefer keeps first-party work and cross-company tracking apart, per install:
+
+| ATT status | Host | What AppRefer does |
+|---|---|---|
+| Authorized | `trk.apprefer.com` | Matches the install to its ad click, forwards conversions to your ad networks, sends advanced matching |
+| Denied / restricted | `apprefer.com` | Apple AdServices or organic only; analytics, billing and support; nothing forwarded, no advanced matching |
+| Not determined | `apprefer.com` | Same as denied until the user answers; conversions are held a few hours in case they allow tracking |
+
+- In your privacy manifest, declare **only `trk.apprefer.com`** in `NSPrivacyTrackingDomains`. `apprefer.com` is never used for tracking, so iOS keeps analytics, billing and support working when the user hasn't allowed tracking.
+- After your own ATT prompt, call `await AppRefer.trackingConsentDidChange()`. AppRefer also re-checks on every `configure()` and whenever the app becomes active (the user can change it in Settings).
+- `AppRefer.trackingConsent()` returns the status AppRefer applies.
 
 ## Requirements
 

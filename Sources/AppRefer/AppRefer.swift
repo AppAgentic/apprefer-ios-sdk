@@ -1,4 +1,14 @@
 import Foundation
+#if canImport(UIKit) && !os(watchOS)
+import UIKit
+#endif
+
+/// One AppRefer endpoint. Abstracted so tests can see which host each request used.
+protocol AppReferPosting: Sendable {
+    func post(_ path: String, body: [String: Any]) async -> [String: Any]?
+}
+
+extension AppReferHTTPClient: AppReferPosting {}
 
 /// AppRefer SDK — first-party mobile attribution for iOS.
 ///
@@ -30,19 +40,37 @@ public actor AppRefer {
 
     private let config: AppReferConfig
     private let storage: AppReferStorage
-    private let httpClient: AppReferHTTPClient
     private let logger: AppReferLogger
+    private let trackingStatus: TrackingStatusProvider
+    /// `trk.apprefer.com`, only for ATT-authorized installs.
+    private let trackingClient: AppReferPosting
+    /// `apprefer.com`, for everything else. Neither falls back to the other.
+    private let firstPartyClient: AppReferPosting
+    private var consentSyncInFlight = false
 
-    init(config: AppReferConfig, storage: AppReferStorage = AppReferStorage()) {
+    init(
+        config: AppReferConfig,
+        storage: AppReferStorage = AppReferStorage(),
+        trackingStatus: TrackingStatusProvider = LiveTrackingStatusProvider(),
+        trackingClient: AppReferPosting? = nil,
+        firstPartyClient: AppReferPosting? = nil
+    ) {
         self.config = config
-        self.logger = AppReferLogger(debug: config.debug, logLevel: config.logLevel)
+        let logger = AppReferLogger(debug: config.debug, logLevel: config.logLevel)
+        self.logger = logger
         self.storage = storage
-        self.httpClient = AppReferHTTPClient(
-            primaryURL: AppReferConfig.trackingURL,
-            fallbackURL: AppReferConfig.backendURL,
-            apiKey: config.apiKey,
-            logger: logger
+        self.trackingStatus = trackingStatus
+        self.trackingClient = trackingClient ?? AppReferHTTPClient(
+            primaryURL: AppReferConfig.trackingURL, fallbackURL: nil, apiKey: config.apiKey, logger: logger
         )
+        self.firstPartyClient = firstPartyClient ?? AppReferHTTPClient(
+            primaryURL: AppReferConfig.backendURL, fallbackURL: nil, apiKey: config.apiKey, logger: logger
+        )
+    }
+
+    /// Requests whose data may be used for tracking go to the tracking host only when ATT is authorized.
+    private func client(for consent: AppReferTrackingConsent) -> AppReferPosting {
+        consent == .granted ? trackingClient : firstPartyClient
     }
 
     // MARK: - Public API
@@ -68,8 +96,43 @@ public actor AppRefer {
 
         let sdk = AppRefer(config: config)
         setShared(sdk)
+        observeActivation()
 
         return await sdk._configure()
+    }
+
+    /// Call right after your own App Tracking Transparency prompt (or any time the
+    /// status may have changed). AppRefer re-reads the status, never prompts, and tells
+    /// the server: an authorized install is then matched to its ad click once; a denied
+    /// one stays first-party and is never forwarded to ad networks. AppRefer also checks
+    /// on every `configure` and whenever the app becomes active.
+    public static func trackingConsentDidChange() async {
+        guard let sdk = getShared() else {
+            _log("trackingConsentDidChange called before configure() — ignoring")
+            return
+        }
+        _ = await sdk.syncTrackingConsent()
+    }
+
+    /// The tracking consent AppRefer currently applies, from App Tracking Transparency.
+    public static func trackingConsent() -> AppReferTrackingConsent {
+        LiveTrackingStatusProvider().current()
+    }
+
+    private nonisolated(unsafe) static var activationObserver: NSObjectProtocol?
+
+    /// The user can change ATT in Settings at any time; re-check when the app comes back.
+    private static func observeActivation() {
+        #if canImport(UIKit) && !os(watchOS)
+        lock.lock()
+        defer { lock.unlock() }
+        guard activationObserver == nil else { return }
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil
+        ) { _ in
+            Task { await AppRefer.trackingConsentDidChange() }
+        }
+        #endif
     }
 
     /// Track a non-purchase event (signup, tutorial_complete, etc.).
@@ -180,10 +243,10 @@ public actor AppRefer {
             return storage.getCachedAttribution()
         }
 
-        // If match already attempted, return cached attribution
+        // If match already attempted, report any ATT change, then return cached attribution
         if storage.isMatchRequestAttempted() {
             logger.info("Skipping match request: existing install detected.")
-            return storage.getCachedAttribution()
+            return await syncTrackingConsent() ?? storage.getCachedAttribution()
         }
 
         // First run — resolve attribution
@@ -199,15 +262,17 @@ public actor AppRefer {
         }
         let deviceInfo = AppReferDeviceInfo.collect()
 
-        // Get AdServices token + IDFA
+        // AdServices token (Apple runs it without ATT); IDFA only when ATT is authorized.
+        let consent = trackingStatus.current()
         let asaToken = AppReferAdServices.getToken()
-        let idfa = AppReferAdServices.getIdfa()
+        let idfa = consent == .granted ? AppReferAdServices.getIdfa() : nil
 
         var body: [String: Any] = [
             "device_id": deviceId,
             "device_info": deviceInfo,
             "sdk_version": AppReferVersion.current,
             "is_debug": config.debug,
+            "tracking_consent": consent.rawValue,
         ]
 
         if let asaToken = asaToken {
@@ -221,11 +286,12 @@ public actor AppRefer {
         }
 
         logger.info("Sending configure request...")
-        guard let response = await httpClient.post("/api/track/configure", body: body) else {
+        guard let response = await client(for: consent).post("/api/track/configure", body: body) else {
             logger.error("Configure request failed")
             storage.setMatchRequestAttempted(true)
             return nil
         }
+        storage.setReportedTrackingConsent(consent.rawValue)
 
         // Update kill switch from server
         let sdkEnabled = response["sdkEnabled"] as? Bool ?? true
@@ -259,6 +325,58 @@ public actor AppRefer {
         return attribution
     }
 
+    /// Tells the server when the ATT status differs from the one it last accepted. An
+    /// install whose first configure failed is also registered this way. Returns the
+    /// attribution the server now holds, or nil when nothing was sent or it failed
+    /// (tried again on the next launch or activation).
+    func syncTrackingConsent() async -> Attribution? {
+        guard storage.isSdkEnabled(), storage.isMatchRequestAttempted(), !consentSyncInFlight else { return nil }
+        let consent = trackingStatus.current()
+        guard storage.reportedTrackingConsent() != consent.rawValue else { return nil }
+        guard let deviceId = storage.deviceId() else { return nil }
+        consentSyncInFlight = true
+        defer { consentSyncInFlight = false }
+
+        var body: [String: Any] = [
+            "device_id": deviceId,
+            "device_info": AppReferDeviceInfo.collect(),
+            "sdk_version": AppReferVersion.current,
+            "is_debug": config.debug,
+            "tracking_consent": consent.rawValue,
+        ]
+        if consent == .granted, let idfa = AppReferAdServices.getIdfa() {
+            body["idfa"] = idfa
+        }
+        if let userId = storage.getUserId() {
+            body["customer_user_id"] = userId
+        }
+
+        logger.info("Reporting tracking consent: \(consent.rawValue)")
+        guard let response = await client(for: consent).post("/api/track/configure", body: body) else {
+            logger.warn("Tracking consent not reported; will retry")
+            return nil
+        }
+        storage.setReportedTrackingConsent(consent.rawValue)
+        if let enabled = response["sdkEnabled"] as? Bool, !enabled {
+            storage.setSdkEnabled(false)
+            return nil
+        }
+        guard let attrDict = response["attribution"] as? [String: Any],
+              let attrData = try? JSONSerialization.data(withJSONObject: attrDict),
+              let parsed = try? JSONDecoder().decode(Attribution.self, from: attrData) else { return nil }
+        if let jsonString = String(data: attrData, encoding: .utf8) {
+            storage.setAttributionCache(jsonString)
+        }
+        return parsed
+    }
+
+    // Test entry points for the private implementations.
+    func _trackEventForTesting(_ name: String) async { await _trackEvent(name, properties: nil, revenue: nil, currency: nil) }
+    func _setUserIdForTesting(_ id: String) async { await _setUserId(id) }
+    func _setAdvancedMatchingForTesting(email: String) async {
+        await _setAdvancedMatching(email: email, phone: nil, firstName: nil, lastName: nil, dateOfBirth: nil)
+    }
+
     private func _trackEvent(
         _ eventName: String,
         properties: [String: Any]?,
@@ -286,7 +404,7 @@ public actor AppRefer {
         }
 
         logger.info("Tracking event: \(eventName)")
-        _ = await httpClient.post("/api/track/event", body: body)
+        _ = await client(for: trackingStatus.current()).post("/api/track/event", body: body)
     }
 
     private func _setAdvancedMatching(
@@ -297,6 +415,11 @@ public actor AppRefer {
         dateOfBirth: String?
     ) async {
         guard storage.isSdkEnabled() else { return }
+        // Hashed PII for Meta's matching is only for advertising: never without ATT.
+        guard trackingStatus.current() == .granted else {
+            logger.info("Advanced matching skipped: tracking not authorized")
+            return
+        }
 
         var hashedData: [String: String] = [:]
         if let email = email { hashedData["em"] = AppReferHashing.hashEmail(email) }
@@ -318,7 +441,7 @@ public actor AppRefer {
         ]
 
         logger.info("Sending advanced matching data")
-        _ = await httpClient.post("/api/track/event", body: body)
+        _ = await trackingClient.post("/api/track/event", body: body)
     }
 
     private func _setUserId(_ userId: String) async {
@@ -332,7 +455,7 @@ public actor AppRefer {
             "event_name": "_set_user_id",
             "properties": ["user_id": userId],
         ]
-        _ = await httpClient.post("/api/track/event", body: body)
+        _ = await client(for: trackingStatus.current()).post("/api/track/event", body: body)
     }
 }
 
