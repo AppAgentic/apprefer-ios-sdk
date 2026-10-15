@@ -254,6 +254,31 @@ AppRefer keeps first-party work and cross-company tracking apart, per install:
 - After your own ATT prompt, call `await AppRefer.trackingConsentDidChange()`. AppRefer also re-checks on every `configure()` and whenever the app becomes active (the user can change it in Settings).
 - `AppRefer.trackingConsent()` returns the status AppRefer applies.
 
+## SKAdNetwork and AdAttributionKit (0.7.0+)
+
+Apple's own ad attribution works for every iOS install, including users who don't allow tracking: the phone ties the install to the ad and Apple sends the ad network an anonymous postback with your app's conversion value. Only the app can set that value, and Apple sends no postback until the app sets it at least once.
+
+AppRefer does this for you:
+
+- On first launch it registers the install (value 0, coarse `low`), as Apple recommends.
+- It then sets the value AppRefer computes from what it already knows: **10** (`medium`) once a free trial starts, **20 + whole dollars paid** (`high`, capped at 63) once the user pays, e.g. $9.99 → 30, $39.99 → 60. Values only go up and windows are never locked early.
+- It checks on launch, when the app becomes active, after trial or revenue events and after AppReferBilling purchases, for the 35 days Apple's postbacks cover. If you take payments elsewhere (e.g. RevenueCat), call `await AppRefer.updateConversionValue()` after a purchase to set it sooner.
+- It updates both AdAttributionKit (iOS 17.4+) and SKAdNetwork (iOS 15.4+), as Apple asks when your ad networks may use either.
+
+To receive copies of the winning postbacks in AppRefer, add to your app's Info.plist:
+
+```xml
+<key>NSAdvertisingAttributionReportEndpoint</key>
+<string>https://apprefer.com</string>
+<key>AdAttributionKit</key>
+<dict>
+    <key>AttributionCopyEndpoint</key>
+    <string>https://apprefer.com</string>
+</dict>
+```
+
+Also add the `SKAdNetworkItems` identifiers your ad networks publish.
+
 ## Requirements
 
 - iOS 15.0+ (macOS 12+, tvOS 15+)

@@ -47,6 +47,10 @@ public actor AppRefer {
     /// `apprefer.com`, for everything else. Neither falls back to the other.
     private let firstPartyClient: AppReferPosting
     private var consentSyncTask: Task<Attribution?, Never>?
+    private let conversionUpdater: ConversionValueUpdating
+    private var conversionRefreshInFlight = false
+    private var conversionRerunForced = false
+    private var conversionRecheckScheduled = false
     private var consentRecheckRequested = false
 
     init(
@@ -54,8 +58,10 @@ public actor AppRefer {
         storage: AppReferStorage = AppReferStorage(),
         trackingStatus: TrackingStatusProvider = LiveTrackingStatusProvider(),
         trackingClient: AppReferPosting? = nil,
-        firstPartyClient: AppReferPosting? = nil
+        firstPartyClient: AppReferPosting? = nil,
+        conversionUpdater: ConversionValueUpdating = LiveConversionValueUpdater()
     ) {
+        self.conversionUpdater = conversionUpdater
         self.config = config
         let logger = AppReferLogger(debug: config.debug, logLevel: config.logLevel)
         self.logger = logger
@@ -99,7 +105,23 @@ public actor AppRefer {
         setShared(sdk)
         observeActivation()
 
-        return await sdk._configure()
+        let attribution = await sdk._configure()
+        Task { await sdk.refreshConversionValue(force: false) }
+        return attribution
+    }
+
+    /// Asks AppRefer for this install's SKAdNetwork / AdAttributionKit conversion value
+    /// and sets it on the device if it went up. AppRefer does this by itself on launch,
+    /// when the app becomes active, after trial/revenue events and AppRefer Billing
+    /// purchases; call it after a purchase made elsewhere (e.g. RevenueCat) to set it sooner.
+    public static func updateConversionValue() async {
+        await getShared()?.refreshConversionValue(force: true)
+    }
+
+    /// Fire-and-forget refresh, e.g. after an AppRefer Billing purchase.
+    static func conversionValueMayHaveChanged() {
+        guard let sdk = getShared() else { return }
+        Task { await sdk.refreshConversionValue(force: true) }
     }
 
     /// Call right after your own App Tracking Transparency prompt (or any time the
@@ -131,7 +153,10 @@ public actor AppRefer {
         activationObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil
         ) { _ in
-            Task { await AppRefer.trackingConsentDidChange() }
+            Task {
+                await AppRefer.trackingConsentDidChange()
+                await getShared()?.refreshConversionValue(force: false)
+            }
         }
         #endif
     }
@@ -401,6 +426,82 @@ public actor AppRefer {
         return parsed
     }
 
+    private static let trialEvents: Set<String> = ["startTrial", "trial_started", "StartTrial", "start_trial"]
+
+    /// Postbacks cover 35 days after install; after that the value can't matter.
+    private static let conversionWindow: TimeInterval = 35 * 86400
+    /// Unforced refreshes (launch, activation) at most this often.
+    private static let conversionRefreshInterval: TimeInterval = 10 * 60
+
+    /// Registers the install for ad attribution on the first call (value 0, low, which Apple
+    /// recommends at first launch), then raises the value whenever AppRefer reports a
+    /// higher one. Always the first-party host: the value is computed from first-party
+    /// data and only reaches ad networks through Apple's anonymous postbacks.
+    func refreshConversionValue(force: Bool, allowRecheck: Bool = true) async {
+        guard storage.isSdkEnabled() else { return }
+        if let firstRun = storage.firstRunDate(), Date().timeIntervalSince(firstRun) > Self.conversionWindow { return }
+        if conversionRefreshInFlight {
+            // A purchase may have landed after the running check read its value: run again after it.
+            if force { conversionRerunForced = true }
+            return
+        }
+        conversionRefreshInFlight = true
+        var forced = force
+        repeat {
+            conversionRerunForced = false
+            let raised = await refreshConversionValueOnce(force: forced)
+            // A purchase made outside AppRefer Billing reaches AppRefer through its webhook a moment
+            // later: if a forced check found nothing new, look once more after 90 seconds.
+            if forced, !raised, allowRecheck, !conversionRecheckScheduled {
+                conversionRecheckScheduled = true
+                Task {
+                    try? await Task.sleep(nanoseconds: 90 * 1_000_000_000)
+                    await self.finishScheduledRecheck()
+                }
+            }
+            forced = true
+        } while conversionRerunForced
+        conversionRefreshInFlight = false
+    }
+
+    /// Through the guarded path (enabled, window, one check at a time), without scheduling another.
+    private func finishScheduledRecheck() async {
+        conversionRecheckScheduled = false
+        await refreshConversionValue(force: true, allowRecheck: false)
+    }
+
+    /// One check; true when the value went up.
+    private func refreshConversionValueOnce(force: Bool) async -> Bool {
+        var current = storage.conversionValue()
+        if current == nil {
+            await conversionUpdater.update(fine: 0, coarse: .low)
+            storage.setConversionValue(fine: 0, coarse: AppReferCoarseValue.low.rawValue)
+            current = (0, AppReferCoarseValue.low.rawValue)
+        }
+        if !force, let checked = storage.conversionCheckedAt(), Date().timeIntervalSince(checked) < Self.conversionRefreshInterval { return false }
+        guard let deviceId = storage.deviceId() else { return false }
+        var body: [String: Any] = ["device_id": deviceId]
+        // Lets AppRefer tell a reinstall (same Keychain id, new first run) from the old install.
+        if let firstRun = storage.firstRunDate() {
+            body["installed_at"] = ISO8601DateFormatter().string(from: firstRun)
+        }
+        guard let response = await firstPartyClient.post("/api/track/conversion-value", body: body),
+              let fine = response["fine"] as? Int,
+              let coarse = (response["coarse"] as? String).flatMap(AppReferCoarseValue.init(rawValue:)) else { return false }
+        storage.setConversionCheckedAt(Date())
+        // Compare with what is stored now, not before the request.
+        current = storage.conversionValue() ?? current
+        let lastFine = current?.fine ?? 0
+        let lastCoarse = current.flatMap { AppReferCoarseValue(rawValue: $0.coarse) } ?? .low
+        guard fine > lastFine || coarse > lastCoarse else { return false }
+        let newFine = max(fine, lastFine)
+        let newCoarse = max(coarse, lastCoarse)
+        await conversionUpdater.update(fine: newFine, coarse: newCoarse)
+        storage.setConversionValue(fine: newFine, coarse: newCoarse.rawValue)
+        logger.info("Conversion value set: \(newFine) (\(newCoarse.rawValue))")
+        return true
+    }
+
     // Test entry points for the private implementations.
     func _getAttributionForTesting() -> Attribution? { storage.getCachedAttribution() }
     func _trackEventForTesting(_ name: String) async { await _trackEvent(name, properties: nil, revenue: nil, currency: nil) }
@@ -437,6 +538,10 @@ public actor AppRefer {
 
         logger.info("Tracking event: \(eventName)")
         _ = await client(for: trackingStatus.current()).post("/api/track/event", body: body)
+        if (revenue ?? 0) > 0 || Self.trialEvents.contains(eventName) {
+            // Not awaited: trackEvent callers shouldn't wait on the value check.
+            Task { await self.refreshConversionValue(force: true) }
+        }
     }
 
     private func _setAdvancedMatching(

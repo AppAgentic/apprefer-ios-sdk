@@ -22,6 +22,9 @@ final class AppReferStorage: @unchecked Sendable {
     private static let keyLastConfigFetch = "apprefer_last_config_fetch"
     private static let keyUserId = "apprefer_user_id"
     private static let keyReportedTrackingConsent = "apprefer_reported_tracking_consent"
+    private static let keyConversionFine = "apprefer_conversion_fine"
+    private static let keyConversionCoarse = "apprefer_conversion_coarse"
+    private static let keyConversionCheckedAt = "apprefer_conversion_checked_at"
 
     /// Process-wide: attribution and billing each create their own storage and may
     /// both ask for the device id on first launch.
@@ -139,6 +142,31 @@ final class AppReferStorage: @unchecked Sendable {
 
     func setReportedTrackingConsent(_ value: String) {
         defaults.set(value, forKey: Self.keyReportedTrackingConsent)
+    }
+
+    // MARK: - SKAdNetwork / AdAttributionKit value last set on the device
+
+    func conversionValue() -> (fine: Int, coarse: String)? {
+        guard defaults.object(forKey: Self.keyConversionFine) != nil else { return nil }
+        return (defaults.integer(forKey: Self.keyConversionFine), defaults.string(forKey: Self.keyConversionCoarse) ?? "low")
+    }
+
+    func setConversionValue(fine: Int, coarse: String) {
+        defaults.set(fine, forKey: Self.keyConversionFine)
+        defaults.set(coarse, forKey: Self.keyConversionCoarse)
+    }
+
+    func conversionCheckedAt() -> Date? {
+        defaults.object(forKey: Self.keyConversionCheckedAt) as? Date
+    }
+
+    func setConversionCheckedAt(_ date: Date) {
+        defaults.set(date, forKey: Self.keyConversionCheckedAt)
+    }
+
+    /// When the first run was recorded, if it was.
+    func firstRunDate() -> Date? {
+        defaults.string(forKey: Self.keyFirstRunDate).flatMap { ISO8601DateFormatter().date(from: $0) }
     }
 
     // MARK: - Cached Attribution Parsing

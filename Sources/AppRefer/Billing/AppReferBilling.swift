@@ -287,6 +287,7 @@ public enum AppReferBilling {
                 throw AppReferBillingError.unverifiedTransaction
             }
             let info = await engine.process(update, initiator: intent.appUserId, intent: intent)
+            AppRefer.conversionValueMayHaveChanged()
             return PurchaseResult(outcome: .purchased, transaction: transaction, customerInfo: info)
         case .userCancelled:
             await engine.endPurchase(intent)
