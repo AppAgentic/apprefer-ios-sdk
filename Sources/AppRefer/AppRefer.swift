@@ -437,7 +437,7 @@ public actor AppRefer {
     /// recommends at first launch), then raises the value whenever AppRefer reports a
     /// higher one. Always the first-party host: the value is computed from first-party
     /// data and only reaches ad networks through Apple's anonymous postbacks.
-    func refreshConversionValue(force: Bool) async {
+    func refreshConversionValue(force: Bool, allowRecheck: Bool = true) async {
         guard storage.isSdkEnabled() else { return }
         if let firstRun = storage.firstRunDate(), Date().timeIntervalSince(firstRun) > Self.conversionWindow { return }
         if conversionRefreshInFlight {
@@ -452,7 +452,7 @@ public actor AppRefer {
             let raised = await refreshConversionValueOnce(force: forced)
             // A purchase made outside AppRefer Billing reaches AppRefer through its webhook a moment
             // later: if a forced check found nothing new, look once more after 90 seconds.
-            if forced, !raised, !conversionRecheckScheduled {
+            if forced, !raised, allowRecheck, !conversionRecheckScheduled {
                 conversionRecheckScheduled = true
                 Task {
                     try? await Task.sleep(nanoseconds: 90 * 1_000_000_000)
@@ -464,9 +464,10 @@ public actor AppRefer {
         conversionRefreshInFlight = false
     }
 
+    /// Through the guarded path (enabled, window, one check at a time), without scheduling another.
     private func finishScheduledRecheck() async {
         conversionRecheckScheduled = false
-        _ = await refreshConversionValueOnce(force: true)
+        await refreshConversionValue(force: true, allowRecheck: false)
     }
 
     /// One check; true when the value went up.
@@ -488,6 +489,8 @@ public actor AppRefer {
               let fine = response["fine"] as? Int,
               let coarse = (response["coarse"] as? String).flatMap(AppReferCoarseValue.init(rawValue:)) else { return false }
         storage.setConversionCheckedAt(Date())
+        // Compare with what is stored now, not before the request.
+        current = storage.conversionValue() ?? current
         let lastFine = current?.fine ?? 0
         let lastCoarse = current.flatMap { AppReferCoarseValue(rawValue: $0.coarse) } ?? .low
         guard fine > lastFine || coarse > lastCoarse else { return false }
