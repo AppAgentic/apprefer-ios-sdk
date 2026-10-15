@@ -1,4 +1,7 @@
 import XCTest
+#if os(iOS)
+import SwiftUI
+#endif
 @testable import AppRefer
 #if canImport(UIKit)
 import UIKit
@@ -43,6 +46,28 @@ final class SupportTests: XCTestCase {
         XCTAssertLessThanOrEqual(data.count, 700_000)
         let decoded = UIImage(data: data)!
         XCTAssertLessThanOrEqual(max(decoded.size.width, decoded.size.height), 1600)
+    }
+    #endif
+
+    #if os(iOS)
+    func testTextOnABrightAccentIsDark() {
+        XCTAssertEqual(SupportPalette(Color(red: 1, green: 0.84, blue: 0.1)).onAccent, Color(white: 0.08))
+        XCTAssertEqual(SupportPalette(Color(red: 0.43, green: 0.29, blue: 1)).onAccent, .white)
+    }
+
+    @MainActor
+    func testContinueCardPicksUnreadThenNewestOpen() {
+        func conv(_ id: String, _ status: String, _ at: String, unread: Int = 0) -> AppReferSupportConversation {
+            try! JSONDecoder().decode(AppReferSupportConversation.self, from: Data("""
+            {"id":"\(id)","subject":"s","status":"\(status)","preview":"p","lastMessageAt":"\(at)","lastFrom":"team","unread":\(unread)}
+            """.utf8))
+        }
+        let model = SupportHomeModel()
+        model.conversations = [conv("a", "open", "2026-10-15T10:00:00Z"), conv("b", "closed", "2026-10-15T12:00:00Z"), conv("c", "open", "2026-10-15T11:00:00Z")]
+        XCTAssertEqual(model.current?.id, "c")
+        XCTAssertEqual(model.others.map(\.id), ["a", "b"])
+        model.conversations.append(conv("d", "open", "2026-10-14T09:00:00Z", unread: 1))
+        XCTAssertEqual(model.current?.id, "d")
     }
     #endif
 }

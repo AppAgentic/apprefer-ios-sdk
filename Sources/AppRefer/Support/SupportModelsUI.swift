@@ -3,9 +3,8 @@ import SwiftUI
 import UIKit
 import ImageIO
 
-/// Screens inside the help chat.
+/// Screens on top of the help home.
 enum SupportRoute: Hashable {
-    case compose
     case thread(id: String, subject: String)
 }
 
@@ -26,6 +25,16 @@ final class SupportHomeModel: ObservableObject {
             self.error = error.localizedDescription
         }
         loaded = true
+    }
+
+    /// The open conversation to pick up again: unread first, then the newest.
+    var current: AppReferSupportConversation? {
+        conversations.filter(\.isOpen).max { ($0.unread > 0 ? 1 : 0, $0.lastMessageAt) < ($1.unread > 0 ? 1 : 0, $1.lastMessageAt) }
+    }
+
+    var others: [AppReferSupportConversation] {
+        let currentId = current?.id
+        return conversations.filter { $0.id != currentId }
     }
 }
 

@@ -115,8 +115,9 @@ actor SupportAPI {
         try JSONDecoder().decode(SupportConversationList.self, from: try await call("GET", "/api/support/v1/conversations")).conversations
     }
 
-    func start(text: String, attachmentIds: [String], clientMessageId: String) async throws -> SupportThread {
+    func start(text: String, subject: String? = nil, attachmentIds: [String], clientMessageId: String) async throws -> SupportThread {
         var body: [String: Any] = ["text": text, "context": Self.context(), "clientMessageId": clientMessageId]
+        if let subject { body["subject"] = subject }
         if !attachmentIds.isEmpty { body["attachmentIds"] = attachmentIds }
         return try JSONDecoder().decode(SupportThread.self, from: try await call("POST", "/api/support/v1/conversations", body: body))
     }
