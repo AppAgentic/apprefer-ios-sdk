@@ -1,6 +1,7 @@
 #if os(iOS)
 import SwiftUI
 import UIKit
+import ImageIO
 
 /// Screens inside the help chat.
 enum SupportRoute: Hashable {
@@ -30,7 +31,8 @@ final class SupportHomeModel: ObservableObject {
 
 /// A message being sent, shown at once and replaced by the stored one.
 struct PendingMessage: Identifiable, Hashable {
-    let id = UUID().uuidString
+    /// Also the clientMessageId: the same on every retry, so the server never stores it twice.
+    var id = UUID().uuidString
     let text: String
     let images: [UIImage]
     var failed = false
@@ -59,10 +61,13 @@ final class SupportThreadModel: ObservableObject {
         loaded = true
     }
 
-    /// New messages since the last one we have. Runs only while the chat is open.
+    /// New messages since the last poll. Runs only while the chat is open and active.
     func poll() async {
         guard loaded, let t = try? await SupportAPI.shared.thread(id, after: lastSeen) else { return }
         merge(t.messages)
+        // Only polls move the cursor: a team reply that landed just before our own
+        // send is then still fetched.
+        if let newest = t.messages.last?.createdAt { lastSeen = newest }
     }
 
     private func merge(_ incoming: [AppReferSupportMessage]) {
@@ -70,16 +75,19 @@ final class SupportThreadModel: ObservableObject {
         let fresh = incoming.filter { !known.contains($0.id) }
         guard !fresh.isEmpty else { return }
         messages.append(contentsOf: fresh)
-        lastSeen = messages.last?.createdAt ?? lastSeen
+        messages.sort { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
     }
 
     func send(text: String, images: [UIImage]) async {
-        let p = PendingMessage(text: text, images: images)
+        await deliver(PendingMessage(text: text, images: images))
+    }
+
+    private func deliver(_ p: PendingMessage) async {
         pending.append(p)
         do {
             var ids: [String] = []
-            for image in images { ids.append(try await SupportAPI.shared.upload(SupportImages.jpeg(image))) }
-            let sent = try await SupportAPI.shared.send(id, text: text, attachmentIds: ids)
+            for image in images(p) { ids.append(try await SupportAPI.shared.upload(await SupportImages.jpegOffMain(image))) }
+            let sent = try await SupportAPI.shared.send(id, text: p.text, attachmentIds: ids, clientMessageId: p.id)
             pending.removeAll { $0.id == p.id }
             merge([sent])
         } catch {
@@ -88,13 +96,35 @@ final class SupportThreadModel: ObservableObject {
         }
     }
 
+    /// Same clientMessageId, fresh uploads: a retry after a lost response returns the stored message.
     func retry(_ p: PendingMessage) async {
         pending.removeAll { $0.id == p.id }
-        await send(text: p.text, images: p.images)
+        var again = p
+        again.failed = false
+        await deliver(again)
     }
+
+    private func images(_ p: PendingMessage) -> [UIImage] { p.images }
 }
 
 enum SupportImages {
+    /// Compression off the main thread, so the chat stays responsive.
+    static func jpegOffMain(_ image: UIImage) async -> Data {
+        await Task.detached(priority: .userInitiated) { jpeg(image) }.value
+    }
+
+    /// Decodes a picked file straight to at most 1600 px (never the full-size bitmap).
+    static func downsampled(_ url: URL, maxSide: CGFloat = 1600) -> UIImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxSide,
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary).map { UIImage(cgImage: $0) }
+    }
+
     /// Screenshots shrink to at most 1600 px and about 700 KB before upload.
     static func jpeg(_ image: UIImage) -> Data {
         let maxSide: CGFloat = 1600

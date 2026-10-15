@@ -154,7 +154,7 @@ struct SupportHomeScreen: View {
             // Keep the list fresh while the help screen is open; nothing runs once it closes.
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 15_000_000_000)
-                await model.refresh()
+                if UIApplication.shared.applicationState == .active { await model.refresh() }
             }
         }
     }
@@ -212,6 +212,8 @@ struct SupportComposeScreen: View {
     @State private var picking = false
     @State private var sending = false
     @State private var error: String?
+    /// The same on every retry of this message.
+    @State private var clientMessageId = UUID().uuidString
     @FocusState private var focused: Bool
 
     private var canSend: Bool { !sending && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !images.isEmpty) }
@@ -262,8 +264,8 @@ struct SupportComposeScreen: View {
         defer { sending = false }
         do {
             var ids: [String] = []
-            for image in images { ids.append(try await SupportAPI.shared.upload(SupportImages.jpeg(image))) }
-            let t = try await SupportAPI.shared.start(text: text.trimmingCharacters(in: .whitespacesAndNewlines), attachmentIds: ids)
+            for image in images { ids.append(try await SupportAPI.shared.upload(await SupportImages.jpegOffMain(image))) }
+            let t = try await SupportAPI.shared.start(text: text.trimmingCharacters(in: .whitespacesAndNewlines), attachmentIds: ids, clientMessageId: clientMessageId)
             started(t.conversation.id, t.conversation.subject)
         } catch {
             self.error = error.localizedDescription
@@ -353,10 +355,12 @@ struct SupportThreadScreen: View {
         .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0) } }
         .task { await model.load() }
         .task {
-            // Replies arrive by polling only while this screen is open (and by push otherwise).
+            // Replies arrive by polling only while this screen is open and the app is
+            // active (and by push otherwise). The app's state, not scenePhase: this view
+            // is usually hosted by UIKit, where scenePhase isn't reliable.
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 4_000_000_000)
-                await model.poll()
+                if UIApplication.shared.applicationState == .active { await model.poll() }
             }
         }
     }
@@ -503,15 +507,17 @@ struct SupportPhotoPicker: UIViewControllerRepresentable {
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             picker.dismiss(animated: true)
-            let providers = results.map(\.itemProvider).filter { $0.canLoadObject(ofClass: UIImage.self) }
+            let providers = results.map(\.itemProvider).filter { $0.hasItemConformingToTypeIdentifier("public.image") }
             guard !providers.isEmpty else { return }
             var images: [UIImage] = []
             let group = DispatchGroup()
             let lock = NSLock()
+            // Each photo is read from its file and decoded straight to 1600 px, one at a
+            // time per provider, so a huge panorama never sits in memory at full size.
             for p in providers {
                 group.enter()
-                p.loadObject(ofClass: UIImage.self) { object, _ in
-                    if let image = object as? UIImage { lock.lock(); images.append(image); lock.unlock() }
+                p.loadFileRepresentation(forTypeIdentifier: "public.image") { url, _ in
+                    if let url, let image = SupportImages.downsampled(url) { lock.lock(); images.append(image); lock.unlock() }
                     group.leave()
                 }
             }

@@ -37,24 +37,42 @@ actor SupportAPI {
         return body
     }
 
-    /// The session token, minted on first use. The profile (app user id, name,
-    /// email) is re-sent only when it changes.
+    private var minting: Task<String, Error>?
+
+    /// The session token, minted on first use. Concurrent first calls share one
+    /// mint, so the app never ends up with two sessions. The profile (app user
+    /// id, name, email) is re-sent only when it changes, and recorded as synced
+    /// only once the server has it.
     private func sessionToken() async throws -> String {
         if token == nil { token = KeychainHelper.load(key: Self.tokenKey).value }
-        let profileJSON = (try? JSONSerialization.data(withJSONObject: profile, options: .sortedKeys)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        let current = profile
+        let profileJSON = (try? JSONSerialization.data(withJSONObject: current, options: .sortedKeys)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
         if let token {
-            if UserDefaults.standard.string(forKey: Self.profileKey) != profileJSON {
-                _ = try? await raw("POST", "/api/support/v1/session", body: profile, session: token)
+            if UserDefaults.standard.string(forKey: Self.profileKey) != profileJSON,
+               let data = try? await raw("POST", "/api/support/v1/session", body: current, session: token),
+               let refreshed = try? JSONDecoder().decode(SupportSession.self, from: data) {
+                // The server may hand back a replacement session.
+                if refreshed.session != token { adopt(refreshed.session) }
                 UserDefaults.standard.set(profileJSON, forKey: Self.profileKey)
             }
-            return token
+            return self.token ?? token
         }
-        let data = try await raw("POST", "/api/support/v1/session", body: profile, session: nil)
-        let minted = try JSONDecoder().decode(SupportSession.self, from: data).session
-        _ = KeychainHelper.save(key: Self.tokenKey, value: minted)
+        if let minting { return try await minting.value }
+        let task = Task { () throws -> String in
+            let data = try await self.raw("POST", "/api/support/v1/session", body: current, session: nil)
+            return try JSONDecoder().decode(SupportSession.self, from: data).session
+        }
+        minting = task
+        defer { minting = nil }
+        let minted = try await task.value
+        adopt(minted)
         UserDefaults.standard.set(profileJSON, forKey: Self.profileKey)
-        token = minted
         return minted
+    }
+
+    private func adopt(_ session: String) {
+        _ = KeychainHelper.save(key: Self.tokenKey, value: session)
+        token = session
     }
 
     // MARK: - HTTP
@@ -97,8 +115,8 @@ actor SupportAPI {
         try JSONDecoder().decode(SupportConversationList.self, from: try await call("GET", "/api/support/v1/conversations")).conversations
     }
 
-    func start(text: String, attachmentIds: [String]) async throws -> SupportThread {
-        var body: [String: Any] = ["text": text, "context": Self.context()]
+    func start(text: String, attachmentIds: [String], clientMessageId: String) async throws -> SupportThread {
+        var body: [String: Any] = ["text": text, "context": Self.context(), "clientMessageId": clientMessageId]
         if !attachmentIds.isEmpty { body["attachmentIds"] = attachmentIds }
         return try JSONDecoder().decode(SupportThread.self, from: try await call("POST", "/api/support/v1/conversations", body: body))
     }
@@ -109,8 +127,9 @@ actor SupportAPI {
         return try JSONDecoder().decode(SupportThread.self, from: try await call("GET", path))
     }
 
-    func send(_ id: String, text: String, attachmentIds: [String]) async throws -> AppReferSupportMessage {
-        var body: [String: Any] = ["text": text]
+    /// `clientMessageId` stays the same on retries, so a retry never duplicates.
+    func send(_ id: String, text: String, attachmentIds: [String], clientMessageId: String) async throws -> AppReferSupportMessage {
+        var body: [String: Any] = ["text": text, "clientMessageId": clientMessageId]
         if !attachmentIds.isEmpty { body["attachmentIds"] = attachmentIds }
         let data = try await call("POST", "/api/support/v1/conversations/\(id.urlPathEscaped)/messages", body: body)
         return try JSONDecoder().decode(SupportSent.self, from: data).message
