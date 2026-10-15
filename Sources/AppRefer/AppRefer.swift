@@ -49,6 +49,8 @@ public actor AppRefer {
     private var consentSyncTask: Task<Attribution?, Never>?
     private let conversionUpdater: ConversionValueUpdating
     private var conversionRefreshInFlight = false
+    private var conversionRerunForced = false
+    private var conversionRecheckScheduled = false
     private var consentRecheckRequested = false
 
     init(
@@ -436,31 +438,65 @@ public actor AppRefer {
     /// higher one. Always the first-party host: the value is computed from first-party
     /// data and only reaches ad networks through Apple's anonymous postbacks.
     func refreshConversionValue(force: Bool) async {
-        guard storage.isSdkEnabled(), !conversionRefreshInFlight else { return }
+        guard storage.isSdkEnabled() else { return }
         if let firstRun = storage.firstRunDate(), Date().timeIntervalSince(firstRun) > Self.conversionWindow { return }
+        if conversionRefreshInFlight {
+            // A purchase may have landed after the running check read its value: run again after it.
+            if force { conversionRerunForced = true }
+            return
+        }
         conversionRefreshInFlight = true
-        defer { conversionRefreshInFlight = false }
+        var forced = force
+        repeat {
+            conversionRerunForced = false
+            let raised = await refreshConversionValueOnce(force: forced)
+            // A purchase made outside AppRefer Billing reaches AppRefer through its webhook a moment
+            // later: if a forced check found nothing new, look once more after 90 seconds.
+            if forced, !raised, !conversionRecheckScheduled {
+                conversionRecheckScheduled = true
+                Task {
+                    try? await Task.sleep(nanoseconds: 90 * 1_000_000_000)
+                    await self.finishScheduledRecheck()
+                }
+            }
+            forced = true
+        } while conversionRerunForced
+        conversionRefreshInFlight = false
+    }
 
+    private func finishScheduledRecheck() async {
+        conversionRecheckScheduled = false
+        _ = await refreshConversionValueOnce(force: true)
+    }
+
+    /// One check; true when the value went up.
+    private func refreshConversionValueOnce(force: Bool) async -> Bool {
         var current = storage.conversionValue()
         if current == nil {
             await conversionUpdater.update(fine: 0, coarse: .low)
             storage.setConversionValue(fine: 0, coarse: AppReferCoarseValue.low.rawValue)
             current = (0, AppReferCoarseValue.low.rawValue)
         }
-        if !force, let checked = storage.conversionCheckedAt(), Date().timeIntervalSince(checked) < Self.conversionRefreshInterval { return }
-        guard let deviceId = storage.deviceId(),
-              let response = await firstPartyClient.post("/api/track/conversion-value", body: ["device_id": deviceId]),
+        if !force, let checked = storage.conversionCheckedAt(), Date().timeIntervalSince(checked) < Self.conversionRefreshInterval { return false }
+        guard let deviceId = storage.deviceId() else { return false }
+        var body: [String: Any] = ["device_id": deviceId]
+        // Lets AppRefer tell a reinstall (same Keychain id, new first run) from the old install.
+        if let firstRun = storage.firstRunDate() {
+            body["installed_at"] = ISO8601DateFormatter().string(from: firstRun)
+        }
+        guard let response = await firstPartyClient.post("/api/track/conversion-value", body: body),
               let fine = response["fine"] as? Int,
-              let coarse = (response["coarse"] as? String).flatMap(AppReferCoarseValue.init(rawValue:)) else { return }
+              let coarse = (response["coarse"] as? String).flatMap(AppReferCoarseValue.init(rawValue:)) else { return false }
         storage.setConversionCheckedAt(Date())
         let lastFine = current?.fine ?? 0
         let lastCoarse = current.flatMap { AppReferCoarseValue(rawValue: $0.coarse) } ?? .low
-        guard fine > lastFine || coarse > lastCoarse else { return }
+        guard fine > lastFine || coarse > lastCoarse else { return false }
         let newFine = max(fine, lastFine)
         let newCoarse = max(coarse, lastCoarse)
         await conversionUpdater.update(fine: newFine, coarse: newCoarse)
         storage.setConversionValue(fine: newFine, coarse: newCoarse.rawValue)
         logger.info("Conversion value set: \(newFine) (\(newCoarse.rawValue))")
+        return true
     }
 
     // Test entry points for the private implementations.
@@ -500,7 +536,8 @@ public actor AppRefer {
         logger.info("Tracking event: \(eventName)")
         _ = await client(for: trackingStatus.current()).post("/api/track/event", body: body)
         if (revenue ?? 0) > 0 || Self.trialEvents.contains(eventName) {
-            await refreshConversionValue(force: true)
+            // Not awaited: trackEvent callers shouldn't wait on the value check.
+            Task { await self.refreshConversionValue(force: true) }
         }
     }
 

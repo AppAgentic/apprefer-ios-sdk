@@ -36,6 +36,9 @@ struct LiveConversionValueUpdater: ConversionValueUpdating {
             try? await SKAdNetwork.updatePostbackConversionValue(fine, coarseValue: value, lockWindow: false)
         } else if #available(iOS 15.4, *) {
             try? await SKAdNetwork.updatePostbackConversionValue(fine)
+        } else {
+            // iOS 15.0–15.3: SKAdNetwork 3 (fine value only).
+            SKAdNetwork.updateConversionValue(fine)
         }
         #endif
     }

@@ -10,10 +10,14 @@ private final class FakeUpdater: ConversionValueUpdating, @unchecked Sendable {
 private final class PathPoster: AppReferPosting, @unchecked Sendable {
     private let lock = NSLock()
     private(set) var paths: [String] = []
+    private(set) var bodies: [[String: Any]] = []
     var value: [String: Any]? = ["fine": 0, "coarse": "low"]
+    var delayNanos: UInt64 = 0
     func post(_ path: String, body: [String: Any]) async -> [String: Any]? {
-        lock.lock(); paths.append(path); lock.unlock()
-        return path == "/api/track/conversion-value" ? value : ["sdkEnabled": true]
+        lock.lock(); paths.append(path); bodies.append(body); let delay = delayNanos; lock.unlock()
+        if delay > 0 { try? await Task.sleep(nanoseconds: delay) }
+        lock.lock(); let v = value; lock.unlock()
+        return path == "/api/track/conversion-value" ? v : ["sdkEnabled": true]
     }
 }
 
@@ -73,11 +77,30 @@ final class ConversionValueTests: XCTestCase {
         XCTAssertTrue(updater.calls.isEmpty)
     }
 
-    func testRevenueAndTrialEventsRefreshRightAway() async {
+    func testRevenueAndTrialEventsRefreshRightAway() async throws {
         firstParty.value = ["fine": 10, "coarse": "medium"]
         await sdk._trackEventForTesting("startTrial")
+        for _ in 0..<100 where updater.calls.count < 2 { try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertEqual(updater.calls.map(\.0), [0, 10])
         await sdk._trackEventForTesting("level_up")
+        try await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertEqual(updater.calls.count, 2)
+    }
+
+    func testSendsTheInstallDateSoAReinstallStartsFresh() async {
+        defaults.set("2026-10-16T09:00:00Z", forKey: "apprefer_first_run_date")
+        await sdk.refreshConversionValue(force: true)
+        XCTAssertEqual(firstParty.bodies.last?["installed_at"] as? String, "2026-10-16T09:00:00Z")
+    }
+
+    func testAForcedCheckDuringARunningOneRunsAfterIt() async {
+        firstParty.delayNanos = 200_000_000
+        firstParty.value = ["fine": 0, "coarse": "low"]
+        async let first: Void = sdk.refreshConversionValue(force: false)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        firstParty.value = ["fine": 30, "coarse": "high"]
+        await sdk.refreshConversionValue(force: true)
+        await first
+        XCTAssertEqual(updater.calls.last?.0, 30)
     }
 }
