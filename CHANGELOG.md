@@ -1,7 +1,7 @@
 ## 0.7.0 - 2026-10-16
 
 - SKAdNetwork and AdAttributionKit conversion values: the SDK registers each install on first launch and raises its conversion value from AppRefer's first-party data (trial started = 10, paid = 20 + whole dollars, capped at 63; coarse low/medium/high), on launch, activation, trial/revenue events and AppReferBilling purchases, for 35 days. Works for every install whatever its ATT status.
-- New `AppRefer.updateConversionValue()` to refresh right after a purchase made outside AppReferBilling.
+- New `AppRefer.updateConversionValue()` to refresh right after a purchase made outside AppReferBilling; such checks look once more 90 seconds later. The first-run date is sent so a reinstall starts fresh. iOS 15.0–15.3 use SKAdNetwork 3.
 - README: Info.plist keys to receive postback copies in AppRefer (`NSAdvertisingAttributionReportEndpoint`, `AdAttributionKit.AttributionCopyEndpoint`).
 
 ## 0.6.0 - 2026-10-15
