@@ -1,3 +1,9 @@
+## 0.7.0 - 2026-10-16
+
+- SKAdNetwork and AdAttributionKit conversion values: the SDK registers each install on first launch and raises its conversion value from AppRefer's first-party data (trial started = 10, paid = 20 + whole dollars, capped at 63; coarse low/medium/high), on launch, activation, trial/revenue events and AppReferBilling purchases, for 35 days. Works for every install whatever its ATT status.
+- New `AppRefer.updateConversionValue()` to refresh right after a purchase made outside AppReferBilling.
+- README: Info.plist keys to receive postback copies in AppRefer (`NSAdvertisingAttributionReportEndpoint`, `AdAttributionKit.AttributionCopyEndpoint`).
+
 ## 0.6.0 - 2026-10-15
 
 - **Tracking consent split (App Tracking Transparency).** The SDK reads the ATT status (never prompts) and sends it as `tracking_consent`. Requests from ATT-authorized installs go to `trk.apprefer.com` only; everything else goes to `apprefer.com` only. The two hosts no longer fall back to each other, so apps declare only `trk.apprefer.com` in `NSPrivacyTrackingDomains`.
