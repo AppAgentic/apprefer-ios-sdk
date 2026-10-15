@@ -249,3 +249,26 @@ Testing: use a sandbox Apple ID. Transactions from an Xcode StoreKit configurati
 ## License
 
 Proprietary. All rights reserved.
+
+## Support chat (AppRefer Support)
+
+An in-app help chat your team answers from the AppRefer inbox. iOS 15+, SwiftUI, Liquid Glass on iOS 26+.
+
+```swift
+// Anywhere (a Help button, Settings row…):
+AppRefer.support.open()
+
+// Optional
+AppRefer.support.identify(name: "María", email: "maria@example.com") // the app user id from setUserId is sent automatically
+AppRefer.support.accentColor = .purple
+AppRefer.support.compose("Problem with my subscription")              // open straight on a new message
+
+// Reply notifications (free push; AppRefer emails only if a reply stays unread for an hour)
+func application(_ app: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken token: Data) {
+    AppRefer.support.registerDeviceToken(token)
+}
+// In your UNUserNotificationCenterDelegate:
+if AppRefer.support.handleNotification(response.notification.request.content.userInfo) { return }
+```
+
+Customers can attach up to four screenshots per message; they are compressed on the device (about 1600 px, under 700 KB) and uploaded straight to storage. The chat checks for replies only while it's open.
