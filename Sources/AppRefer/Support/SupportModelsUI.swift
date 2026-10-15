@@ -8,6 +8,18 @@ enum SupportRoute: Hashable {
     case thread(id: String, subject: String)
 }
 
+/// The app's AI assistant as last seen from AppRefer, shared by the help screens.
+@MainActor
+final class SupportPersonaStore: ObservableObject {
+    static let shared = SupportPersonaStore()
+    @Published private(set) var persona: AppReferSupportPersona?
+
+    func refresh() async {
+        let latest = await SupportAPI.shared.persona
+        if latest != persona { persona = latest }
+    }
+}
+
 @MainActor
 final class SupportHomeModel: ObservableObject {
     @Published var conversations: [AppReferSupportConversation] = []
@@ -20,6 +32,7 @@ final class SupportHomeModel: ObservableObject {
         do {
             conversations = try await SupportAPI.shared.conversations()
                 .sorted { ($0.isOpen ? 0 : 1, $1.lastMessageAt) < ($1.isOpen ? 0 : 1, $0.lastMessageAt) }
+            await SupportPersonaStore.shared.refresh()
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -61,6 +74,7 @@ final class SupportThreadModel: ObservableObject {
     func load() async {
         do {
             let t = try await SupportAPI.shared.thread(id, after: nil)
+            await SupportPersonaStore.shared.refresh()
             messages = t.messages
             lastSeen = t.messages.last?.createdAt
             error = nil
@@ -73,6 +87,8 @@ final class SupportThreadModel: ObservableObject {
     /// New messages since the last poll. Runs only while the chat is open and active.
     func poll() async {
         guard loaded, let t = try? await SupportAPI.shared.thread(id, after: lastSeen) else { return }
+        // A persona switched on, changed or off shows while the chat is open.
+        await SupportPersonaStore.shared.refresh()
         merge(t.messages)
         // Only polls move the cursor: a team reply that landed just before our own
         // send is then still fetched.

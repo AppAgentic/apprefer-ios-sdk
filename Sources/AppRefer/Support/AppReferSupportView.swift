@@ -59,6 +59,7 @@ public struct AppReferSupportView: View {
 
 struct SupportHomeScreen: View {
     @ObservedObject var model: SupportHomeModel
+    @ObservedObject private var personas = SupportPersonaStore.shared
     let palette: SupportPalette
     let close: () -> Void
     let push: (SupportRoute) -> Void
@@ -115,7 +116,7 @@ struct SupportHomeScreen: View {
                 if let topic { topicChip(topic) }
                 SupportComposerBar(
                     text: $text, images: $images, focus: $focused,
-                    placeholder: topic?.prompt ?? "Ask us anything…", leadingSymbol: "camera.fill",
+                    placeholder: topic?.prompt ?? personas.persona.map { "Message \($0.name)…" } ?? "Ask us anything…", leadingSymbol: "camera.fill",
                     palette: palette, sending: sending, pick: { picking = true }, send: { Task { await start() } }
                 )
             }
@@ -196,8 +197,13 @@ struct SupportHomeScreen: View {
     }
 
     private var presence: some View {
-        let names = Array(support.teamNames.prefix(3))
+        let persona = personas.persona
+        let names = Array(support.teamNames.prefix(persona == nil ? 3 : 2))
         let line: String = {
+            if let persona {
+                guard let first = names.first else { return "\(persona.name) replies instantly · the team in \(support.replyTime)" }
+                return "\(persona.name) replies instantly · \(first) and the team in \(support.replyTime)"
+            }
             guard let first = names.first else { return "We usually reply in \(support.replyTime)" }
             return names.count == 1 && support.teamNames.count == 1
                 ? "\(first) · usually replies in \(support.replyTime)"
@@ -205,7 +211,12 @@ struct SupportHomeScreen: View {
         }()
         return HStack(spacing: 10) {
             HStack(spacing: -8) {
-                if names.isEmpty {
+                if let persona {
+                    SupportAvatar(name: persona.name, size: 28, colors: [palette.warm, palette.hot], image: persona.avatar)
+                        .overlay(Circle().stroke(.white.opacity(0.9), lineWidth: 2))
+                        .zIndex(10)
+                }
+                if names.isEmpty && persona == nil {
                     SupportAvatar(name: nil, size: 28, colors: [palette.warm, palette.hot], symbol: "bubble.left.fill")
                         .overlay(Circle().stroke(.white.opacity(0.9), lineWidth: 2))
                 } else {
@@ -240,7 +251,11 @@ struct SupportHomeScreen: View {
             VStack(alignment: .leading, spacing: 12) {
                 SupportSectionLabel(text: "Continue")
                 HStack(spacing: 12) {
-                    SupportAvatar(name: support.teamNames.first, size: 46, colors: [palette.warm, palette.hot], symbol: support.teamNames.isEmpty ? "bubble.left.and.bubble.right.fill" : nil)
+                    if c.lastFrom == "bot", let persona = personas.persona {
+                        SupportAvatar(name: persona.name, size: 46, colors: [palette.warm, palette.hot], image: persona.avatar)
+                    } else {
+                        SupportAvatar(name: support.teamNames.first, size: 46, colors: [palette.warm, palette.hot], symbol: support.teamNames.isEmpty ? "bubble.left.and.bubble.right.fill" : nil)
+                    }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(c.subject).font(.system(size: 16, weight: .semibold)).foregroundStyle(.primary).lineLimit(1)
                         Text(c.lastFrom == "customer" ? "You: \(c.preview)" : c.preview)
@@ -523,6 +538,7 @@ struct SupportAttachmentStrip: View {
 
 struct SupportThreadScreen: View {
     @StateObject private var model: SupportThreadModel
+    @ObservedObject private var personas = SupportPersonaStore.shared
     let subject: String
     let palette: SupportPalette
     let back: () -> Void
@@ -609,11 +625,24 @@ struct SupportThreadScreen: View {
                     .frame(width: 42, height: 42).background(Color.primary.opacity(0.05), in: Circle())
             }
             .accessibilityLabel("Back")
-            SupportAvatar(name: agent, size: 42, colors: [palette.warm, palette.hot], symbol: agent == nil ? "bubble.left.and.bubble.right.fill" : nil)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(agent ?? "\(support.appName) team").font(.system(size: 16, weight: .bold)).lineLimit(1)
-                Text("Usually replies in \(support.replyTime)")
-                    .font(.system(size: 12.5)).foregroundStyle(SupportColors.muted).lineLimit(1)
+            if agent == nil, let persona = personas.persona {
+                // Nobody on the team has joined yet: the AI assistant is who's answering.
+                SupportAvatar(name: persona.name, size: 42, colors: [palette.warm, palette.hot], image: persona.avatar)
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 6) {
+                        Text(persona.name).font(.system(size: 16, weight: .bold)).lineLimit(1)
+                        SupportAITag(palette: palette)
+                    }
+                    Text("\(support.appName) team · replies instantly")
+                        .font(.system(size: 12.5)).foregroundStyle(SupportColors.muted).lineLimit(1)
+                }
+            } else {
+                SupportAvatar(name: agent, size: 42, colors: [palette.warm, palette.hot], symbol: agent == nil ? "bubble.left.and.bubble.right.fill" : nil)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(agent ?? "\(support.appName) team").font(.system(size: 16, weight: .bold)).lineLimit(1)
+                    Text("Usually replies in \(support.replyTime)")
+                        .font(.system(size: 12.5)).foregroundStyle(SupportColors.muted).lineLimit(1)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -628,6 +657,15 @@ struct SupportThreadScreen: View {
         let lastOfGroup = i == model.messages.count - 1 || !sameSide(i, i + 1) || showsTime(i + 1)
         if m.isFromCustomer {
             SupportCustomerBubble(message: m, palette: palette, tail: lastOfGroup, view: { viewing = $0 })
+        } else if m.from == "bot", let name = SupportText.firstName(m.authorName) {
+            let persona = personas.persona
+            VStack(spacing: 10) {
+                SupportPersonaBubble(
+                    message: m, name: name, image: persona?.name == name ? persona?.avatar : nil,
+                    palette: palette, avatar: lastOfGroup || m.isHandoff
+                )
+                if m.isHandoff { SupportHandoffPill(to: persona?.handoffTo, replyTime: support.replyTime, palette: palette) }
+            }
         } else if m.from == "bot" {
             SupportBotCard(message: m, palette: palette)
         } else {
@@ -636,7 +674,8 @@ struct SupportThreadScreen: View {
     }
 
     private var showsQuickReplies: Bool {
-        model.loaded && model.pending.isEmpty && text.isEmpty && images.isEmpty && (model.messages.last.map { !$0.isFromCustomer } ?? false)
+        // Not after a hand-over: the customer is waiting for a person, not done.
+        model.loaded && model.pending.isEmpty && text.isEmpty && images.isEmpty && (model.messages.last.map { !$0.isFromCustomer && !$0.isHandoff } ?? false)
     }
 
     private var quickReplies: some View {
@@ -795,6 +834,57 @@ struct SupportBotCard: View {
         .shadow(color: SupportColors.shadow.opacity(0.06), radius: 10, y: 2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.trailing, 50)
+    }
+}
+
+/// A message from the AI assistant: its portrait, name and "AI" tag, then the text.
+struct SupportPersonaBubble: View {
+    let message: AppReferSupportMessage
+    let name: String
+    let image: URL?
+    let palette: SupportPalette
+    let avatar: Bool
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            Group {
+                if avatar { SupportAvatar(name: name, size: 30, colors: [palette.warm, palette.hot], image: image) }
+                else { Color.clear }
+            }
+            .frame(width: 30, height: 30)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(name).font(.system(size: 13, weight: .bold)).foregroundStyle(.primary)
+                    SupportAITag(palette: palette)
+                }
+                Text(message.text).font(.system(size: 16)).lineSpacing(2).foregroundStyle(.primary).textSelection(.enabled)
+            }
+            .padding(.horizontal, 15).padding(.top, 10).padding(.bottom, 12)
+            .background(SupportColors.card, in: SupportBubbleShape(bottomLeading: avatar ? 6 : 22))
+            .shadow(color: SupportColors.shadow.opacity(0.06), radius: 8, y: 2)
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 40)
+        }
+    }
+}
+
+/// Under the hand-over: who has the conversation now.
+struct SupportHandoffPill: View {
+    let to: String?
+    let replyTime: String
+    let palette: SupportPalette
+
+    var body: some View {
+        HStack(spacing: 8) {
+            SupportAvatar(name: to, size: 22, colors: [palette.warm, palette.hot], symbol: to == nil ? "person.2.fill" : nil)
+            Text("Passed to \(to ?? "the team") · usually replies in \(replyTime)")
+                .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(SupportColors.muted).lineLimit(2)
+        }
+        .padding(.leading, 5).padding(.trailing, 12).padding(.vertical, 5)
+        .background(SupportColors.card, in: Capsule())
+        .overlay(Capsule().stroke(SupportColors.muted.opacity(0.18), lineWidth: 1))
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 }
 

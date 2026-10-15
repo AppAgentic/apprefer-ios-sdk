@@ -25,6 +25,9 @@ actor SupportAPI {
 
     var displayName: String? { name }
 
+    /// The app's AI assistant, from the latest list or conversation read (nil when the app has none).
+    private(set) var persona: AppReferSupportPersona?
+
     // MARK: - Session
 
     private var profile: [String: Any] {
@@ -112,7 +115,9 @@ actor SupportAPI {
     // MARK: - Endpoints
 
     func conversations() async throws -> [AppReferSupportConversation] {
-        try JSONDecoder().decode(SupportConversationList.self, from: try await call("GET", "/api/support/v1/conversations")).conversations
+        let list = try JSONDecoder().decode(SupportConversationList.self, from: try await call("GET", "/api/support/v1/conversations"))
+        persona = list.persona
+        return list.conversations
     }
 
     func start(text: String, subject: String? = nil, attachmentIds: [String], clientMessageId: String) async throws -> SupportThread {
@@ -125,7 +130,9 @@ actor SupportAPI {
     func thread(_ id: String, after: String?) async throws -> SupportThread {
         var path = "/api/support/v1/conversations/\(id.urlPathEscaped)"
         if let after, let q = after.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) { path += "?after=\(q)" }
-        return try JSONDecoder().decode(SupportThread.self, from: try await call("GET", path))
+        let thread = try JSONDecoder().decode(SupportThread.self, from: try await call("GET", path))
+        persona = thread.persona
+        return thread
     }
 
     /// `clientMessageId` stays the same on retries, so a retry never duplicates.

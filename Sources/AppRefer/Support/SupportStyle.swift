@@ -98,6 +98,8 @@ struct SupportAvatar: View {
     let size: CGFloat
     let colors: [Color]
     var symbol: String? = nil
+    /// A portrait (the AI assistant's); the initial shows until it loads, or if it can't.
+    var image: URL? = nil
 
     var body: some View {
         ZStack {
@@ -107,9 +109,27 @@ struct SupportAvatar: View {
             }
             .font(.system(size: size * 0.4, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
+            if let image {
+                AsyncImage(url: image) { phase in
+                    if let img = phase.image { img.resizable().scaledToFill() } else { Color.clear }
+                }
+                .clipShape(Circle())
+            }
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
+    }
+}
+
+/// The small "AI" tag on everything the AI assistant says.
+struct SupportAITag: View {
+    let palette: SupportPalette
+    var body: some View {
+        Text("AI").font(.system(size: 10, weight: .heavy)).tracking(0.4)
+            .foregroundStyle(palette.accent)
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background(palette.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .accessibilityLabel("AI assistant")
     }
 }
 

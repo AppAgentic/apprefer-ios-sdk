@@ -29,13 +29,27 @@ public struct AppReferSupportMessage: Identifiable, Hashable, Sendable, Decodabl
     public let id: String
     /// "customer", "team" or "bot".
     public let from: String
+    /// A team member's first name, or the AI assistant's name on "bot" messages.
     public let authorName: String?
     public let text: String
     public let createdAt: String
     public let attachments: [AppReferSupportAttachment]
+    /// The AI assistant's note that it passed the conversation to a person.
+    public let handoff: Bool?
 
     public var isFromCustomer: Bool { from == "customer" }
+    public var isHandoff: Bool { handoff == true }
     public var date: Date? { SupportDates.parse(createdAt) }
+}
+
+/// The app's AI support assistant, set in AppRefer. Every message from it is tagged "AI".
+public struct AppReferSupportPersona: Hashable, Sendable, Decodable {
+    public let name: String
+    public let avatarUrl: String?
+    /// Who it passes conversations to ("Jay"); nil means the team.
+    public let handoffTo: String?
+
+    var avatar: URL? { avatarUrl.flatMap(URL.init(string:)) }
 }
 
 enum SupportDates {
@@ -48,8 +62,8 @@ enum SupportDates {
     static func parse(_ s: String) -> Date? { withFraction.date(from: s) ?? plain.date(from: s) }
 }
 
-struct SupportConversationList: Decodable { let conversations: [AppReferSupportConversation] }
-struct SupportThread: Decodable { let conversation: AppReferSupportConversation; let messages: [AppReferSupportMessage] }
+struct SupportConversationList: Decodable { let conversations: [AppReferSupportConversation]; let persona: AppReferSupportPersona? }
+struct SupportThread: Decodable { let conversation: AppReferSupportConversation; let messages: [AppReferSupportMessage]; let persona: AppReferSupportPersona? }
 struct SupportSent: Decodable { let message: AppReferSupportMessage }
 struct SupportSession: Decodable { let session: String }
 struct SupportUploadSlot: Decodable { let attachmentId: String; let uploadUrl: String; let headers: [String: String] }
