@@ -47,6 +47,7 @@ public actor AppRefer {
     /// `apprefer.com`, for everything else. Neither falls back to the other.
     private let firstPartyClient: AppReferPosting
     private var consentSyncInFlight = false
+    private var consentRecheckRequested = false
 
     init(
         config: AppReferConfig,
@@ -332,12 +333,27 @@ public actor AppRefer {
     /// attribution the server now holds, or nil when nothing was sent or it failed
     /// (tried again on the next launch or activation).
     func syncTrackingConsent() async -> Attribution? {
-        guard storage.isSdkEnabled(), storage.isMatchRequestAttempted(), !consentSyncInFlight else { return nil }
-        let consent = trackingStatus.current()
-        guard storage.reportedTrackingConsent() != consent.rawValue else { return nil }
-        guard let deviceId = storage.deviceId() else { return nil }
+        if consentSyncInFlight {
+            // Re-checked when the running sync finishes, so a newer answer isn't lost.
+            consentRecheckRequested = true
+            return nil
+        }
         consentSyncInFlight = true
         defer { consentSyncInFlight = false }
+        var latest: Attribution?
+        repeat {
+            consentRecheckRequested = false
+            if let updated = await reportTrackingConsentIfChanged() { latest = updated }
+        } while consentRecheckRequested
+        return latest
+    }
+
+    private func reportTrackingConsentIfChanged() async -> Attribution? {
+        guard storage.isSdkEnabled(), storage.isMatchRequestAttempted() else { return nil }
+        let consent = trackingStatus.current()
+        let previouslyAccepted = storage.reportedTrackingConsent()
+        guard previouslyAccepted != consent.rawValue else { return nil }
+        guard let deviceId = storage.deviceId() else { return nil }
 
         var body: [String: Any] = [
             "device_id": deviceId,
@@ -349,6 +365,11 @@ public actor AppRefer {
         if consent == .granted, let idfa = AppReferAdServices.getIdfa() {
             body["idfa"] = idfa
         }
+        // The server has never accepted a configure from this install (the first open
+        // failed): send what a first open sends so it can still be attributed.
+        if previouslyAccepted == nil, let asaToken = AppReferAdServices.getToken() {
+            body["asa_token"] = asaToken
+        }
         if let userId = storage.getUserId() {
             body["customer_user_id"] = userId
         }
@@ -358,11 +379,11 @@ public actor AppRefer {
             logger.warn("Tracking consent not reported; will retry")
             return nil
         }
-        storage.setReportedTrackingConsent(consent.rawValue)
         if let enabled = response["sdkEnabled"] as? Bool, !enabled {
             storage.setSdkEnabled(false)
             return nil
         }
+        storage.setReportedTrackingConsent(consent.rawValue)
         guard let attrDict = response["attribution"] as? [String: Any],
               let attrData = try? JSONSerialization.data(withJSONObject: attrDict),
               let parsed = try? JSONDecoder().decode(Attribution.self, from: attrData) else { return nil }
@@ -373,6 +394,7 @@ public actor AppRefer {
     }
 
     // Test entry points for the private implementations.
+    func _getAttributionForTesting() -> Attribution? { storage.getCachedAttribution() }
     func _trackEventForTesting(_ name: String) async { await _trackEvent(name, properties: nil, revenue: nil, currency: nil) }
     func _setUserIdForTesting(_ id: String) async { await _setUserId(id) }
     func _setAdvancedMatchingForTesting(email: String) async {

@@ -94,6 +94,29 @@ final class TrackingConsentTests: XCTestCase {
         XCTAssertEqual(attribution?.network, "meta")
     }
 
+    func testFirstOpenThatFailedIsRegisteredByTheConsentReport() async {
+        firstParty.response = nil
+        _ = await sdk._configure()
+        firstParty.response = ["sdkEnabled": true]
+        _ = await sdk.syncTrackingConsent()
+        XCTAssertEqual(firstParty.calls.count, 2)
+        XCTAssertEqual(firstParty.calls[1].body["tracking_consent"] as? String, "undetermined")
+        // (asa_token is nil on the simulator/macOS; the request is the registration.)
+    }
+
+    func testKillSwitchStopsReportsAndKeepsTheCache() async {
+        _ = await sdk._configure()
+        status.set(.denied)
+        firstParty.response = ["sdkEnabled": false]
+        _ = await sdk.syncTrackingConsent()
+        status.set(.granted)
+        _ = await sdk.syncTrackingConsent()
+        XCTAssertEqual(firstParty.calls.count, 2)
+        XCTAssertEqual(trk.calls.count, 0)
+        let cached = await sdk._getAttributionForTesting()
+        XCTAssertNotNil(cached)
+    }
+
     func testFailedReportIsRetriedNextTime() async {
         _ = await sdk._configure()
         status.set(.denied)
