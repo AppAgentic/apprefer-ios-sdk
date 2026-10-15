@@ -17,10 +17,7 @@ enum AppReferAdServices {
         // AdServices throws an uncatchable NSException on simulator
         return nil
         #else
-        if #available(iOS 14.3, macOS 11.1, *) {
-            return _getAdServicesToken()
-        }
-        return nil
+        return _getAdServicesToken()
         #endif
     }
 
@@ -28,10 +25,8 @@ enum AppReferAdServices {
     /// Returns nil if ATT is not authorized, denied, or on simulator.
     static func getIdfa() -> String? {
         #if canImport(AdSupport) && canImport(AppTrackingTransparency)
-        if #available(iOS 14, *) {
-            guard ATTrackingManager.trackingAuthorizationStatus == .authorized else {
-                return nil
-            }
+        guard ATTrackingManager.trackingAuthorizationStatus == .authorized else {
+            return nil
         }
         let idfa = ASIdentifierManager.shared().advertisingIdentifier.uuidString
         // All-zeros means tracking is effectively disabled
@@ -45,7 +40,6 @@ enum AppReferAdServices {
     }
 
     #if !targetEnvironment(simulator)
-    @available(iOS 14.3, macOS 11.1, *)
     private static func _getAdServicesToken() -> String? {
         #if canImport(AdServices)
         do {

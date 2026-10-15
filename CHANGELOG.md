@@ -1,3 +1,21 @@
+## 0.5.0 - 2026-10-15
+
+- Add AppRefer Support: native home and conversations, screenshot uploads, secure sessions, unread counts and notification routing.
+- Concierge chat design with configurable accent, team presence, quick-help topics and a floating composer.
+- AI personas show their approved name and portrait, an explicit AI tag, and a hand-over pill when a person is needed.
+
+
+- **Breaking:** the whole package now requires iOS 15 / macOS 12 / tvOS 15 (was iOS 14 / macOS 11), matching the Flutter SDK; old availability branches removed.
+- Add AppRefer Billing (`AppReferBilling`), a StoreKit 2 purchases and entitlements module that replaces RevenueCat (iOS 15+ / macOS 12+):
+  - `configure(apiKey:appUserId:entitlementsByProduct:defaultEntitlement:)` with an anonymous `$ARAnon:<UUID>` id kept in the Keychain, and a `Transaction.updates` listener started at configure
+  - `products(_:)`, `purchase(_:promotionalOffer:options:)` (sets `appAccountToken`), `restorePurchases()`
+  - `customerInfo(fetchPolicy:)`, `customerInfoStream`, `delegate`; `entitlements["premium"]?.isActive`
+  - `logIn(_:)` (merges anonymous purchases via `/identify`), `logOut()`, `setAttributes(_:)`, `setEmail`/`setDisplayName`/`setPhoneNumber`
+  - Outage safety: falls back to verified `Transaction.currentEntitlements` merged with the cached server answer; transactions AppRefer can't accept are queued on disk, finished, and resent later
+  - Sends the AppRefer attribution device id as `appreferId` automatically
+  - Uses the attribution SDK key and the `trk.apprefer.com` → `apprefer.com` fallback
+- `AppRefer.getDeviceId()` returns nil (and first-launch attribution waits for the next launch) while the Keychain can't read or save the device id, instead of a random id that was never saved
+
 ## 0.4.0
 
 - Use `trk.apprefer.com` as primary tracking endpoint for lower latency
