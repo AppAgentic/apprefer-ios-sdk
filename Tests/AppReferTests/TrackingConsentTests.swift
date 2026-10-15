@@ -14,8 +14,10 @@ private final class RecordingPoster: AppReferPosting, @unchecked Sendable {
     private let lock = NSLock()
     private(set) var calls: [Call] = []
     var response: [String: Any]? = ["sdkEnabled": true, "attribution": ["network": "organic", "matchType": "organic"]]
+    var onPost: (() -> Void)?
     func post(_ path: String, body: [String: Any]) async -> [String: Any]? {
-        lock.lock(); calls.append(Call(path: path, body: body)); let r = response; lock.unlock()
+        lock.lock(); calls.append(Call(path: path, body: body)); let r = response; let hook = onPost; onPost = nil; lock.unlock()
+        hook?()
         return r
     }
 }
@@ -81,6 +83,15 @@ final class TrackingConsentTests: XCTestCase {
         _ = await sdk.syncTrackingConsent()
         XCTAssertEqual(firstParty.calls.last?.body["tracking_consent"] as? String, "denied")
         XCTAssertEqual(trk.calls.count, 1)
+    }
+
+    func testAnswerGivenDuringFirstOpenIsReportedRightAfter() async {
+        firstParty.onPost = { [status] in status?.set(.granted) }
+        trk.response = ["sdkEnabled": true, "attribution": ["network": "meta", "matchType": "probabilistic"]]
+        let attribution = await sdk._configure()
+        XCTAssertEqual(firstParty.calls.first?.body["tracking_consent"] as? String, "undetermined")
+        XCTAssertEqual(trk.calls.first?.body["tracking_consent"] as? String, "granted")
+        XCTAssertEqual(attribution?.network, "meta")
     }
 
     func testFailedReportIsRetriedNextTime() async {

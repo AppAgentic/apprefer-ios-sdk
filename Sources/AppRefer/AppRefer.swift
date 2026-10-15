@@ -322,6 +322,8 @@ public actor AppRefer {
         storage.setInstallEventSent(true)
         storage.setLastConfigFetch(ISO8601DateFormatter().string(from: Date()))
 
+        // The user may have answered the ATT prompt while this request was in flight.
+        if let updated = await syncTrackingConsent() { return updated }
         return attribution
     }
 
