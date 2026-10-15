@@ -120,7 +120,7 @@ struct SupportHomeScreen: View {
                 )
             }
         }
-        .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0) } }
+        .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0.prefix(max(0, 4 - images.count))) } }
         .onAppear { if startsFocused { focused = true } }
         .task { await model.refresh() }
         .task {
@@ -360,11 +360,13 @@ struct SupportHomeScreen: View {
         error = nil
         defer { sending = false }
         do {
+            let sentText = text
             var ids: [String] = []
             for image in images { ids.append(try await SupportAPI.shared.upload(await SupportImages.jpegOffMain(image))) }
-            let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let body = sentText.trimmingCharacters(in: .whitespacesAndNewlines)
             let t = try await SupportAPI.shared.start(text: body, subject: topic?.title, attachmentIds: ids, clientMessageId: clientMessageId)
-            text = ""
+            // Anything typed while it was sending stays in the field.
+            text = text.hasPrefix(sentText) ? String(text.dropFirst(sentText.count)) : text
             images = []
             topic = nil
             focused = false
@@ -441,6 +443,8 @@ struct SupportComposerBar: View {
                     Image(systemName: leadingSymbol).font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(SupportColors.muted).frame(width: 44, height: 44)
                 }
+                .disabled(images.count >= 4 || sending)
+                .opacity(images.count >= 4 ? 0.4 : 1)
                 .accessibilityLabel("Add screenshot")
                 SupportMessageField(text: $text, placeholder: placeholder, focus: focus)
                     .font(.system(size: 17))
@@ -584,7 +588,7 @@ struct SupportThreadScreen: View {
                 )
             }
         }
-        .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0) } }
+        .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0.prefix(max(0, 4 - images.count))) } }
         .supportImageViewer($viewing)
         .task { await model.load() }
         .task {
@@ -701,6 +705,23 @@ struct SupportThumbnail: View {
     }
 }
 
+/// Screenshots in rows of two, so four never overflow a narrow phone.
+struct SupportThumbnailRows: View {
+    let attachments: [AppReferSupportAttachment]
+    var alignment: HorizontalAlignment = .leading
+    let view: (SupportViewedImage) -> Void
+
+    var body: some View {
+        VStack(alignment: alignment, spacing: 6) {
+            ForEach(Array(stride(from: 0, to: attachments.count, by: 2)), id: \.self) { i in
+                HStack(spacing: 6) {
+                    ForEach(attachments[i..<min(i + 2, attachments.count)], id: \.self) { SupportThumbnail(attachment: $0, view: view) }
+                }
+            }
+        }
+    }
+}
+
 struct SupportCustomerBubble: View {
     let message: AppReferSupportMessage
     let palette: SupportPalette
@@ -711,7 +732,7 @@ struct SupportCustomerBubble: View {
         VStack(alignment: .trailing, spacing: 6) {
             let images = message.attachments.filter(\.isImage)
             if !images.isEmpty {
-                HStack(spacing: 6) { ForEach(images, id: \.self) { SupportThumbnail(attachment: $0, view: view) } }
+                SupportThumbnailRows(attachments: images, alignment: .trailing, view: view)
             }
             if !message.text.isEmpty {
                 Text(message.text)
@@ -743,7 +764,7 @@ struct SupportTeamBubble: View {
             VStack(alignment: .leading, spacing: 6) {
                 let images = message.attachments.filter(\.isImage)
                 if !images.isEmpty {
-                    HStack(spacing: 6) { ForEach(images, id: \.self) { SupportThumbnail(attachment: $0, view: view) } }
+                    SupportThumbnailRows(attachments: images, view: view)
                 }
                 if !message.text.isEmpty {
                     Text(message.text)
@@ -785,7 +806,7 @@ struct SupportPendingBubble: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: 5) {
             if !pending.images.isEmpty {
-                HStack(spacing: 6) {
+                LazyVGrid(columns: [GridItem(.fixed(74), spacing: 6), GridItem(.fixed(74), spacing: 6)], alignment: .trailing, spacing: 6) {
                     ForEach(Array(pending.images.enumerated()), id: \.offset) { _, image in
                         Image(uiImage: image).resizable().scaledToFill().frame(width: 74, height: 112)
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
