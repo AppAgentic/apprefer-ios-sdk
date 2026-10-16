@@ -6,6 +6,7 @@ final class AppReferHTTPClient: @unchecked Sendable {
     private let apiKey: String
     private let logger: AppReferLogger
     private let session: URLSession
+    private let eventSession: URLSession
     private let cancellationLock = NSLock()
     private var cancellationGeneration = 0
     private func generation() -> Int {
@@ -29,6 +30,10 @@ final class AppReferHTTPClient: @unchecked Sendable {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 10
         self.session = URLSession(configuration: config)
+        let eventConfig = URLSessionConfiguration.default
+        eventConfig.timeoutIntervalForRequest = 10
+        eventConfig.timeoutIntervalForResource = 10
+        self.eventSession = URLSession(configuration: eventConfig)
     }
 
     /// Convenience init for backwards compatibility in tests.
@@ -40,12 +45,20 @@ final class AppReferHTTPClient: @unchecked Sendable {
         advanceGeneration()
         let tasks = await session.allTasks
         tasks.forEach { $0.cancel() }
+        await cancelEvents()
+    }
+
+    func cancelEvents() async {
+        let tasks = await eventSession.allTasks
+        tasks.forEach { $0.cancel() }
     }
 
     /// One event attempt. Queue owns persistence and backoff, including 5xx.
-    func event(_ body: [String: Any]) async -> Int? {
+    func event(_ body: [String: Any]) async -> Int? { await eventResponse(body).status }
+
+    func eventResponse(_ body: [String: Any]) async -> ProductEventResponse {
         guard let url = URL(string: primaryURL + "/api/track/event"),
-              let data = try? JSONSerialization.data(withJSONObject: body) else { return 400 }
+              let data = try? JSONSerialization.data(withJSONObject: body) else { return ProductEventResponse(status: 400, retryAfter: nil) }
         var request = URLRequest(url: url, timeoutInterval: requestTimeout)
         request.httpMethod = "POST"
         request.httpBody = data
@@ -53,9 +66,21 @@ final class AppReferHTTPClient: @unchecked Sendable {
         request.setValue(apiKey, forHTTPHeaderField: "X-AppRefer-Key")
         request.setValue(sdkVersion, forHTTPHeaderField: "X-SDK-Version")
         do {
-            let (_, response) = try await session.data(for: request)
-            return (response as? HTTPURLResponse)?.statusCode
-        } catch { return nil }
+            let (_, response) = try await eventSession.data(for: request)
+            let http = response as? HTTPURLResponse
+            let header = http?.value(forHTTPHeaderField: "Retry-After")
+            return ProductEventResponse(status: http?.statusCode, retryAfter: Self.retryAfter(header))
+        } catch { return ProductEventResponse(status: nil, retryAfter: nil) }
+    }
+
+    static func retryAfter(_ header: String?) -> TimeInterval? {
+        guard let header else { return nil }
+        if let seconds = Double(header), seconds.isFinite { return max(0, seconds) }
+        let format = DateFormatter()
+        format.locale = Locale(identifier: "en_US_POSIX")
+        format.timeZone = TimeZone(secondsFromGMT: 0)
+        format.dateFormat = "EEE, dd MMM yyyy HH:mm:ss z"
+        return format.date(from: header).map { max(0, $0.timeIntervalSinceNow) }
     }
 
     func post(_ path: String, body: [String: Any]) async -> [String: Any]? {

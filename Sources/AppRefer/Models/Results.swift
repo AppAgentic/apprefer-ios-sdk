@@ -4,6 +4,7 @@ public enum AppReferEventResult: Sendable { case sent, queued, dropped }
 public enum AppReferAttributionError: Error { case unavailable }
 public enum AppReferAttributionResult {
     case attributed(Attribution)
+    case pending
     case organic
     case failed(Error)
 }

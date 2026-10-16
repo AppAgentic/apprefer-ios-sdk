@@ -8,7 +8,7 @@ private final class EventPoster: AppReferPosting, @unchecked Sendable {
     var cancellations = 0
     func post(_ path: String, body: [String: Any]) async -> [String: Any]? { response }
     func event(_ body: [String: Any]) async -> Int? { bodies.append(body); return status }
-    func cancel() async { cancellations += 1 }
+    func cancelEvents() async { cancellations += 1 }
 }
 
 private final class Support090Protocol: URLProtocol, @unchecked Sendable {
@@ -174,6 +174,10 @@ private actor Suspended090Poster: AppReferPosting {
     func event(_ body: [String: Any]) async -> Int? {
         await withCheckedContinuation { eventReply = $0 }
     }
+    func cancel() async {
+        configureReply?.resume(returning: nil); configureReply = nil
+        eventReply?.resume(returning: nil); eventReply = nil
+    }
     func waitForConfigure() async { while configureReply == nil { await Task.yield() } }
     func waitForEvent() async { while eventReply == nil { await Task.yield() } }
     func finishConfigure() { configureReply?.resume(returning: ["attribution": ["network": "meta"]]); configureReply = nil }
@@ -250,5 +254,160 @@ extension SDK090Tests {
         let result = await sdk._trackEvent("offline", properties: nil, revenue: nil, currency: nil)
         XCTAssertEqual(result, .dropped)
         XCTAssertTrue(poster.bodies.isEmpty)
+    }
+}
+
+extension SDK090Tests {
+    func testPendingATTIsNeverOrganicIncludingCache() async throws {
+        let (sdk, storage, poster) = fixture()
+        poster.response = ["attribution": ["network": "organic", "trackingDecisionPending": true]]
+        _ = await sdk._configure()
+        if case .pending = await sdk.attributionResult() {} else { XCTFail("ATT is pending") }
+        let cached = AppRefer(config: AppReferConfig(apiKey: "pk_test"), storage: storage, trackingClient: poster, firstPartyClient: poster)
+        if case .pending = await cached.attributionResult() {} else { XCTFail("Cached held decision is pending") }
+        poster.response = nil
+        _ = await sdk._configure()
+        if case .pending = await sdk.attributionResult() {} else { XCTFail("Offline does not confirm held attribution") }
+    }
+
+    func testFailedReportKeepsConfirmedMeta() async {
+        let (sdk, storage, poster) = fixture()
+        storage.setAttributionCache("{\"network\":\"meta\",\"match_type\":\"click\"}")
+        poster.response = nil
+        _ = await sdk._configure()
+        if case .attributed(let a) = await sdk.attributionResult() { XCTAssertEqual(a.network, "meta") }
+        else { XCTFail("Confirmed cache wins") }
+    }
+
+    func testRetryableStatusesStopBacklogAndRespectRetryAfter() async throws {
+        for status in [408, 429, 503] {
+            let storage = AppReferStorage(defaults: UserDefaults(suiteName: UUID().uuidString)!, keychain: FakeDeviceIdKeychain())
+            let poster = RateLimitedPoster(status: status)
+            let sdk = AppRefer(config: AppReferConfig(apiKey: "pk_test"), storage: storage, trackingClient: poster, firstPartyClient: poster)
+            storage.pendingEvents = try JSONEncoder().encode((0..<3).map { PendingProductEvent(id: "\($0)", body: Data("{}".utf8), created: Date(), attempts: 0, nextAttempt: .distantPast) })
+            await sdk.flushPendingEvents()
+            XCTAssertEqual(poster.calls, 1)
+            let saved = try JSONDecoder().decode([PendingProductEvent].self, from: storage.pendingEvents!)
+            XCTAssertEqual(saved.count, 3)
+            XCTAssertTrue(saved.allSatisfy { $0.nextAttempt.timeIntervalSinceNow > 59 })
+            await sdk._clearPendingEvents()
+        }
+        XCTAssertEqual(AppReferHTTPClient.retryAfter("120"), 120)
+        XCTAssertNil(AppReferHTTPClient.retryAfter("bad"))
+    }
+
+    func testTrackWaitsOnlyForItsEvent() async throws {
+        let (sdk, storage, poster) = fixture()
+        storage.pendingEvents = try JSONEncoder().encode((0..<20).map { PendingProductEvent(id: "old-\($0)", body: Data("{}".utf8), created: Date(), attempts: 0, nextAttempt: .distantPast) })
+        let result = await sdk._trackEvent("own", properties: nil, revenue: nil, currency: nil)
+        XCTAssertEqual(result, .sent)
+        XCTAssertEqual(poster.bodies.count, 1)
+        await sdk._clearPendingEvents()
+    }
+
+    func testCorruptQueueIsQuarantinedAndNewEventsWork() async throws {
+        let (sdk, storage, _) = fixture()
+        storage.pendingEvents = Data("broken json".utf8)
+        let result = await sdk._trackEvent("new", properties: nil, revenue: nil, currency: nil)
+        XCTAssertEqual(result, .sent)
+        await sdk._clearPendingEvents()
+    }
+
+    func testStaleComposeAfterResetCannotMintUploadOrSend() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [Support090Protocol.self]
+        let api = SupportAPI(baseURL: "https://support.test", session: URLSession(configuration: config))
+        await api.configure(apiKey: "pk_test")
+        let epoch = api.actionGeneration
+        await api.reset()
+        var calls = 0
+        Support090Protocol.handler = { _ in calls += 1; return (200, "{}") }
+        do { _ = try await api.upload(Data(), generation: epoch); XCTFail("Stale upload") } catch {}
+        do { _ = try await api.start(text: "A", attachmentIds: [], clientMessageId: "12345678", generation: epoch); XCTFail("Stale compose") } catch {}
+        do { _ = try await api.send("A-thread", text: "A", attachmentIds: [], clientMessageId: "12345678", generation: epoch); XCTFail("Stale send") } catch {}
+        XCTAssertEqual(calls, 0)
+    }
+
+
+}
+private final class RateLimitedPoster: AppReferPosting, @unchecked Sendable {
+    let status: Int
+    var calls = 0
+    init(status: Int) { self.status = status }
+    func post(_ path: String, body: [String: Any]) async -> [String: Any]? { nil }
+    func eventResponse(_ body: [String: Any]) async -> ProductEventResponse {
+        calls += 1
+        return ProductEventResponse(status: status, retryAfter: 60)
+    }
+}
+
+extension SDK090Tests {
+    func testClearingEventsDoesNotCancelInFlightConfigure() async {
+        let storage = AppReferStorage(defaults: UserDefaults(suiteName: UUID().uuidString)!, keychain: FakeDeviceIdKeychain())
+        let poster = Suspended090Poster()
+        let sdk = AppRefer(config: AppReferConfig(apiKey: "pk_test"), storage: storage, trackingClient: poster, firstPartyClient: poster)
+        let configure = Task { await sdk._configure() }
+        await poster.waitForConfigure()
+        await sdk._clearPendingEvents()
+        await poster.finishConfigure()
+        let attribution = await configure.value
+        XCTAssertEqual(attribution?.network, "meta")
+    }
+
+    func testReconfigureUsesSameQueueAndStaleDrainCannotOverwriteNewEvents() async {
+        let storage = AppReferStorage(defaults: UserDefaults(suiteName: UUID().uuidString)!, keychain: FakeDeviceIdKeychain())
+        let old = Suspended090Poster()
+        let sdk = AppRefer(config: AppReferConfig(apiKey: "pk_A"), storage: storage, trackingClient: old, firstPartyClient: old)
+        let a = Task { await sdk._trackEvent("A", properties: nil, revenue: nil, currency: nil) }
+        await old.waitForEvent()
+        let next = EventPoster()
+        await sdk.replaceConfiguration(AppReferConfig(apiKey: "pk_B"), trackingClient: next, firstPartyClient: next)
+        let b = await sdk._trackEvent("B", properties: nil, revenue: nil, currency: nil)
+        XCTAssertEqual(b, .sent)
+        await old.finishEvent()
+        let result = await a.value
+        XCTAssertEqual(result, .dropped)
+        // Reconfigure preserves the old durable event; stale completion must not delete it.
+        let saved = try? JSONDecoder().decode([PendingProductEvent].self, from: storage.pendingEvents ?? Data())
+        XCTAssertEqual(saved?.count, 1)
+        await sdk._clearPendingEvents()
+    }
+
+    func testClearReleasesDrainForNewAccountBeforeOldCompletion() async {
+        let storage = AppReferStorage(defaults: UserDefaults(suiteName: UUID().uuidString)!, keychain: FakeDeviceIdKeychain())
+        let poster = FirstEventSuspendedPoster()
+        let sdk = AppRefer(config: AppReferConfig(apiKey: "pk_test"), storage: storage, trackingClient: poster, firstPartyClient: poster)
+        let a = Task { await sdk._trackEvent("A", properties: nil, revenue: nil, currency: nil) }
+        await poster.waitForEvent()
+        await sdk._clearPendingEvents()
+        let b = await sdk._trackEvent("B", properties: nil, revenue: nil, currency: nil)
+        XCTAssertEqual(b, .sent)
+        await poster.finishEvent()
+        let result = await a.value
+        XCTAssertEqual(result, .dropped)
+        await sdk._clearPendingEvents()
+    }
+}
+private actor FirstEventSuspendedPoster: AppReferPosting {
+    var first = true
+    var continuation: CheckedContinuation<Int?, Never>?
+    func post(_ path: String, body: [String: Any]) async -> [String: Any]? { nil }
+    func event(_ body: [String: Any]) async -> Int? {
+        if first { first = false; return await withCheckedContinuation { continuation = $0 } }
+        return 200
+    }
+    func waitForEvent() async { while continuation == nil { await Task.yield() } }
+    func finishEvent() { continuation?.resume(returning: 503); continuation = nil }
+}
+
+extension SDK090Tests {
+    func testConfigureStartedBeforePublicResetCannotRestoreUserA() async {
+        let (sdk, storage, poster) = fixture()
+        let epoch = AppRefer.accountEpoch()
+        await AppRefer.reset()
+        await sdk.replaceConfiguration(AppReferConfig(apiKey: "pk_test", userId: "A"), expectedAccountEpoch: epoch, trackingClient: poster, firstPartyClient: poster)
+        _ = await sdk._configure(expectedAccountEpoch: epoch)
+        XCTAssertNil(storage.getUserId())
+        XCTAssertFalse(storage.isMatchRequestAttempted())
     }
 }

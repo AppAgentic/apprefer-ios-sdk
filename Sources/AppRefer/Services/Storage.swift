@@ -54,6 +54,17 @@ final class AppReferStorage: @unchecked Sendable {
         set { try? writePendingEvents(newValue) }
     }
 
+    func quarantinePendingEvents() throws {
+        if let url = eventFileURL {
+            try FileManager.default.moveItem(at: url, to: url.appendingPathExtension("corrupt-" + UUID().uuidString))
+        } else {
+            if let data = defaults.data(forKey: "apprefer_pending_events") {
+                defaults.set(data, forKey: "apprefer_pending_events_corrupt")
+            }
+            defaults.removeObject(forKey: "apprefer_pending_events")
+        }
+    }
+
     func readPendingEvents() throws -> Data? {
         guard let url = eventFileURL else { return defaults.data(forKey: "apprefer_pending_events") }
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
@@ -61,8 +72,14 @@ final class AppReferStorage: @unchecked Sendable {
     }
 
     func writePendingEvents(_ data: Data?) throws {
-        guard let url = eventFileURL else { defaults.set(data, forKey: "apprefer_pending_events"); return }
+        guard let url = eventFileURL else {
+            defaults.set(data, forKey: "apprefer_pending_events")
+            if data == nil { defaults.removeObject(forKey: "apprefer_pending_events_corrupt") }
+            return
+        }
         guard let data else {
+            let siblings = (try? FileManager.default.contentsOfDirectory(at: url.deletingLastPathComponent(), includingPropertiesForKeys: nil)) ?? []
+            for file in siblings where file.lastPathComponent.hasPrefix(url.lastPathComponent + ".corrupt-") { try FileManager.default.removeItem(at: file) }
             if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
             return
         }

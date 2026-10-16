@@ -8,6 +8,8 @@ protocol AppReferPosting: Sendable {
     func post(_ path: String, body: [String: Any]) async -> [String: Any]?
     func event(_ body: [String: Any]) async -> Int?
     func cancel() async
+    func cancelEvents() async
+    func eventResponse(_ body: [String: Any]) async -> ProductEventResponse
 }
 
 extension AppReferPosting {
@@ -15,8 +17,14 @@ extension AppReferPosting {
         await post("/api/track/event", body: body) == nil ? nil : 200
     }
     func cancel() async {}
+    func cancelEvents() async {}
+    func eventResponse(_ body: [String: Any]) async -> ProductEventResponse {
+        ProductEventResponse(status: await event(body), retryAfter: nil)
+    }
 }
 extension AppReferHTTPClient: AppReferPosting {}
+
+struct ProductEventResponse: Sendable { let status: Int?; let retryAfter: TimeInterval? }
 
 /// AppRefer SDK — first-party mobile attribution for iOS.
 ///
@@ -28,6 +36,10 @@ public actor AppRefer {
     // Lock-protected shared instance for thread-safe static access
     private static let lock = NSLock()
     private nonisolated(unsafe) static var _shared: AppRefer?
+    private nonisolated(unsafe) static var registeredApiKey: String?
+    private nonisolated(unsafe) static var accountGeneration = 0
+    static func accountEpoch() -> Int { lock.lock(); defer { lock.unlock() }; return accountGeneration }
+    private static func advanceAccount() { lock.lock(); defer { lock.unlock() }; accountGeneration += 1 }
 
     private static func getShared() -> AppRefer? {
         lock.lock()
@@ -35,25 +47,29 @@ public actor AppRefer {
         return _shared
     }
 
-    private static func setShared(_ sdk: AppRefer) {
-        lock.lock()
-        defer { lock.unlock() }
+    private static func sharedForConfiguration(_ config: AppReferConfig) -> (AppRefer, Bool, Int) {
+        lock.lock(); defer { lock.unlock() }
+        registeredApiKey = config.apiKey
+        if let sdk = _shared { return (sdk, false, accountGeneration) }
+        let sdk = AppRefer(config: config)
         _shared = sdk
+        return (sdk, true, accountGeneration)
     }
 
-    /// SDK key passed to `configure`, used by AppReferBilling.
+    /// SDK key passed to configure, used by optional modules.
     static func currentApiKey() -> String? {
-        getShared()?.config.apiKey
+        lock.lock(); defer { lock.unlock() }
+        return registeredApiKey
     }
 
-    private let config: AppReferConfig
+    private var config: AppReferConfig
     private let storage: AppReferStorage
-    private let logger: AppReferLogger
+    private var logger: AppReferLogger
     private let trackingStatus: TrackingStatusProvider
     /// `trk.apprefer.com`, only for ATT-authorized installs.
-    private let trackingClient: AppReferPosting
+    private var trackingClient: AppReferPosting
     /// `apprefer.com`, for everything else. Neither falls back to the other.
-    private let firstPartyClient: AppReferPosting
+    private var firstPartyClient: AppReferPosting
     private var consentSyncTask: Task<Attribution?, Never>?
     private let conversionUpdater: ConversionValueUpdating
     private var conversionRefreshInFlight = false
@@ -114,12 +130,12 @@ public actor AppRefer {
             logLevel: logLevel
         )
 
-        await getShared()?.cancelForReplacement()
-        let sdk = AppRefer(config: config)
-        setShared(sdk)
+        let (sdk, created, epoch) = sharedForConfiguration(config)
+        if !created { await sdk.replaceConfiguration(config, expectedAccountEpoch: epoch) }
+        await SupportAPI.shared.resumeRevocations(apiKey: apiKey)
         observeActivation()
 
-        let attribution = await sdk._configure()
+        let attribution = await sdk._configure(expectedAccountEpoch: epoch)
         Task {
             await sdk.flushPendingEvents()
             await sdk.refreshConversionValue(force: false)
@@ -273,13 +289,14 @@ public actor AppRefer {
     /// Clear account state; install attribution and device id are retained.
     /// Also call AppReferBilling.logOut() if your app uses Billing.
     public static func reset() async {
+        advanceAccount()
         await getShared()?._reset()
         AppReferStorage().clearUser()
         AppReferStorage().pendingEvents = nil
+        await SupportAPI.shared.reset()
         #if os(iOS)
         await AppReferSupport.shared.dismissForReset()
         #endif
-        await SupportAPI.shared.reset()
     }
 
     public static func clearPendingEvents() async {
@@ -292,18 +309,29 @@ public actor AppRefer {
         retryTask?.cancel()
         retryTask = nil
         storage.pendingEvents = nil
-        await trackingClient.cancel()
-        await firstPartyClient.cancel()
+        draining = false
+        await trackingClient.cancelEvents()
+        await firstPartyClient.cancelEvents()
     }
 
-    private func cancelForReplacement() async {
+    func replaceConfiguration(_ newConfig: AppReferConfig, expectedAccountEpoch: Int? = nil, trackingClient: AppReferPosting? = nil, firstPartyClient: AppReferPosting? = nil) async {
+        guard expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() else { return }
         generation += 1
+        let epoch = generation
         eventGeneration += 1
-        retryTask?.cancel()
-        consentSyncTask?.cancel()
-        await trackingClient.cancel()
-        await firstPartyClient.cancel()
+        draining = false
+        retryTask?.cancel(); retryTask = nil
+        consentSyncTask?.cancel(); consentSyncTask = nil
+        await self.trackingClient.cancel()
+        await self.firstPartyClient.cancel()
+        guard epoch == generation, expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() else { return }
+        config = newConfig
+        logger = AppReferLogger(debug: newConfig.debug, logLevel: newConfig.logLevel)
+        self.trackingClient = trackingClient ?? AppReferHTTPClient(primaryURL: AppReferConfig.trackingURL, apiKey: newConfig.apiKey, logger: logger)
+        self.firstPartyClient = firstPartyClient ?? AppReferHTTPClient(primaryURL: AppReferConfig.backendURL, apiKey: newConfig.apiKey, logger: logger)
+        scheduleRetry()
     }
+
 
     func _reset() async {
         generation += 1
@@ -316,8 +344,8 @@ public actor AppRefer {
     }
 
     func attributionResult() -> AppReferAttributionResult {
-        if lastConfigureFailed { return .failed(AppReferAttributionError.unavailable) }
         if let attribution = storage.getCachedAttribution() {
+            if attribution.trackingDecisionPending { return .pending }
             return attribution.network.lowercased() == "organic" ? .organic : .attributed(attribution)
         }
         if storage.organicConfirmed { return .organic }
@@ -325,6 +353,10 @@ public actor AppRefer {
     }
 
     private func recordOrganic(_ response: [String: Any]) {
+        if (response["attribution"] as? [String: Any])?["trackingDecisionPending"] as? Bool == true {
+            storage.organicConfirmed = false
+            return
+        }
         if response["attribution"] is NSNull || response["organic"] as? Bool == true ||
             (response["attribution"] as? [String: Any])?["network"] as? String == "organic" {
             storage.organicConfirmed = true
@@ -345,7 +377,8 @@ public actor AppRefer {
 
     // MARK: - Internal Implementation
 
-    func _configure() async -> Attribution? {
+    func _configure(expectedAccountEpoch: Int? = nil) async -> Attribution? {
+        guard expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() else { return nil }
         logger.info("AppRefer SDK initialized")
 
         // Set user ID if provided at init time
@@ -635,7 +668,7 @@ public actor AppRefer {
         events.append(PendingProductEvent(id: id, body: data, created: Date(), attempts: 0, nextAttempt: .distantPast))
         guard saveEvents(events) else { return .dropped }
         let epoch = eventGeneration
-        let statuses = await flushPendingEvents()
+        let statuses = await flushPendingEvents(only: id)
         guard epoch == eventGeneration else { return .dropped }
         if (revenue ?? 0) > 0 || Self.trialEvents.contains(eventName) {
             Task { await self.refreshConversionValue(force: true) }
@@ -650,8 +683,14 @@ public actor AppRefer {
             let events = try storage.readPendingEvents().map { try JSONDecoder().decode([PendingProductEvent].self, from: $0) } ?? []
             return Array(events.filter { Date().timeIntervalSince($0.created) < 7 * 86400 }.suffix(1000))
         } catch {
-            logger.warn("Product-event queue unavailable; preserving its contents")
-            return nil
+            do {
+                try storage.quarantinePendingEvents()
+                logger.warn("Corrupt product-event queue quarantined")
+                return []
+            } catch {
+                logger.warn("Product-event queue unavailable")
+                return nil
+            }
         }
     }
 
@@ -668,7 +707,7 @@ public actor AppRefer {
 
     /// Only the queue retries events; the transport performs one attempt.
     @discardableResult
-    func flushPendingEvents() async -> [String: Int] {
+    func flushPendingEvents(only eventId: String? = nil) async -> [String: Int] {
         guard !draining, storage.isSdkEnabled() else {
             if !storage.isSdkEnabled() { storage.pendingEvents = nil }
             return [:]
@@ -676,26 +715,30 @@ public actor AppRefer {
         draining = true
         let epoch = eventGeneration
         defer {
-            draining = false
-            if epoch == eventGeneration { scheduleRetry() }
+            if epoch == eventGeneration { draining = false; scheduleRetry() }
         }
         var results: [String: Int] = [:]
         guard let pending = loadEvents(), saveEvents(pending) else { return results }
-        for event in pending where event.nextAttempt <= Date() {
+        for event in pending where event.nextAttempt <= Date() && (eventId == nil || event.id == eventId) {
             guard epoch == eventGeneration, !Task.isCancelled, storage.isSdkEnabled() else { break }
             guard let body = try? JSONSerialization.jsonObject(with: event.body) as? [String: Any] else { continue }
-            let status = await client(for: trackingStatus.current()).event(body)
+            let response = await client(for: trackingStatus.current()).eventResponse(body)
+            let status = response.status
             guard epoch == eventGeneration, !Task.isCancelled else { break }
             guard var events = loadEvents() else { break }
-            if let status, !(500..<600).contains(status) {
-                // A response outside 5xx is terminal; never replay a 4xx.
+            let retryable = status == nil || status == 408 || status == 429 || (500..<600).contains(status ?? 0)
+            if let status, !retryable {
                 events.removeAll { $0.id == event.id }
                 results[event.id] = status
             } else if let i = events.firstIndex(where: { $0.id == event.id }) {
                 events[i].attempts += 1
-                events[i].nextAttempt = Date().addingTimeInterval(min(3600, pow(2, Double(min(events[i].attempts, 12)))))
+                let delay = max(response.retryAfter ?? 0, min(3600, pow(2, Double(min(events[i].attempts, 12)))))
+                let next = Date().addingTimeInterval(delay)
+                // The first retryable response pauses the whole backlog.
+                for j in events.indices { events[j].nextAttempt = max(events[j].nextAttempt, next) }
             }
             saveEvents(events)
+            if retryable { break }
         }
         return results
     }

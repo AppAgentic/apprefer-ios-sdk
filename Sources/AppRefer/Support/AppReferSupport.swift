@@ -40,7 +40,7 @@ public final class AppReferSupport {
     }
 
     func dismissForReset() {
-        SupportAccountState.shared.generation += 1
+        SupportAccountState.shared.reset()
         SupportPersonaStore.shared.clear()
         presented?.dismiss(animated: false)
         presented = nil
@@ -48,7 +48,8 @@ public final class AppReferSupport {
 
     /// Who the customer is, so the team can greet them and reply by email.
     public func identify(name: String? = nil, email: String? = nil) {
-        Task { await SupportAPI.shared.setIdentity(name: name, email: email) }
+        let epoch = SupportAPI.shared.actionGeneration
+        Task { await SupportAPI.shared.setIdentity(name: name, email: email, generation: epoch) }
     }
 
     /// Opens the help chat straight on a new message, optionally pre-filled
@@ -85,7 +86,8 @@ public final class AppReferSupport {
         #else
         let sandbox = false
         #endif
-        Task { try? await SupportAPI.shared.registerPushToken(hex, sandbox: sandbox) }
+        let epoch = SupportAPI.shared.actionGeneration
+        Task { try? await SupportAPI.shared.registerPushToken(hex, sandbox: sandbox, generation: epoch) }
     }
 
     /// True (and opens the conversation) when a notification is a support reply.

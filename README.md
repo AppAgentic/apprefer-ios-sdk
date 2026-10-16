@@ -29,6 +29,7 @@ await AppRefer.setUserId("account-B")
 let result = await AppRefer.configureResult(apiKey: "pk_...")
 switch result {
 case .attributed(let attribution): print(attribution.network)
+case .pending: break // Wait for the server to confirm the ATT decision.
 case .organic: break
 case .failed(let error): print(error)
 }
@@ -38,22 +39,25 @@ await AppRefer.clearPendingEvents()
 ```
 
 The existing configure return value and trackEvent API remain available.
-The new configureResult reports attributed, organic, or failed; organic requires
+The new configureResult reports attributed, organic, pending, or failed; organic requires
 a successful server answer (or its confirmed install cache), never a network
-failure or an unclassified empty response.
+failure or an unclassified empty response. Pending means the server is holding
+the ATT decision; its cached copy remains pending until the server confirms a result.
+A failed consent re-report preserves any previously confirmed attribution.
 
 trackEventResult returns sent, queued or dropped (uppercase enum cases on
 Android). Sent means HTTP 2xx acknowledgement; queued means saved for later
 delivery; dropped covers a disabled/unconfigured SDK, a terminal rejection or
 unpersistable input. Product events are persisted before sending, bounded to
 1,000 events and seven days; expiry and overflow discard the oldest entries.
-Each event keeps one stable eventId. Only network failures and HTTP 5xx retry,
-with exponential backoff capped at one hour, including next-launch and foreground
-flushes. HTTP 2xx and 4xx are removed; other non-5xx responses are terminal too.
+Each event keeps one stable eventId. Network failures, HTTP 408/429 and 5xx retry
+with exponential backoff capped at one hour, or longer when Retry-After requires it.
+A retryable failure pauses the drain. HTTP 2xx and other 4xx responses are terminal.
+Awaited event calls wait only for their own single request, never the full backlog.
 This is **at-least-once delivery**: BigQuery's short insert-id deduplication window
 does not provide an exactly-once guarantee.
 
-clearPendingEvents() cancels current product delivery and erases the queue; call
+clearPendingEvents() cancels only product-event requests and erases the queue; call
 it when withdrawing product-event consent. Reset calls it too. The existing SDK
 kill switch also clears queued events and stops sends. ATT/advertising consent
 continues to select the appropriate host; it is not a new product-analytics
