@@ -155,4 +155,16 @@ final class SDK091Tests: XCTestCase {
         let status = await client.event([:]); XCTAssertNil(status)
     }
 
+    func testStaleConfigureCannotResumeCollectionAfterReenable() async {
+        let (sdk, storage, poster, _) = fixture()
+        await sdk._setCollectionEnabled(false)
+        await sdk._setCollectionEnabled(true)
+        _ = await sdk._configure(expectedCollectionEpoch: AppRefer.collectionEpoch() - 1)
+        XCTAssertFalse(storage.isCollectionEnabled())
+        let count = await poster.count(); XCTAssertEqual(count, 0)
+        _ = await sdk._configure(expectedCollectionEpoch: AppRefer.collectionEpoch())
+        XCTAssertTrue(storage.isCollectionEnabled())
+        let resumed = await poster.count(); XCTAssertGreaterThan(resumed, 0)
+    }
+
 }

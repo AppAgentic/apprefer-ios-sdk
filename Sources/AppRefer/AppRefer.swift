@@ -37,6 +37,9 @@ public actor AppRefer {
     private static let lock = NSLock()
     private nonisolated(unsafe) static var _shared: AppRefer?
     private nonisolated(unsafe) static var registeredApiKey: String?
+    private nonisolated(unsafe) static var collectionGeneration = 0
+    static func collectionEpoch() -> Int { lock.lock(); defer { lock.unlock() }; return collectionGeneration }
+    private static func advanceCollection() { lock.lock(); defer { lock.unlock() }; collectionGeneration += 1 }
     private nonisolated(unsafe) static var accountGeneration = 0
     static func accountEpoch() -> Int { lock.lock(); defer { lock.unlock() }; return accountGeneration }
     private static func advanceAccount() { lock.lock(); defer { lock.unlock() }; accountGeneration += 1 }
@@ -132,6 +135,7 @@ public actor AppRefer {
         debug: Bool = false,
         logLevel: Int = 1
     ) async -> Attribution? {
+        let collectionEpoch = Self.collectionEpoch()
         let config = AppReferConfig(
             apiKey: apiKey,
             userId: userId,
@@ -144,7 +148,7 @@ public actor AppRefer {
         await SupportAPI.shared.resumeRevocations(apiKey: apiKey)
         observeActivation()
 
-        let attribution = await sdk._configure(expectedAccountEpoch: epoch)
+        let attribution = await sdk._configure(expectedAccountEpoch: epoch, expectedCollectionEpoch: collectionEpoch)
         Task {
             await sdk.flushPendingEvents()
             await sdk.refreshConversionValue(force: false)
@@ -319,6 +323,7 @@ public actor AppRefer {
     /// Persistently pause attribution and product analytics. Support and Billing remain available.
     /// Enabling resumes collection on the next configure call.
     public static func setCollectionEnabled(_ enabled: Bool) async {
+        advanceCollection()
         if let sdk = getShared() { await sdk._setCollectionEnabled(enabled) }
         else {
             let storage = AppReferStorage()
@@ -423,7 +428,8 @@ public actor AppRefer {
 
     // MARK: - Internal Implementation
 
-    func _configure(expectedAccountEpoch: Int? = nil) async -> Attribution? {
+    func _configure(expectedAccountEpoch: Int? = nil, expectedCollectionEpoch: Int? = nil) async -> Attribution? {
+        guard expectedCollectionEpoch == nil || expectedCollectionEpoch == Self.collectionEpoch() else { return storage.getCachedAttribution() }
         storage.resumeCollection()
         guard storage.isCollectionEnabled() else { return storage.getCachedAttribution() }
         if let task = configurationTask { return await task.value }
