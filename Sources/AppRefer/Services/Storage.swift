@@ -32,10 +32,59 @@ final class AppReferStorage: @unchecked Sendable {
 
     private let defaults: UserDefaults
     private let keychain: DeviceIdKeychain
+    private let eventFileURL: URL?
 
-    init(defaults: UserDefaults = .standard, keychain: DeviceIdKeychain = LiveDeviceIdKeychain()) {
+    init(defaults: UserDefaults = .standard, keychain: DeviceIdKeychain = LiveDeviceIdKeychain(), eventFileURL: URL? = nil) {
         self.defaults = defaults
         self.keychain = keychain
+        // Production uses the same checked atomic-file pattern as the purchase queue.
+        // Custom defaults retain their isolated test store unless a file is injected.
+        self.eventFileURL = eventFileURL ?? (defaults === UserDefaults.standard
+            ? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+                .appendingPathComponent("AppRefer/product-events.json") : nil)
+    }
+
+    func clearUser() { defaults.removeObject(forKey: Self.keyUserId) }
+    var organicConfirmed: Bool {
+        get { defaults.bool(forKey: "apprefer_organic_confirmed") }
+        set { defaults.set(newValue, forKey: "apprefer_organic_confirmed") }
+    }
+    var pendingEvents: Data? {
+        get { try? readPendingEvents() }
+        set { try? writePendingEvents(newValue) }
+    }
+
+    func quarantinePendingEvents() throws {
+        if let url = eventFileURL {
+            try FileManager.default.moveItem(at: url, to: url.appendingPathExtension("corrupt-" + UUID().uuidString))
+        } else {
+            if let data = defaults.data(forKey: "apprefer_pending_events") {
+                defaults.set(data, forKey: "apprefer_pending_events_corrupt")
+            }
+            defaults.removeObject(forKey: "apprefer_pending_events")
+        }
+    }
+
+    func readPendingEvents() throws -> Data? {
+        guard let url = eventFileURL else { return defaults.data(forKey: "apprefer_pending_events") }
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return try Data(contentsOf: url)
+    }
+
+    func writePendingEvents(_ data: Data?) throws {
+        guard let url = eventFileURL else {
+            defaults.set(data, forKey: "apprefer_pending_events")
+            if data == nil { defaults.removeObject(forKey: "apprefer_pending_events_corrupt") }
+            return
+        }
+        guard let data else {
+            let siblings = (try? FileManager.default.contentsOfDirectory(at: url.deletingLastPathComponent(), includingPropertiesForKeys: nil)) ?? []
+            for file in siblings where file.lastPathComponent.hasPrefix(url.lastPathComponent + ".corrupt-") { try FileManager.default.removeItem(at: file) }
+            if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+            return
+        }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try BillingStorage.writeChecked(data, to: url)
     }
 
     // MARK: - Device ID (Keychain — persists across reinstalls)
@@ -116,6 +165,7 @@ final class AppReferStorage: @unchecked Sendable {
 
     func setSdkEnabled(_ enabled: Bool) {
         defaults.set(enabled, forKey: Self.keySdkEnabled)
+        if !enabled { pendingEvents = nil }
     }
 
     // MARK: - Last Config Fetch

@@ -6,9 +6,25 @@ import UIKit
 /// One AppRefer endpoint. Abstracted so tests can see which host each request used.
 protocol AppReferPosting: Sendable {
     func post(_ path: String, body: [String: Any]) async -> [String: Any]?
+    func event(_ body: [String: Any]) async -> Int?
+    func cancel() async
+    func cancelEvents() async
+    func eventResponse(_ body: [String: Any]) async -> ProductEventResponse
 }
 
+extension AppReferPosting {
+    func event(_ body: [String: Any]) async -> Int? {
+        await post("/api/track/event", body: body) == nil ? nil : 200
+    }
+    func cancel() async {}
+    func cancelEvents() async {}
+    func eventResponse(_ body: [String: Any]) async -> ProductEventResponse {
+        ProductEventResponse(status: await event(body), retryAfter: nil)
+    }
+}
 extension AppReferHTTPClient: AppReferPosting {}
+
+struct ProductEventResponse: Sendable { let status: Int?; let retryAfter: TimeInterval? }
 
 /// AppRefer SDK — first-party mobile attribution for iOS.
 ///
@@ -20,6 +36,10 @@ public actor AppRefer {
     // Lock-protected shared instance for thread-safe static access
     private static let lock = NSLock()
     private nonisolated(unsafe) static var _shared: AppRefer?
+    private nonisolated(unsafe) static var registeredApiKey: String?
+    private nonisolated(unsafe) static var accountGeneration = 0
+    static func accountEpoch() -> Int { lock.lock(); defer { lock.unlock() }; return accountGeneration }
+    private static func advanceAccount() { lock.lock(); defer { lock.unlock() }; accountGeneration += 1 }
 
     private static func getShared() -> AppRefer? {
         lock.lock()
@@ -27,31 +47,48 @@ public actor AppRefer {
         return _shared
     }
 
-    private static func setShared(_ sdk: AppRefer) {
-        lock.lock()
-        defer { lock.unlock() }
+    #if DEBUG
+    static func replaceSharedForTesting(_ sdk: AppRefer?) -> AppRefer? {
+        lock.lock(); defer { lock.unlock() }
+        let previous = _shared; _shared = sdk; return previous
+    }
+    #endif
+
+    private static func sharedForConfiguration(_ config: AppReferConfig) -> (AppRefer, Bool, Int) {
+        lock.lock(); defer { lock.unlock() }
+        registeredApiKey = config.apiKey
+        if let sdk = _shared { return (sdk, false, accountGeneration) }
+        let sdk = AppRefer(config: config)
         _shared = sdk
+        return (sdk, true, accountGeneration)
     }
 
-    /// SDK key passed to `configure`, used by AppReferBilling.
+    /// SDK key passed to configure, used by optional modules.
     static func currentApiKey() -> String? {
-        getShared()?.config.apiKey
+        lock.lock(); defer { lock.unlock() }
+        return registeredApiKey
     }
 
-    private let config: AppReferConfig
+    private var config: AppReferConfig
     private let storage: AppReferStorage
-    private let logger: AppReferLogger
+    private var logger: AppReferLogger
     private let trackingStatus: TrackingStatusProvider
     /// `trk.apprefer.com`, only for ATT-authorized installs.
-    private let trackingClient: AppReferPosting
+    private var trackingClient: AppReferPosting
     /// `apprefer.com`, for everything else. Neither falls back to the other.
-    private let firstPartyClient: AppReferPosting
+    private var firstPartyClient: AppReferPosting
     private var consentSyncTask: Task<Attribution?, Never>?
     private let conversionUpdater: ConversionValueUpdating
     private var conversionRefreshInFlight = false
     private var conversionRerunForced = false
     private var conversionRecheckScheduled = false
     private var consentRecheckRequested = false
+    private var generation = 0
+    private var eventGeneration = 0
+    private var draining = false
+    private var retryTask: Task<Void, Never>?
+    private var lastConfigureFailed = false
+    private var configurationTask: Task<Attribution?, Never>?
 
     init(
         config: AppReferConfig,
@@ -101,13 +138,26 @@ public actor AppRefer {
             logLevel: logLevel
         )
 
-        let sdk = AppRefer(config: config)
-        setShared(sdk)
+        let (sdk, created, epoch) = sharedForConfiguration(config)
+        if !created { await sdk.replaceConfiguration(config, expectedAccountEpoch: epoch) }
+        await SupportAPI.shared.resumeRevocations(apiKey: apiKey)
         observeActivation()
 
-        let attribution = await sdk._configure()
-        Task { await sdk.refreshConversionValue(force: false) }
+        let attribution = await sdk._configure(expectedAccountEpoch: epoch)
+        Task {
+            await sdk.flushPendingEvents()
+            await sdk.refreshConversionValue(force: false)
+        }
         return attribution
+    }
+
+    /// Organic is returned only after an explicit successful server answer.
+    public static func configureResult(
+        apiKey: String, userId: String? = nil, debug: Bool = false, logLevel: Int = 1
+    ) async -> AppReferAttributionResult {
+        _ = await configure(apiKey: apiKey, userId: userId, debug: debug, logLevel: logLevel)
+        guard let sdk = getShared() else { return .failed(AppReferAttributionError.unavailable) }
+        return await sdk.attributionResult()
     }
 
     /// Asks AppRefer for this install's SKAdNetwork / AdAttributionKit conversion value
@@ -143,6 +193,7 @@ public actor AppRefer {
     }
 
     private nonisolated(unsafe) static var activationObserver: NSObjectProtocol?
+    private nonisolated(unsafe) static var backgroundObserver: NSObjectProtocol?
 
     /// The user can change ATT in Settings at any time; re-check when the app comes back.
     private static func observeActivation() {
@@ -150,12 +201,17 @@ public actor AppRefer {
         lock.lock()
         defer { lock.unlock() }
         guard activationObserver == nil else { return }
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil
+        ) { _ in Task { await getShared()?.didEnterBackground() } }
         activationObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil
         ) { _ in
             Task {
-                await AppRefer.trackingConsentDidChange()
+                if let key = currentApiKey() { await SupportAPI.shared.resumeRevocations(apiKey: key) }
+                await getShared()?.didBecomeActive()
                 await getShared()?.refreshConversionValue(force: false)
+                await getShared()?.flushPendingEvents()
             }
         }
         #endif
@@ -169,14 +225,19 @@ public actor AppRefer {
         revenue: Double? = nil,
         currency: String? = nil
     ) async {
-        guard let sdk = getShared() else {
-            _log("trackEvent called before configure() — ignoring")
-            return
-        }
+        _ = await trackEventResult(eventName, properties: properties, revenue: revenue, currency: currency)
+    }
+
+    /// Persist before sending. Delivery is at least once; eventId stays stable on retries.
+    public static func trackEventResult(
+        _ eventName: String, properties: [String: Any]? = nil,
+        revenue: Double? = nil, currency: String? = nil
+    ) async -> AppReferEventResult {
+        guard let sdk = getShared() else { return .dropped }
         // Deep-copy properties via JSON round-trip to prevent callers from
         // mutating the dictionary while JSONSerialization walks it inside the actor.
         let safeCopy = properties.flatMap { Self.jsonSafeCopy($0) }
-        await sdk._trackEvent(eventName, properties: safeCopy, revenue: revenue, currency: currency)
+        return await sdk._trackEvent(eventName, properties: safeCopy, revenue: revenue, currency: currency)
     }
 
     /// Deep-copy a [String: Any] dictionary via JSON serialization
@@ -213,7 +274,7 @@ public actor AppRefer {
     /// to this device's attribution.
     public static func setUserId(_ userId: String) async {
         guard let sdk = getShared() else {
-            _log("setUserId called before configure() — ignoring")
+            AppReferStorage().setUserId(userId)
             return
         }
         await sdk._setUserId(userId)
@@ -238,6 +299,89 @@ public actor AppRefer {
         return await sdk._getDeviceId()
     }
 
+    /// Clear account state; install attribution and device id are retained.
+    /// Also call AppReferBilling.logOut() if your app uses Billing.
+    public static func reset() async {
+        advanceAccount()
+        if let sdk = getShared() { await sdk._reset() }
+        else {
+            AppReferStorage().clearUser()
+            await clearPendingEvents()
+        }
+        await SupportAPI.shared.reset()
+        #if os(iOS)
+        await AppReferSupport.shared.dismissForReset()
+        #endif
+        Task { await SupportAPI.shared.retryRevocations() }
+    }
+
+    public static func clearPendingEvents() async {
+        if let sdk = getShared() { await sdk._clearPendingEvents() }
+        else { AppReferStorage().pendingEvents = nil }
+    }
+
+    func _clearPendingEvents() async {
+        eventGeneration += 1
+        retryTask?.cancel()
+        retryTask = nil
+        storage.pendingEvents = nil
+        draining = false
+        await trackingClient.cancelEvents()
+        await firstPartyClient.cancelEvents()
+    }
+
+    func replaceConfiguration(_ newConfig: AppReferConfig, expectedAccountEpoch: Int? = nil, trackingClient: AppReferPosting? = nil, firstPartyClient: AppReferPosting? = nil) async {
+        guard expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() else { return }
+        guard newConfig.apiKey != config.apiKey || newConfig.userId != config.userId || newConfig.debug != config.debug || newConfig.logLevel != config.logLevel || trackingClient != nil || firstPartyClient != nil else { return }
+        configurationTask?.cancel(); configurationTask = nil
+        generation += 1
+        let epoch = generation
+        eventGeneration += 1
+        draining = false
+        retryTask?.cancel(); retryTask = nil
+        consentSyncTask?.cancel(); consentSyncTask = nil
+        await self.trackingClient.cancel()
+        await self.firstPartyClient.cancel()
+        guard epoch == generation, expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() else { return }
+        config = newConfig
+        logger = AppReferLogger(debug: newConfig.debug, logLevel: newConfig.logLevel)
+        self.trackingClient = trackingClient ?? AppReferHTTPClient(primaryURL: AppReferConfig.trackingURL, apiKey: newConfig.apiKey, logger: logger)
+        self.firstPartyClient = firstPartyClient ?? AppReferHTTPClient(primaryURL: AppReferConfig.backendURL, apiKey: newConfig.apiKey, logger: logger)
+        scheduleRetry()
+    }
+
+
+    func _reset() async {
+        configurationTask?.cancel(); configurationTask = nil
+        generation += 1
+        consentSyncTask?.cancel()
+        consentSyncTask = nil
+        consentRecheckRequested = false
+        conversionRerunForced = false
+        storage.clearUser()
+        await _clearPendingEvents()
+    }
+
+    func attributionResult() -> AppReferAttributionResult {
+        if let attribution = storage.getCachedAttribution() {
+            if attribution.trackingDecisionPending && attribution.matchType != "adservices" { return .pending }
+            return attribution.network.lowercased() == "organic" ? .organic : .attributed(attribution)
+        }
+        if storage.organicConfirmed { return .organic }
+        return .failed(AppReferAttributionError.unavailable)
+    }
+
+    private func recordOrganic(_ response: [String: Any]) {
+        if (response["attribution"] as? [String: Any])?["trackingDecisionPending"] as? Bool == true {
+            storage.organicConfirmed = false
+            return
+        }
+        if response["attribution"] is NSNull || response["organic"] as? Bool == true ||
+            (response["attribution"] as? [String: Any])?["network"] as? String == "organic" {
+            storage.organicConfirmed = true
+        }
+    }
+
     // MARK: - Actor-isolated accessors
 
     private func _getAttribution() -> Attribution? {
@@ -252,7 +396,17 @@ public actor AppRefer {
 
     // MARK: - Internal Implementation
 
-    func _configure() async -> Attribution? {
+    func _configure(expectedAccountEpoch: Int? = nil) async -> Attribution? {
+        if let task = configurationTask { return await task.value }
+        let epoch = generation
+        let task = Task { await self.runConfiguration(expectedAccountEpoch: expectedAccountEpoch) }
+        configurationTask = task
+        let result = await task.value
+        if epoch == generation { configurationTask = nil }
+        return result
+    }
+    private func runConfiguration(expectedAccountEpoch: Int? = nil) async -> Attribution? {
+        guard expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() else { return nil }
         logger.info("AppRefer SDK initialized")
 
         // Set user ID if provided at init time
@@ -276,6 +430,7 @@ public actor AppRefer {
         }
 
         // First run — resolve attribution
+        lastConfigureFailed = false
         return await resolveAttribution()
     }
 
@@ -311,17 +466,25 @@ public actor AppRefer {
             body["customer_user_id"] = userId
         }
 
+        pendingConfigureSent = true
         logger.info("Sending configure request...")
+        let epoch = generation
         guard let response = await client(for: consent).post("/api/track/configure", body: body) else {
+            guard epoch == generation else { return nil }
+            lastConfigureFailed = true
             logger.error("Configure request failed")
             storage.setMatchRequestAttempted(true)
             return nil
         }
 
+        guard epoch == generation, !Task.isCancelled else { return nil }
+        recordOrganic(response)
+        lastConfigureFailed = false
         // Update kill switch from server
         let sdkEnabled = response["sdkEnabled"] as? Bool ?? true
         storage.setSdkEnabled(sdkEnabled)
         if !sdkEnabled {
+            await _clearPendingEvents()
             logger.info("SDK disabled by server")
             storage.setMatchRequestAttempted(true)
             return nil
@@ -357,6 +520,20 @@ public actor AppRefer {
     /// install whose first configure failed is also registered this way. Returns the
     /// attribution the server now holds, or nil when nothing was sent or it failed
     /// (tried again on the next launch or activation).
+    private var pendingConfigureSent = false
+
+    private var wasBackgrounded = false
+    func didEnterBackground() { wasBackgrounded = true }
+    func didBecomeActive() async {
+        // The initial activation belongs to launch. Only a real return from
+        // background gives a pending decision another refresh opportunity.
+        if wasBackgrounded {
+            wasBackgrounded = false
+            if configurationTask == nil && consentSyncTask == nil { pendingConfigureSent = false }
+        }
+        _ = await syncTrackingConsent()
+    }
+
     func syncTrackingConsent() async -> Attribution? {
         if let running = consentSyncTask {
             // The running sync checks again before it ends, so a newer answer isn't lost;
@@ -364,9 +541,11 @@ public actor AppRefer {
             consentRecheckRequested = true
             return await running.value
         }
+        let epoch = generation
         let task = Task { await self.runConsentSync() }
         consentSyncTask = task
         let result = await task.value
+        guard epoch == generation else { return nil }
         consentSyncTask = nil
         if consentRecheckRequested { return await syncTrackingConsent() ?? result }
         return result
@@ -385,7 +564,8 @@ public actor AppRefer {
         guard storage.isSdkEnabled(), storage.isMatchRequestAttempted() else { return nil }
         let consent = trackingStatus.current()
         let previouslyAccepted = storage.reportedTrackingConsent()
-        guard previouslyAccepted != consent.rawValue else { return nil }
+        let cached = storage.getCachedAttribution()
+        guard previouslyAccepted != consent.rawValue || (cached?.trackingDecisionPending == true && cached?.matchType != "adservices" && !pendingConfigureSent) else { return nil }
         guard let deviceId = storage.deviceId() else { return nil }
 
         var body: [String: Any] = [
@@ -407,13 +587,21 @@ public actor AppRefer {
             body["customer_user_id"] = userId
         }
 
+        pendingConfigureSent = true
         logger.info("Reporting tracking consent: \(consent.rawValue)")
+        let epoch = generation
         guard let response = await client(for: consent).post("/api/track/configure", body: body) else {
+            guard epoch == generation else { return nil }
+            lastConfigureFailed = true
             logger.warn("Tracking consent not reported; will retry")
             return nil
         }
+        guard epoch == generation, !Task.isCancelled else { return nil }
+        recordOrganic(response)
+        lastConfigureFailed = false
         if let enabled = response["sdkEnabled"] as? Bool, !enabled {
             storage.setSdkEnabled(false)
+            await _clearPendingEvents()
             return nil
         }
         storage.setReportedTrackingConsent(consent.rawValue)
@@ -510,37 +698,105 @@ public actor AppRefer {
         await _setAdvancedMatching(email: email, phone: nil, firstName: nil, lastName: nil, dateOfBirth: nil)
     }
 
-    private func _trackEvent(
-        _ eventName: String,
-        properties: [String: Any]?,
-        revenue: Double?,
-        currency: String?
-    ) async {
-        guard storage.isSdkEnabled() else { return }
-        guard let deviceId = storage.deviceId() else {
-            logger.warn("Device id unavailable (Keychain); event \(eventName) not sent")
-            return
-        }
-        var body: [String: Any] = [
-            "device_id": deviceId,
-            "event_name": eventName,
-        ]
-
-        if let properties = properties {
-            body["properties"] = properties
-        }
-        if let revenue = revenue {
-            body["revenue"] = revenue
-        }
-        if let currency = currency {
-            body["currency"] = currency
-        }
-
-        logger.info("Tracking event: \(eventName)")
-        _ = await client(for: trackingStatus.current()).post("/api/track/event", body: body)
+    @discardableResult
+    func _trackEvent(
+        _ eventName: String, properties: [String: Any]?, revenue: Double?, currency: String?
+    ) async -> AppReferEventResult {
+        guard storage.isSdkEnabled(), let deviceId = storage.deviceId() else { return .dropped }
+        let id = UUID().uuidString
+        var body: [String: Any] = ["device_id": deviceId, "event_name": eventName, "eventId": id]
+        if let properties { body["properties"] = properties }
+        if let revenue { body["revenue"] = revenue }
+        if let currency { body["currency"] = currency }
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else { return .dropped }
+        guard var events = loadEvents() else { return .dropped }
+        events.append(PendingProductEvent(id: id, body: data, created: Date(), attempts: 0, nextAttempt: .distantPast))
+        guard saveEvents(events) else { return .dropped }
+        let epoch = eventGeneration
+        let statuses = await flushPendingEvents(only: id)
+        guard epoch == eventGeneration else { return loadEvents()?.contains(where: { $0.id == id }) == true ? .queued : .dropped }
         if (revenue ?? 0) > 0 || Self.trialEvents.contains(eventName) {
-            // Not awaited: trackEvent callers shouldn't wait on the value check.
             Task { await self.refreshConversionValue(force: true) }
+        }
+        guard epoch == eventGeneration else { return loadEvents()?.contains(where: { $0.id == id }) == true ? .queued : .dropped }
+        if let status = statuses[id] { return (200..<300).contains(status) ? .sent : .dropped }
+        return .queued
+    }
+
+    private func loadEvents() -> [PendingProductEvent]? {
+        do {
+            let events = try storage.readPendingEvents().map { try JSONDecoder().decode([PendingProductEvent].self, from: $0) } ?? []
+            return Array(events.filter { Date().timeIntervalSince($0.created) < 7 * 86400 }.suffix(1000))
+        } catch {
+            do {
+                try storage.quarantinePendingEvents()
+                logger.warn("Corrupt product-event queue quarantined")
+                return []
+            } catch {
+                logger.warn("Product-event queue unavailable")
+                return nil
+            }
+        }
+    }
+
+    @discardableResult
+    private func saveEvents(_ events: [PendingProductEvent]) -> Bool {
+        do {
+            try storage.writePendingEvents(JSONEncoder().encode(Array(events.suffix(1000))))
+            return true
+        } catch {
+            logger.warn("Product-event queue could not be saved")
+            return false
+        }
+    }
+
+    /// Only the queue retries events; the transport performs one attempt.
+    @discardableResult
+    func flushPendingEvents(only eventId: String? = nil) async -> [String: Int] {
+        guard !draining, storage.isSdkEnabled() else {
+            if !storage.isSdkEnabled() { storage.pendingEvents = nil }
+            return [:]
+        }
+        draining = true
+        let epoch = eventGeneration
+        defer {
+            if epoch == eventGeneration { draining = false; scheduleRetry() }
+        }
+        var results: [String: Int] = [:]
+        guard let pending = loadEvents(), saveEvents(pending) else { return results }
+        for event in pending where event.nextAttempt <= Date() && (eventId == nil || event.id == eventId) {
+            guard epoch == eventGeneration, !Task.isCancelled, storage.isSdkEnabled() else { break }
+            guard let body = try? JSONSerialization.jsonObject(with: event.body) as? [String: Any] else { continue }
+            let response = await client(for: trackingStatus.current()).eventResponse(body)
+            let status = response.status
+            guard epoch == eventGeneration, !Task.isCancelled else { break }
+            guard var events = loadEvents() else { break }
+            let retryable = status == nil || status == 408 || status == 429 || (500..<600).contains(status ?? 0)
+            if let status, !retryable {
+                events.removeAll { $0.id == event.id }
+                results[event.id] = status
+            } else if let i = events.firstIndex(where: { $0.id == event.id }) {
+                events[i].attempts += 1
+                let delay = max(response.retryAfter ?? 0, min(3600, pow(2, Double(min(events[i].attempts, 12)))))
+                let next = Date().addingTimeInterval(delay)
+                // The first retryable response pauses the whole backlog.
+                for j in events.indices { events[j].nextAttempt = max(events[j].nextAttempt, next) }
+            }
+            saveEvents(events)
+            if retryable { break }
+        }
+        return results
+    }
+
+    private func scheduleRetry() {
+        retryTask?.cancel()
+        guard let next = loadEvents()?.map(\.nextAttempt).min() else { retryTask = nil; return }
+        let delay = min(3600, max(0.1, next.timeIntervalSinceNow))
+        retryTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+            catch { return }
+            guard !Task.isCancelled else { return }
+            await self?.flushPendingEvents()
         }
     }
 

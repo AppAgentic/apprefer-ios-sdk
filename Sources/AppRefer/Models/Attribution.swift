@@ -2,6 +2,7 @@ import Foundation
 
 /// Attribution result returned by `AppRefer.configure()`.
 public struct Attribution: Codable, Sendable {
+    public let trackingDecisionPending: Bool
     public let network: String
     public let campaign: String?
     public let matchType: String
@@ -19,6 +20,13 @@ public struct Attribution: Codable, Sendable {
     public let createdAt: Date
 
     enum CodingKeys: String, CodingKey {
+        case trackingDecisionPending
+        case serverMatchType = "matchType"
+        case serverAttributionId = "id"
+        case serverCampaignId = "campaignId"
+        case serverCampaignName = "campaignName"
+        case serverAdGroupId = "adGroupId"
+        case serverAdId = "adId"
         case network
         case campaign
         case matchType = "match_type"
@@ -38,14 +46,15 @@ public struct Attribution: Codable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        trackingDecisionPending = (try? container.decode(Bool.self, forKey: .trackingDecisionPending)) ?? false
         network = (try? container.decode(String.self, forKey: .network)) ?? "unknown"
         campaign = try? container.decode(String.self, forKey: .campaign)
-        matchType = (try? container.decode(String.self, forKey: .matchType)) ?? "organic"
-        attributionId = try? container.decode(String.self, forKey: .attributionId)
-        campaignId = try? container.decode(String.self, forKey: .campaignId)
-        campaignName = try? container.decode(String.self, forKey: .campaignName)
-        adGroupId = try? container.decode(String.self, forKey: .adGroupId)
-        adId = try? container.decode(String.self, forKey: .adId)
+        matchType = (try? container.decode(String.self, forKey: .matchType)) ?? (try? container.decode(String.self, forKey: .serverMatchType)) ?? "organic"
+        attributionId = (try? container.decode(String.self, forKey: .attributionId)) ?? (try? container.decode(String.self, forKey: .serverAttributionId))
+        campaignId = (try? container.decode(String.self, forKey: .campaignId)) ?? (try? container.decode(String.self, forKey: .serverCampaignId))
+        campaignName = (try? container.decode(String.self, forKey: .campaignName)) ?? (try? container.decode(String.self, forKey: .serverCampaignName))
+        adGroupId = (try? container.decode(String.self, forKey: .adGroupId)) ?? (try? container.decode(String.self, forKey: .serverAdGroupId))
+        adId = (try? container.decode(String.self, forKey: .adId)) ?? (try? container.decode(String.self, forKey: .serverAdId))
         keyword = try? container.decode(String.self, forKey: .keyword)
         fbclid = try? container.decode(String.self, forKey: .fbclid)
         gclid = try? container.decode(String.self, forKey: .gclid)
@@ -69,6 +78,7 @@ public struct Attribution: Codable, Sendable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(trackingDecisionPending, forKey: .trackingDecisionPending)
         try container.encode(network, forKey: .network)
         try container.encodeIfPresent(campaign, forKey: .campaign)
         try container.encode(matchType, forKey: .matchType)
@@ -107,6 +117,7 @@ public struct Attribution: Codable, Sendable {
         customData: [String: String] = [:],
         createdAt: Date = Date()
     ) {
+        self.trackingDecisionPending = false
         self.network = network
         self.campaign = campaign
         self.matchType = matchType

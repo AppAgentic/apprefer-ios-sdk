@@ -5,20 +5,28 @@ import PhotosUI
 /// The whole help chat: home and conversations. Use `AppRefer.support.open()`
 /// to present it, or embed this view yourself.
 public struct AppReferSupportView: View {
+    @ObservedObject private var account = SupportAccountState.shared
+    private let conversationId: String?
+    private let draft: String?
+    private let initialGeneration: Int
+    public init(conversationId: String? = nil) { self.conversationId = conversationId; self.draft = nil; initialGeneration = SupportAccountState.shared.generation }
+    public init(composing draft: String) { self.conversationId = nil; self.draft = draft; initialGeneration = SupportAccountState.shared.generation }
+    public var body: some View {
+        SupportAccountView(conversationId: account.generation == initialGeneration ? conversationId : nil,
+                           draft: account.generation == initialGeneration ? draft : nil)
+            .id(account.generation)
+    }
+}
+
+struct SupportAccountView: View {
     @StateObject private var home = SupportHomeModel()
     @State private var path: [SupportRoute] = []
     @Environment(\.dismiss) private var dismiss
     private let initialConversation: String?
     private let initialDraft: String?
 
-    public init(conversationId: String? = nil) {
+    init(conversationId: String?, draft: String?) {
         self.initialConversation = conversationId
-        self.initialDraft = nil
-    }
-
-    /// Opens on the message field, optionally pre-filled.
-    public init(composing draft: String) {
-        self.initialConversation = nil
         self.initialDraft = draft
     }
 
@@ -51,7 +59,7 @@ public struct AppReferSupportView: View {
 
     private func pop() {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) { _ = path.popLast() }
-        Task { await home.refresh() }
+        SupportAccountState.shared.run { _ in await home.refresh() }
     }
 }
 
@@ -117,7 +125,7 @@ struct SupportHomeScreen: View {
                 SupportComposerBar(
                     text: $text, images: $images, focus: $focused,
                     placeholder: topic?.prompt ?? personas.persona.map { "Message \($0.name)…" } ?? "Ask us anything…", leadingSymbol: "camera.fill",
-                    palette: palette, sending: sending, pick: { picking = true }, send: { Task { await start() } }
+                    palette: palette, sending: sending, pick: { picking = true }, send: { SupportAccountState.shared.run { await start(generation: $0) } }
                 )
             }
         }
@@ -370,16 +378,17 @@ struct SupportHomeScreen: View {
         focused = true
     }
 
-    private func start() async {
+    private func start(generation epoch: Int) async {
+        guard epoch == SupportAPI.shared.actionGeneration, !Task.isCancelled else { return }
         sending = true
         error = nil
         defer { sending = false }
         do {
             let sentText = text
             var ids: [String] = []
-            for image in images { ids.append(try await SupportAPI.shared.upload(await SupportImages.jpegOffMain(image))) }
+            for image in images { ids.append(try await SupportAPI.shared.upload(await SupportImages.jpegOffMain(image), generation: epoch)) }
             let body = sentText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let t = try await SupportAPI.shared.start(text: body, subject: topic?.title, attachmentIds: ids, clientMessageId: clientMessageId)
+            let t = try await SupportAPI.shared.start(text: body, subject: topic?.title, attachmentIds: ids, clientMessageId: clientMessageId, generation: epoch)
             // Anything typed while it was sending stays in the field.
             text = text.hasPrefix(sentText) ? String(text.dropFirst(sentText.count)) : text
             images = []
@@ -576,7 +585,7 @@ struct SupportThreadScreen: View {
                             message(i, m).padding(.top, i > 0 && !showsTime(i) ? (sameSide(i - 1, i) ? 3 : 10) : 0)
                         }
                         ForEach(model.pending) { p in
-                            SupportPendingBubble(pending: p, palette: palette) { Task { await model.retry(p) } }.padding(.top, 6)
+                            SupportPendingBubble(pending: p, palette: palette) { SupportAccountState.shared.run { await model.retry(p, generation: $0) } }.padding(.top, 6)
                         }
                         if model.loaded, model.pending.isEmpty, let last = model.messages.last, last.isFromCustomer {
                             Text("Sent \(SupportText.clock(last.date)) · we'll notify you when the team replies")
@@ -681,7 +690,7 @@ struct SupportThreadScreen: View {
     private var quickReplies: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip("👍 Thanks, that's sorted") { Task { await model.send(text: "👍 Thanks, that's sorted", images: []) } }
+                chip("👍 Thanks, that's sorted") { SupportAccountState.shared.run { await model.send(text: "👍 Thanks, that's sorted", images: [], generation: $0) } }
                 chip("I have another question") { focused = true }
             }
             .padding(.horizontal, 14)
@@ -703,7 +712,7 @@ struct SupportThreadScreen: View {
         let imgs = images
         text = ""
         images = []
-        Task { await model.send(text: t, images: imgs) }
+        SupportAccountState.shared.run { await model.send(text: t, images: imgs, generation: $0) }
     }
 
     private func sameSide(_ a: Int, _ b: Int) -> Bool {

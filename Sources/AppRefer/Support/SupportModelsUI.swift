@@ -3,6 +3,27 @@ import SwiftUI
 import UIKit
 import ImageIO
 
+@MainActor
+final class SupportAccountState: ObservableObject {
+    static let shared = SupportAccountState()
+    @Published var generation = 0
+    private var actions: [UUID: Task<Void, Never>] = [:]
+    func run(_ action: @escaping @MainActor (Int) async -> Void) {
+        let epoch = SupportAPI.shared.actionGeneration
+        let id = UUID()
+        actions[id] = Task {
+            guard !Task.isCancelled else { return }
+            await action(epoch)
+            actions[id] = nil
+        }
+    }
+    func reset() {
+        actions.values.forEach { $0.cancel() }
+        actions.removeAll()
+        generation += 1
+    }
+}
+
 /// Screens on top of the help home.
 enum SupportRoute: Hashable {
     case thread(id: String, subject: String)
@@ -13,6 +34,8 @@ enum SupportRoute: Hashable {
 final class SupportPersonaStore: ObservableObject {
     static let shared = SupportPersonaStore()
     @Published private(set) var persona: AppReferSupportPersona?
+
+    func clear() { persona = nil }
 
     func refresh() async {
         let latest = await SupportAPI.shared.persona
@@ -103,16 +126,17 @@ final class SupportThreadModel: ObservableObject {
         messages.sort { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }
     }
 
-    func send(text: String, images: [UIImage]) async {
-        await deliver(PendingMessage(text: text, images: images))
+    func send(text: String, images: [UIImage], generation epoch: Int) async {
+        await deliver(PendingMessage(text: text, images: images), generation: epoch)
     }
 
-    private func deliver(_ p: PendingMessage) async {
+    private func deliver(_ p: PendingMessage, generation epoch: Int) async {
+        guard epoch == SupportAPI.shared.actionGeneration, !Task.isCancelled else { return }
         pending.append(p)
         do {
             var ids: [String] = []
-            for image in images(p) { ids.append(try await SupportAPI.shared.upload(await SupportImages.jpegOffMain(image))) }
-            let sent = try await SupportAPI.shared.send(id, text: p.text, attachmentIds: ids, clientMessageId: p.id)
+            for image in images(p) { ids.append(try await SupportAPI.shared.upload(await SupportImages.jpegOffMain(image), generation: epoch)) }
+            let sent = try await SupportAPI.shared.send(id, text: p.text, attachmentIds: ids, clientMessageId: p.id, generation: epoch)
             pending.removeAll { $0.id == p.id }
             merge([sent])
         } catch {
@@ -122,11 +146,11 @@ final class SupportThreadModel: ObservableObject {
     }
 
     /// Same clientMessageId, fresh uploads: a retry after a lost response returns the stored message.
-    func retry(_ p: PendingMessage) async {
+    func retry(_ p: PendingMessage, generation epoch: Int) async {
         pending.removeAll { $0.id == p.id }
         var again = p
         again.failed = false
-        await deliver(again)
+        await deliver(again, generation: epoch)
     }
 
     private func images(_ p: PendingMessage) -> [UIImage] { p.images }
