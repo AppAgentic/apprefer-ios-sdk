@@ -308,6 +308,25 @@ final class BillingStorage {
 
     // MARK: - Cached CustomerInfo (last server answer)
 
+    func offeringsBucketId() -> String? {
+        let key = "apprefer_billing_offerings_bucket"
+        switch secure.read(key) {
+        case .found(let value): return value
+        case .unavailable, .failed: return nil
+        case .notFound: break
+        }
+        guard let id = defaults.string(forKey: key) ?? anonymousId(), secure.set(id, forKey: key) else { return nil }
+        defaults.removeObject(forKey: key)
+        return id
+    }
+    func cachedOfferings(for user: String) -> CachedOfferings? {
+        guard let data = defaults.data(forKey: "apprefer_billing_offerings:" + user) else { return nil }
+        return try? JSONDecoder().decode(CachedOfferings.self, from: data)
+    }
+    func saveOfferings(_ value: CachedOfferings, for user: String) {
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        defaults.set(data, forKey: "apprefer_billing_offerings:" + user)
+    }
     private var customerInfoURL: URL { directory.appendingPathComponent("customer_info.json") }
 
     func cachedCustomerInfo() -> AppReferCustomerInfo? {

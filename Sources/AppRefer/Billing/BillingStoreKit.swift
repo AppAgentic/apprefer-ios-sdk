@@ -37,6 +37,8 @@ struct StoreKitUpdate: Sendable {
 
 /// StoreKit behind a protocol so the engine can be tested with fakes.
 protocol BillingStoreKit: Sendable {
+    func products(_ ids: [String]) async throws -> [Product]
+    func storefrontCountry() async -> String?
     /// Verified `Transaction.currentEntitlements`.
     func currentEntitlements() async -> [StoreTransaction]
     /// `Transaction.unfinished`, e.g. after a crash between purchase and finish.
@@ -47,7 +49,15 @@ protocol BillingStoreKit: Sendable {
     func sync() async throws
 }
 
+extension BillingStoreKit {
+    func products(_ ids: [String]) async throws -> [Product] { try await Product.products(for: ids) }
+    func storefrontCountry() async -> String? { nil }
+}
 struct LiveBillingStoreKit: BillingStoreKit {
+    func storefrontCountry() async -> String? {
+        guard let storefront = await Storefront.current else { return nil }
+        return StorefrontCountry.alpha2(storefront.countryCode)
+    }
     func currentEntitlements() async -> [StoreTransaction] {
         var result: [StoreTransaction] = []
         for await verification in Transaction.currentEntitlements {
@@ -186,8 +196,8 @@ enum LocalEntitlements {
         learned: [String: [String]],
         defaultEntitlement: String?
     ) -> [String] {
-        if let ids = configured[productId], !ids.isEmpty { return ids }
-        if let ids = learned[productId], !ids.isEmpty { return ids }
+        if let ids = configured[productId] { return ids }
+        if let ids = learned[productId] { return ids }
         return [defaultEntitlement ?? "premium"]
     }
 

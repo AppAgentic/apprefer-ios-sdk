@@ -2,6 +2,8 @@ import Foundation
 
 /// A verified StoreKit transaction AppRefer has not accepted yet.
 struct PendingPurchase: Codable, Equatable, Sendable {
+    var presentedOfferingContext: PresentedOfferingContext? = nil
+    var bucketId: String? = nil
     let transactionId: String
     let productId: String
     let appUserId: String
@@ -105,7 +107,10 @@ final class PendingPurchaseQueue {
             if entries[index].restore == true, entry.restore != true {
                 return isDurable(transactionId: entry.transactionId) || save(changed: entry.transactionId)
             }
-            entries[index] = entry
+            var merged = entry
+            merged.presentedOfferingContext = entries[index].presentedOfferingContext ?? entry.presentedOfferingContext
+            merged.bucketId = entries[index].bucketId ?? entry.bucketId
+            entries[index] = merged
         } else {
             entries.append(entry)
         }
