@@ -20,6 +20,8 @@ actor SupportAPI {
     private static let profileKey = "apprefer_support_profile"
     /// Set when the stored session was minted (or adopted) while the identity was cleared.
     /// Such a session is never handed to an account stored later; it is retired instead.
+    /// Kept in the Keychain next to the session token, so it survives a reinstall with it
+    /// (0.9.2 kept it in UserDefaults; that copy is moved on first read).
     static let clearedSessionKey = "apprefer_support_session_cleared"
     private static let pushKey = "apprefer_support_push_token"
     private let session: URLSession
@@ -35,9 +37,12 @@ actor SupportAPI {
         let token: String; let push: String?; let key: String?
         var createdAt: Double? = nil
         var attempts: Int? = nil
-        /// Register `push` on the current session once this one is revoked (clearIdentity),
-        /// so the two sessions never hold the same token at once.
+        /// Register `push` on the current session once this one is revoked (clearIdentity,
+        /// or the app registering the same token again), so the two sessions never hold the
+        /// same token at once.
         var move: Bool? = nil
+        /// The push environment the app last registered `push` with (nil: the build's).
+        var sandbox: Bool? = nil
     }
     private let revocationKey = "apprefer_support_revocations"
 
@@ -53,7 +58,11 @@ actor SupportAPI {
         Task { await revokePending(using: key) }
     }
 
-    private var revoking = false
+    /// The running revocation pass, if any. A request that arrives while it runs is not
+    /// dropped: the pass runs again once it finishes (until no new request came in).
+    private var revocationRun: Task<Void, Never>?
+    private var revokeAgain = false
+    private var revokeKey: String?
     private var deferredRevocations: [Revocation] = []
     private func savedRevocations() -> [Revocation] {
         let stored = KeychainHelper.load(key: revocationKey).value?.data(using: .utf8).flatMap { try? JSONDecoder().decode([Revocation].self, from: $0) } ?? []
@@ -73,10 +82,30 @@ actor SupportAPI {
             _ = KeychainHelper.save(key: revocationKey, value: String(decoding: data, as: UTF8.self))
         }
     }
+    /// Runs a revocation pass. Called while one is running, it asks for one more pass after
+    /// it and waits for both, so a revocation queued meanwhile (clearIdentity, a retired
+    /// cleared session) is processed in this app session, not at the next foreground.
     func revokePending(using key: String) async {
-        guard !revoking else { return }
-        revoking = true
-        defer { revoking = false }
+        revokeKey = key
+        if let running = revocationRun {
+            revokeAgain = true
+            await running.value
+            return
+        }
+        let run = Task { await self.runRevocationPasses() }
+        revocationRun = run
+        await run.value
+    }
+
+    private func runRevocationPasses() async {
+        repeat {
+            revokeAgain = false
+            await revocationPass(using: revokeKey ?? "")
+        } while revokeAgain
+        revocationRun = nil
+    }
+
+    private func revocationPass(using key: String) async {
         let pending = savedRevocations()
         for original in pending {
             var item = original
@@ -92,14 +121,19 @@ actor SupportAPI {
             }
             var current = savedRevocations()
             if let index = current.firstIndex(where: { $0.token == item.token && $0.key == item.key }) {
+                // The saved entry may have been marked to move meanwhile (registerPushToken).
+                let latest = current[index]
+                item.move = latest.move
+                item.sandbox = latest.sandbox
                 if remove { current.remove(at: index) } else { current[index] = item }
                 saveRevocations(current)
             }
             // The old session is gone: move its push token to the current session, unless a
-            // reset has removed the token since (it never moves to the next account).
+            // reset has removed the token since (it never moves to the next account unless
+            // the app registers it again).
             if revoked, item.move == true, let push = item.push,
                UserDefaults.standard.string(forKey: Self.pushKey) == push {
-                try? await registerPushToken(push, sandbox: Self.pushSandbox)
+                try? await registerPushToken(push, sandbox: item.sandbox ?? Self.pushSandbox)
             }
         }
     }
@@ -121,9 +155,20 @@ actor SupportAPI {
         // Local cleanup completes before any network work starts.
     }
 
-    /// True while a revoked-but-not-yet-confirmed session still holds `push`.
-    private func pushMovePending(_ push: String) -> Bool {
-        savedRevocations().contains { $0.move == true && $0.push == push }
+    /// When a session waiting for its revocation still holds `push` (whether or not it was
+    /// marked to move, e.g. after reset() or from an older version), marks it to move with
+    /// the environment now known and returns true: the revocation pass registers the token
+    /// on the current session once the old one is revoked, never before.
+    private func deferPushToPendingRevocation(_ push: String, sandbox: Bool) -> Bool {
+        var pending = savedRevocations()
+        var held = false
+        for index in pending.indices where pending[index].push == push {
+            pending[index].move = true
+            pending[index].sandbox = sandbox
+            held = true
+        }
+        if held { saveRevocations(pending) }
+        return held
     }
 
     /// Removes the account from Support without a full reset (consent withdrawn): forgets
@@ -156,32 +201,97 @@ actor SupportAPI {
     /// Drops the stored session (token, cleared marker, profile fingerprint) and queues its
     /// durable revocation, without touching the account generation or the profile.
     private func retireToken(keepPushToken: Bool) {
-        let oldToken = token ?? KeychainHelper.load(key: Self.tokenKey).value
+        // The session in memory and, if it differs, the one stored in the Keychain: both
+        // belong to the account being retired. A Keychain that can't be read is left alone.
+        var retired: [String] = []
+        if let token { retired.append(token) }
+        if case .found(let stored) = tokenKeychain.load(key: Self.tokenKey), !retired.contains(stored) { retired.append(stored) }
         let key = supportApiKey ?? AppRefer.currentApiKey() ?? UserDefaults.standard.string(forKey: "apprefer_support_last_key")
         let pushToken = UserDefaults.standard.string(forKey: Self.pushKey)
         if !keepPushToken { UserDefaults.standard.removeObject(forKey: Self.pushKey) }
-        dropToken()
-        if let oldToken {
-            var pending = savedRevocations()
+        dropToken(retired: retired)
+        guard !retired.isEmpty else { return }
+        var pending = savedRevocations()
+        for oldToken in retired where !pending.contains(where: { $0.token == oldToken && $0.key == key }) {
             pending.append(Revocation(token: oldToken, push: pushToken, key: key, createdAt: Date().timeIntervalSince1970, attempts: 0,
                                       move: keepPushToken && pushToken != nil ? true : nil))
-            saveRevocations(pending)
+        }
+        saveRevocations(pending)
+    }
+
+    /// Forgets the session in memory. The stored token (and its cleared marker) is deleted
+    /// only when it is one of `retired`, or there is none; one that couldn't be read
+    /// (locked Keychain) is never deleted.
+    private func dropToken(retired: [String]) {
+        token = nil
+        memoryClearedMarker = false
+        UserDefaults.standard.removeObject(forKey: Self.profileKey)
+        switch tokenKeychain.load(key: Self.tokenKey) {
+        case .found(let stored):
+            guard retired.contains(stored) else { return }
+            tokenKeychain.delete(key: Self.tokenKey)
+            Self.setSessionMintedWhileCleared(false, keychain: tokenKeychain)
+        case .notFound:
+            Self.setSessionMintedWhileCleared(false, keychain: tokenKeychain)
+        case .unavailable, .failed:
+            break
         }
     }
 
-    private func dropToken() {
-        token = nil
-        KeychainHelper.delete(key: Self.tokenKey)
-        UserDefaults.standard.removeObject(forKey: Self.profileKey)
-        UserDefaults.standard.removeObject(forKey: Self.clearedSessionKey)
+    /// Whether the stored session was minted while the identity was cleared. Read from the
+    /// Keychain; a 0.9.2 UserDefaults copy is moved there (and kept if the move fails).
+    static func sessionClearedMarkerState(_ read: KeychainReadResult? = nil, keychain: DeviceIdKeychain = LiveDeviceIdKeychain()) -> AppReferStorage.ClearedState {
+        switch read ?? keychain.load(key: clearedSessionKey) {
+        case .found: return .cleared
+        case .failed(let status) where status == errSecMissingEntitlement:
+            return UserDefaults.standard.bool(forKey: clearedSessionKey) ? .cleared : .notCleared
+        case .unavailable, .failed: return .unknown
+        case .notFound: break
+        }
+        guard UserDefaults.standard.bool(forKey: clearedSessionKey) else { return .notCleared }
+        if keychain.save(key: clearedSessionKey, value: "1") {
+            UserDefaults.standard.removeObject(forKey: clearedSessionKey)
+        }
+        return .cleared
+    }
+
+    /// Fail closed: a Keychain that is locked or failing reads as cleared.
+    static func sessionMintedWhileCleared(_ read: KeychainReadResult? = nil, keychain: DeviceIdKeychain = LiveDeviceIdKeychain()) -> Bool {
+        sessionClearedMarkerState(read, keychain: keychain) != .notCleared
+    }
+
+    /// Kept next to the session token in the Keychain; UserDefaults only if that fails.
+    static func setSessionMintedWhileCleared(_ cleared: Bool, keychain: DeviceIdKeychain = LiveDeviceIdKeychain()) {
+        if cleared {
+            if keychain.save(key: clearedSessionKey, value: "1") { UserDefaults.standard.removeObject(forKey: clearedSessionKey) }
+            else { UserDefaults.standard.set(true, forKey: clearedSessionKey) }
+        } else {
+            keychain.delete(key: clearedSessionKey)
+            UserDefaults.standard.removeObject(forKey: clearedSessionKey)
+        }
+    }
+
+    /// The session in memory was minted (or adopted) while the identity was cleared, whether
+    /// or not its token and marker could be saved.
+    private var memoryClearedMarker = false
+
+    static func storeUnavailable() -> AppReferSupportError {
+        AppReferSupportError(status: 0, message: "Support isn't available until the device is unlocked. Try again.")
     }
 
     /// A session minted while the identity was cleared is never handed to an account stored
     /// later (a different user id turns the clear off without a reset): it is revoked, its
     /// push token moves once that succeeds, and the caller mints a fresh session.
-    /// In-flight calls are not cancelled.
-    private func retireClearedSessionIfNeeded() -> Bool {
-        guard !userStorage.supportIdentityCleared, UserDefaults.standard.bool(forKey: Self.clearedSessionKey) else { return false }
+    /// In-flight calls are not cancelled. Throws (retryable) while the marker can't be read.
+    private func retireClearedSessionIfNeeded() throws -> Bool {
+        guard userStorage.supportIdentityClearedState == .notCleared else { return false }
+        if !memoryClearedMarker {
+            switch Self.sessionClearedMarkerState(keychain: tokenKeychain) {
+            case .notCleared: return false
+            case .unknown: throw Self.storeUnavailable()
+            case .cleared: break
+            }
+        }
         minting = nil
         retireToken(keepPushToken: true)
         Task { await self.retryRevocations() }
@@ -204,13 +314,18 @@ actor SupportAPI {
     /// Where the app user id (and the identity-cleared flag) are kept.
     private let userStorage: AppReferStorage
 
+    /// Where the session token and its cleared marker are kept (the Keychain).
+    private let tokenKeychain: DeviceIdKeychain
+
     init(baseURL: String = AppReferConfig.backendURL, session: URLSession = URLSession(configuration: .default),
          deviceId: @escaping @Sendable () -> String? = { AppRefer.supportDeviceId() },
-         userStorage: AppReferStorage = AppReferStorage()) {
+         userStorage: AppReferStorage = AppReferStorage(),
+         tokenKeychain: DeviceIdKeychain = LiveDeviceIdKeychain()) {
         self.baseURL = baseURL
         self.session = session
         self.deviceId = deviceId
         self.userStorage = userStorage
+        self.tokenKeychain = tokenKeychain
     }
 
     func setIdentity(name: String?, email: String?, generation expected: Int? = nil) {
@@ -246,10 +361,24 @@ actor SupportAPI {
     /// id, name, email) is re-sent only when it changes, and recorded as synced
     /// only once the server has it.
     private func sessionToken() async throws -> String {
-        _ = retireClearedSessionIfNeeded()
+        // Whether the identity is cleared must be known before any session is used or minted:
+        // a session started on a guess would later be retired (or handed over) wrongly.
+        guard userStorage.supportIdentityClearedState != .unknown else { throw Self.storeUnavailable() }
+        _ = try retireClearedSessionIfNeeded()
         let epoch = generation
-        if token == nil { token = KeychainHelper.load(key: Self.tokenKey).value }
-        let cleared = userStorage.supportIdentityCleared
+        if token == nil {
+            switch tokenKeychain.load(key: Self.tokenKey) {
+            case .found(let stored):
+                // Retired earlier while it couldn't be deleted (Keychain locked): never reuse it.
+                if savedRevocations().contains(where: { $0.token == stored }) { dropToken(retired: [stored]) }
+                else { token = stored }
+            case .notFound: break
+            // No Keychain at all (macOS without the entitlement): nothing can be stored.
+            case .failed(let status) where status == errSecMissingEntitlement: break
+            case .unavailable, .failed: throw Self.storeUnavailable()
+            }
+        }
+        let cleared = userStorage.supportIdentityClearedState == .cleared
         let current = profile
         let profileJSON = (try? JSONSerialization.data(withJSONObject: current, options: .sortedKeys)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
         if let token {
@@ -275,17 +404,19 @@ actor SupportAPI {
         adopt(minted, cleared: cleared)
         UserDefaults.standard.set(profileJSON, forKey: Self.profileKey)
         // Minted for a cleared identity that was turned off meanwhile: never use it.
-        if retireClearedSessionIfNeeded() { return try await sessionToken() }
+        if try retireClearedSessionIfNeeded() { return try await sessionToken() }
         return minted
     }
 
     private var mintingCleared = false
 
     private func adopt(_ session: String, cleared: Bool) {
-        _ = KeychainHelper.save(key: Self.tokenKey, value: session)
+        let saved = tokenKeychain.save(key: Self.tokenKey, value: session)
         token = session
-        if cleared { UserDefaults.standard.set(true, forKey: Self.clearedSessionKey) }
-        else { UserDefaults.standard.removeObject(forKey: Self.clearedSessionKey) }
+        memoryClearedMarker = cleared
+        // The persisted marker describes the stored token: never record it for one that
+        // couldn't be saved.
+        if saved { Self.setSessionMintedWhileCleared(cleared, keychain: tokenKeychain) }
     }
 
     // MARK: - HTTP
@@ -318,13 +449,14 @@ actor SupportAPI {
     private func call(_ method: String, _ path: String, body: [String: Any]? = nil, expectedGeneration: Int? = nil) async throws -> Data {
         let epoch = expectedGeneration ?? generation
         guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
+        var bearer: String?
         do {
-            let bearer = try await sessionToken()
+            bearer = try await sessionToken()
             guard epoch == generation else { throw CancellationError() }
             return try await raw(method, path, body: body, session: bearer, expectedGeneration: epoch)
         } catch let error as AppReferSupportError where error.status == 401 && error.message.contains("support session") {
             guard epoch == generation else { throw CancellationError() }
-            dropToken()
+            dropToken(retired: bearer.map { [$0] } ?? [])
             return try await raw(method, path, body: body, session: try await sessionToken(), expectedGeneration: epoch)
         }
     }
@@ -383,7 +515,7 @@ actor SupportAPI {
         guard epoch == generation else { throw CancellationError() }
         // Still on a session whose revocation hasn't been confirmed: it moves once that
         // succeeds, so the two sessions never hold it at the same time.
-        if pushMovePending(hex) {
+        if deferPushToPendingRevocation(hex, sandbox: sandbox) {
             UserDefaults.standard.set(hex, forKey: Self.pushKey)
             retryRevocations()
             return

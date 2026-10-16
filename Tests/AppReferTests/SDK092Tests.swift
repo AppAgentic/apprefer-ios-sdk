@@ -343,6 +343,9 @@ final class SDK092Tests: XCTestCase {
         await api.reset()
         SupportRecorder092.clear()
         await api.configure(apiKey: "pk_test")
+        // Revocations left by earlier tests may still hold the token (0.9.3 defers it then).
+        await api.revokePending(using: "pk_test")
+        SupportRecorder092.clear()
         try await api.registerPushToken("abcd", sandbox: true)
         SupportRecorder092.failDeletes = true
         await api.clearIdentity()

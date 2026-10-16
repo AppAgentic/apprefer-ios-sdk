@@ -3,6 +3,18 @@ import Foundation
 /// Core of AppReferBilling: identity, server sync, transaction processing, retry queue
 /// and the outage fallback. StoreKit purchase UI lives in `AppReferBilling`; everything
 /// here goes through `BillingStoreKit` and `BillingAPIClient` so it can be tested.
+/// Call-order tickets for reset() and Billing identity calls (logIn/logOut), taken
+/// synchronously when each is called, plus the newest ticket of a logIn/logOut that was
+/// applied (validated, new user stored or queued in order).
+final class BillingIdentityChanges: @unchecked Sendable {
+    private let lock = NSLock()
+    private var next = 0
+    private var applied = 0
+    func take() -> Int { lock.lock(); defer { lock.unlock() }; next += 1; return next }
+    func markApplied(_ ticket: Int) { lock.lock(); defer { lock.unlock() }; applied = max(applied, ticket) }
+    var latestApplied: Int { lock.lock(); defer { lock.unlock() }; return applied }
+}
+
 actor BillingEngine {
     struct Options: Sendable {
         var productEntitlements: [String: [String]] = [:]
@@ -96,7 +108,8 @@ actor BillingEngine {
     private var heldUpdates: [String: StoreKitUpdate] = [:]
     private var identifyFlush: Task<Void, Never>?
     /// The install device id for a request made for `owner`: only when the gate is open,
-    /// `owner` is the current Billing user and that user was set after the last reset.
+    /// `owner` is the current Billing user and that user was set after the last reset
+    /// (in this process, or, through the persisted reset marker, in an earlier one).
     /// A purchase or queued entry of a previous account never gets it.
     private func linkableDeviceId(for owner: String?) -> String? {
         let epoch = accountEpoch()
@@ -104,9 +117,46 @@ actor BillingEngine {
             unlinkedUsers.removeAll()
             unlinkedEpoch = epoch
         }
-        guard let owner, identityEpoch == epoch, owner == activeUser() else { return nil }
+        guard let owner, identityEpoch == epoch, let current = activeUser(), owner == current,
+              !storage.resetMarkerHolds(for: current) else { return nil }
         return appreferId()
     }
+
+    /// Called by `AppRefer.reset()`: persists the current Billing user as the previous
+    /// account, so the gate stays closed for it after a relaunch. Skipped when a logIn/logOut
+    /// called after `reset()` (ticket `resetTicket`, taken when reset() was called) has
+    /// already been applied: the write would land on the next account. A logIn/logOut that
+    /// threw was never applied, so it never cancels the marker. An anonymous id that logOut()
+    /// minted in this process (logOut before reset) is not marked, once: a later reset()
+    /// while that user is still current marks them.
+    func recordAccountReset(resetTicket: Int? = nil) {
+        if let resetTicket, identityChanges.latestApplied > resetTicket { return }
+        var explicit: String?
+        switch pendingIdentityChanges.last {
+        case .logOut?:
+            // Will mint a fresh anonymous id for the next account; that uses the exemption.
+            mintExemptionUsed = true
+            return
+        case .logIn(let id)?: explicit = id
+        default: break
+        }
+        guard let current = explicit ?? storage.storedCurrentAppUserId else { return }
+        if current == anonymousMintedByLogOut {
+            anonymousMintedByLogOut = nil
+            return
+        }
+        storage.resetUser = current
+    }
+
+    /// Call-order tickets for reset() and logIn/logOut (see `BillingIdentityChanges`).
+    nonisolated let identityChanges = BillingIdentityChanges()
+    /// The appUserId passed to `AppReferBilling.configure`, if any.
+    nonisolated let configuredAppUserId: String?
+    /// The anonymous id the last logOut() minted in this process, until a reset() uses the
+    /// exemption or logIn runs.
+    private var anonymousMintedByLogOut: String?
+    /// A reset() already skipped a queued logOut's future id.
+    private var mintExemptionUsed = false
 
     /// Attribution and device signals among the customer attributes.
     static let deviceAttributeKeys: Set<String> = ["$idfa", "$idfv", "$fbAnonId", "$attConsentStatus", "$deviceVersion", "$ip", "$gpsAdId"]
@@ -158,6 +208,7 @@ actor BillingEngine {
         self.linkAllowed = linkAllowed
         identityEpoch = accountEpoch()
         unlinkedEpoch = identityEpoch
+        configuredAppUserId = appUserId.flatMap { $0.isEmpty ? nil : $0 }
         self.logger = logger
         self.now = now
         self.onChange = onChange
@@ -181,6 +232,8 @@ actor BillingEngine {
             }
         }
         storage.loggedInAppUserId = BillingStorage.isAnonymous(appUserId) ? nil : appUserId
+        // A different Billing user ends the reset marker.
+        _ = storage.resetMarkerHolds(for: storage.storedCurrentAppUserId)
         return true
     }
 
@@ -217,7 +270,9 @@ actor BillingEngine {
         case .logOut:
             // The new anonymous id must be saved before it is used. Pending identifies
             // stay: they still have to reach the server.
-            guard storage.resetAnonymousId() != nil else { return false }
+            guard let fresh = storage.resetAnonymousId() else { return false }
+            anonymousMintedByLogOut = mintExemptionUsed ? nil : fresh
+            mintExemptionUsed = false
             storage.loggedInAppUserId = nil
             lastServerFetch = nil
             return true
@@ -867,11 +922,21 @@ actor BillingEngine {
 
     // MARK: - Identity
 
-    func logIn(_ appUserId: String) async throws -> AppReferCustomerInfo {
+    /// `ticket`: taken by `AppReferBilling.logIn` when it was called (nil takes one now).
+    func logIn(_ appUserId: String, ticket: Int? = nil) async throws -> AppReferCustomerInfo {
+        let ticket = ticket ?? identityChanges.take()
         guard Self.isValid(appUserId), !BillingStorage.isAnonymous(appUserId) else {
             throw AppReferBillingError.invalidAppUserId
         }
+        // The app is saying who the user is now, even when it is the same id.
+        storage.resetUser = nil
+        anonymousMintedByLogOut = nil
+        mintExemptionUsed = false
         pendingIdentityChanges.append(.logIn(appUserId))
+        // Stored now (or queued in order while protected data is unavailable): only then
+        // does it count as an identity change for a reset() called before it.
+        _ = activeUser()
+        identityChanges.markApplied(ticket)
         identityEpoch = accountEpoch()
         invalidateOfferings()
         let info = await customerInfo(policy: .fetchCurrent)
@@ -879,8 +944,12 @@ actor BillingEngine {
         return info
     }
 
-    func logOut() async -> AppReferCustomerInfo {
+    func logOut(ticket: Int? = nil) async -> AppReferCustomerInfo {
+        let ticket = ticket ?? identityChanges.take()
+        storage.resetUser = nil
         pendingIdentityChanges.append(.logOut)
+        _ = activeUser()
+        identityChanges.markApplied(ticket)
         identityEpoch = accountEpoch()
         invalidateOfferings()
         return await customerInfo(policy: .fetchCurrent)
@@ -908,9 +977,11 @@ actor BillingEngine {
     private func sendPendingIdentifies() async {
         for pending in storage.pendingIdentifies {
             do {
-                // link: false while the gate is closed, so the server never copies the
+                // link: false while the gate is closed (or the current Billing user is the
+                // one from before the last reset), so the server never copies the
                 // anonymous customer's install link to the signed-in one.
-                _ = try await api.send(.identify(anonymousId: pending.anonymousId, appUserId: pending.appUserId, link: linkAllowed()))
+                let link = linkAllowed() && !storage.resetMarkerHolds(for: activeUser())
+                _ = try await api.send(.identify(anonymousId: pending.anonymousId, appUserId: pending.appUserId, link: link))
                 storage.removePendingIdentify(pending)
             } catch let error as AppReferBillingError where error.isRetryable {
                 logger.warn("Billing: identify will be retried (\(error.localizedDescription))")

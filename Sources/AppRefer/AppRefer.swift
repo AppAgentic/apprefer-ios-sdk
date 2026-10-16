@@ -348,9 +348,14 @@ public actor AppRefer {
 
     /// Clear account state; install attribution and device id are retained.
     /// Attribution stops sending, and Support stops sending the device id, until
-    /// configure is called again. Also call AppReferBilling.logOut() if your app uses Billing.
+    /// configure is called again. Also call AppReferBilling.logOut() if your app uses Billing:
+    /// until logIn/logOut (or a different Billing user), the Billing user current at reset
+    /// gets no install device id, even after a relaunch.
     public static func reset() async {
+        let billingIdentity = AppReferBilling.identitySnapshot()
         stopAttribution()
+        // Persisted, so Billing's gate stays closed for this user after a relaunch too.
+        await AppReferBilling.recordAccountReset(billingIdentity)
         if let sdk = getShared() { await sdk._reset() }
         else {
             AppReferStorage().clearUser()

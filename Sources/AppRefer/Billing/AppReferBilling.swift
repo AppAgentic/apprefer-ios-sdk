@@ -180,6 +180,43 @@ public enum AppReferBilling {
         #endif
     }
 
+    /// Called by `AppRefer.reset()`: the current Billing user (if Billing ever had one) is
+    /// remembered as the previous account, so it gets no install device id, device
+    /// attributes or re-link, even after a relaunch, until logIn/logOut or a different user.
+    static func recordAccountReset(_ snapshot: IdentitySnapshot) async {
+        if let engine {
+            // Configured while reset() ran: only a different appUserId is a new account; no
+            // appUserId, or the same user, resumes the previous one, who is marked.
+            if snapshot.engine == nil,
+               configuredForAnotherUser(configured: engine.configuredAppUserId, storedAtReset: snapshot.storedUser) { return }
+            // An engine configured meanwhile: every logIn/logOut on it came after reset().
+            await engine.recordAccountReset(resetTicket: snapshot.engine === engine ? snapshot.ticket : 0)
+        } else {
+            BillingStorage.live(createDirectory: false).recordAccountReset()
+        }
+    }
+
+    static func configuredForAnotherUser(configured: String?, storedAtReset: String?) -> Bool {
+        guard let configured else { return false }
+        return configured != storedAtReset
+    }
+
+    /// Taken synchronously when reset() is called: a logIn/logOut called after it (a later
+    /// ticket) that has been applied means the marker write would land on the next account.
+    struct IdentitySnapshot: @unchecked Sendable {
+        let engine: BillingEngine?
+        let ticket: Int
+        /// Billing's stored user when no engine existed yet (to judge a configure meanwhile).
+        let storedUser: String?
+    }
+    static func identitySnapshot() -> IdentitySnapshot {
+        let engine = self.engine
+        guard let engine else {
+            return IdentitySnapshot(engine: nil, ticket: 0, storedUser: BillingStorage.live(createDirectory: false).storedCurrentAppUserId)
+        }
+        return IdentitySnapshot(engine: engine, ticket: engine.identityChanges.take(), storedUser: nil)
+    }
+
     private static func requireEngine() throws -> BillingEngine {
         guard let engine else { throw AppReferBillingError.notConfigured }
         return engine
@@ -205,13 +242,19 @@ public enum AppReferBilling {
     /// Switches to a signed-in user. Purchases made while anonymous move to them.
     @discardableResult
     public static func logIn(_ appUserId: String) async throws -> AppReferCustomerInfo {
-        try await requireEngine().logIn(appUserId)
+        let engine = try requireEngine()
+        // Call order is fixed now; it counts against reset() only once applied (a logIn
+        // that throws never cancels reset()'s marker).
+        let ticket = engine.identityChanges.take()
+        return try await engine.logIn(appUserId, ticket: ticket)
     }
 
     /// Signs out and starts a fresh anonymous id.
     @discardableResult
     public static func logOut() async throws -> AppReferCustomerInfo {
-        try await requireEngine().logOut()
+        let engine = try requireEngine()
+        let ticket = engine.identityChanges.take()
+        return await engine.logOut(ticket: ticket)
     }
 
     /// Customer attributes, sent with the next AppRefer call. Supported keys:
