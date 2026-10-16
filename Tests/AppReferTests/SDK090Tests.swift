@@ -484,3 +484,13 @@ extension SDK090Tests {
         await sdk._clearPendingEvents()
     }
 }
+
+final class BeforeConfigureResetTests: XCTestCase {
+    func testPublicResetClearsPersistedQueueWithoutAConfiguredInstance() async {
+        let storage = AppReferStorage()
+        storage.pendingEvents = Data("[]".utf8)
+        XCTAssertNotNil(storage.pendingEvents)
+        await AppRefer.reset()
+        XCTAssertNil(storage.pendingEvents)
+    }
+}

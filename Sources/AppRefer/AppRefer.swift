@@ -292,7 +292,8 @@ public actor AppRefer {
     /// Also call AppReferBilling.logOut() if your app uses Billing.
     public static func reset() async {
         advanceAccount()
-        await getShared()?._reset()
+        if let sdk = getShared() { await sdk._reset() }
+        else { await clearPendingEvents() }
         AppReferStorage().clearUser()
         await SupportAPI.shared.reset()
         #if os(iOS)
