@@ -5,20 +5,28 @@ import PhotosUI
 /// The whole help chat: home and conversations. Use `AppRefer.support.open()`
 /// to present it, or embed this view yourself.
 public struct AppReferSupportView: View {
+    @ObservedObject private var account = SupportAccountState.shared
+    private let conversationId: String?
+    private let draft: String?
+    private let initialGeneration: Int
+    public init(conversationId: String? = nil) { self.conversationId = conversationId; self.draft = nil; initialGeneration = SupportAccountState.shared.generation }
+    public init(composing draft: String) { self.conversationId = nil; self.draft = draft; initialGeneration = SupportAccountState.shared.generation }
+    public var body: some View {
+        SupportAccountView(conversationId: account.generation == initialGeneration ? conversationId : nil,
+                           draft: account.generation == initialGeneration ? draft : nil)
+            .id(account.generation)
+    }
+}
+
+struct SupportAccountView: View {
     @StateObject private var home = SupportHomeModel()
     @State private var path: [SupportRoute] = []
     @Environment(\.dismiss) private var dismiss
     private let initialConversation: String?
     private let initialDraft: String?
 
-    public init(conversationId: String? = nil) {
+    init(conversationId: String?, draft: String?) {
         self.initialConversation = conversationId
-        self.initialDraft = nil
-    }
-
-    /// Opens on the message field, optionally pre-filled.
-    public init(composing draft: String) {
-        self.initialConversation = nil
         self.initialDraft = draft
     }
 

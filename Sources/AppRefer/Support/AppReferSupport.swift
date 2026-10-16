@@ -34,6 +34,18 @@ public final class AppReferSupport {
 
     private init() {}
 
+    /// Start Support without attribution, device signals or product analytics.
+    public func configure(apiKey: String) async {
+        await SupportAPI.shared.configure(apiKey: apiKey)
+    }
+
+    func dismissForReset() {
+        SupportAccountState.shared.generation += 1
+        SupportPersonaStore.shared.clear()
+        presented?.dismiss(animated: false)
+        presented = nil
+    }
+
     /// Who the customer is, so the team can greet them and reply by email.
     public func identify(name: String? = nil, email: String? = nil) {
         Task { await SupportAPI.shared.setIdentity(name: name, email: email) }

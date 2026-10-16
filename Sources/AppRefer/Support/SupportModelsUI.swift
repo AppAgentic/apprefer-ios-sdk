@@ -3,6 +3,12 @@ import SwiftUI
 import UIKit
 import ImageIO
 
+@MainActor
+final class SupportAccountState: ObservableObject {
+    static let shared = SupportAccountState()
+    @Published var generation = 0
+}
+
 /// Screens on top of the help home.
 enum SupportRoute: Hashable {
     case thread(id: String, subject: String)
@@ -13,6 +19,8 @@ enum SupportRoute: Hashable {
 final class SupportPersonaStore: ObservableObject {
     static let shared = SupportPersonaStore()
     @Published private(set) var persona: AppReferSupportPersona?
+
+    func clear() { persona = nil }
 
     func refresh() async {
         let latest = await SupportAPI.shared.persona

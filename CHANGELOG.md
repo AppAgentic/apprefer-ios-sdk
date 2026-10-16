@@ -1,3 +1,12 @@
+## 0.9.0 — 2026-10-16
+
+- Add async reset for account switching: cancel old work, revoke Support sessions and push registrations, clear account/profile/UI state and pending product events, retain install attribution and device id. Billing logout stays explicit.
+- Add Support-only configuration with no attribution initialization or analytics.
+- Persist a bounded 1,000-event / seven-day product queue with stable eventId, network/5xx backoff and launch/foreground retries; remove successful and terminal rejected events. Delivery is at least once.
+- Add trackEventResult acknowledgements and clearPendingEvents; retain the existing tracking signature and respect the existing SDK kill switch.
+- Add typed configureResult distinguishing attributed, confirmed organic and failure, while preserving configure.
+- Add account isolation, persistence, expiry, retry, terminal rejection, cancellation and attribution-status regressions.
+
 ## 0.7.0 - 2026-10-16
 
 ## 0.8.0 — 2026-10-16

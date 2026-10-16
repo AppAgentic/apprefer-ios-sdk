@@ -12,8 +12,48 @@ actor SupportAPI {
     private var token: String?
     private var name: String?
     private var email: String?
+    private var supportApiKey: String?
+    private var generation = 0
 
-    init(baseURL: String = AppReferConfig.backendURL, session: URLSession = .shared) {
+    /// Functional Support startup: deliberately never constructs an attribution SDK.
+    func configure(apiKey: String) { supportApiKey = apiKey }
+
+    func reset() async {
+        let oldToken = token ?? KeychainHelper.load(key: Self.tokenKey).value
+        let key = supportApiKey ?? AppRefer.currentApiKey()
+        let pushToken = UserDefaults.standard.string(forKey: "apprefer_support_push_token")
+        UserDefaults.standard.removeObject(forKey: "apprefer_support_push_token")
+        generation += 1
+        minting?.cancel()
+        minting = nil
+        token = nil
+        name = nil
+        email = nil
+        persona = nil
+        KeychainHelper.delete(key: Self.tokenKey)
+        UserDefaults.standard.removeObject(forKey: Self.profileKey)
+        let tasks = await session.allTasks
+        tasks.forEach { $0.cancel() }
+        // Use the captured bearer only for revocation; never mint on logout.
+        if let oldToken, let key, let url = URL(string: baseURL + "/api/support/v1/session") {
+            if let pushToken, let pushURL = URL(string: baseURL + "/api/support/v1/push-token") {
+                var push = URLRequest(url: pushURL, timeoutInterval: 5)
+                push.httpMethod = "DELETE"
+                push.setValue(key, forHTTPHeaderField: "X-AppRefer-Key")
+                push.setValue(oldToken, forHTTPHeaderField: "X-AppRefer-Support-Session")
+                push.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                push.httpBody = try? JSONSerialization.data(withJSONObject: ["token": pushToken])
+                _ = try? await session.data(for: push)
+            }
+            var request = URLRequest(url: url, timeoutInterval: 5)
+            request.httpMethod = "DELETE"
+            request.setValue(key, forHTTPHeaderField: "X-AppRefer-Key")
+            request.setValue(oldToken, forHTTPHeaderField: "X-AppRefer-Support-Session")
+            _ = try? await session.data(for: request)
+        }
+    }
+
+    init(baseURL: String = AppReferConfig.backendURL, session: URLSession = URLSession(configuration: .default)) {
         self.baseURL = baseURL
         self.session = session
     }
@@ -34,7 +74,7 @@ actor SupportAPI {
         let storage = AppReferStorage()
         var body: [String: Any] = [:]
         if let id = storage.getUserId() { body["appUserId"] = id }
-        if let device = storage.deviceId() { body["deviceId"] = device }
+        if AppRefer.currentApiKey() != nil, let device = storage.deviceId() { body["deviceId"] = device }
         if let name { body["name"] = name }
         if let email { body["email"] = email }
         return body
@@ -51,9 +91,9 @@ actor SupportAPI {
         let current = profile
         let profileJSON = (try? JSONSerialization.data(withJSONObject: current, options: .sortedKeys)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
         if let token {
-            if UserDefaults.standard.string(forKey: Self.profileKey) != profileJSON,
-               let data = try? await raw("POST", "/api/support/v1/session", body: current, session: token),
-               let refreshed = try? JSONDecoder().decode(SupportSession.self, from: data) {
+            if UserDefaults.standard.string(forKey: Self.profileKey) != profileJSON {
+                let data = try await raw("POST", "/api/support/v1/session", body: current, session: token)
+                let refreshed = try JSONDecoder().decode(SupportSession.self, from: data)
                 // The server may hand back a replacement session.
                 if refreshed.session != token { adopt(refreshed.session) }
                 UserDefaults.standard.set(profileJSON, forKey: Self.profileKey)
@@ -61,13 +101,15 @@ actor SupportAPI {
             return self.token ?? token
         }
         if let minting { return try await minting.value }
+        let epoch = generation
         let task = Task { () throws -> String in
             let data = try await self.raw("POST", "/api/support/v1/session", body: current, session: nil)
             return try JSONDecoder().decode(SupportSession.self, from: data).session
         }
         minting = task
-        defer { minting = nil }
+        defer { if epoch == generation { minting = nil } }
         let minted = try await task.value
+        guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
         adopt(minted)
         UserDefaults.standard.set(profileJSON, forKey: Self.profileKey)
         return minted
@@ -81,7 +123,7 @@ actor SupportAPI {
     // MARK: - HTTP
 
     private func raw(_ method: String, _ path: String, body: [String: Any]?, session sessionToken: String?) async throws -> Data {
-        guard let apiKey = AppRefer.currentApiKey(), let url = URL(string: baseURL + path) else {
+        guard let apiKey = supportApiKey ?? AppRefer.currentApiKey(), let url = URL(string: baseURL + path) else {
             throw AppReferSupportError(status: 0, message: "AppRefer isn't configured")
         }
         var req = URLRequest(url: url, timeoutInterval: 20)
@@ -92,7 +134,9 @@ actor SupportAPI {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
+        let epoch = generation
         let (data, response) = try await session.data(for: req)
+        guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
@@ -103,9 +147,13 @@ actor SupportAPI {
 
     /// A request with the session; a session the server no longer knows is replaced once.
     private func call(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> Data {
+        let epoch = generation
         do {
-            return try await raw(method, path, body: body, session: try await sessionToken())
+            let bearer = try await sessionToken()
+            guard epoch == generation else { throw CancellationError() }
+            return try await raw(method, path, body: body, session: bearer)
         } catch let error as AppReferSupportError where error.status == 401 && error.message.contains("support session") {
+            guard epoch == generation else { throw CancellationError() }
             KeychainHelper.delete(key: Self.tokenKey)
             token = nil
             return try await raw(method, path, body: body, session: try await sessionToken())
@@ -151,7 +199,9 @@ actor SupportAPI {
         var put = URLRequest(url: url, timeoutInterval: 60)
         put.httpMethod = "PUT"
         for (k, v) in slot.headers { put.setValue(v, forHTTPHeaderField: k) }
+        let epoch = generation
         let (_, response) = try await session.upload(for: put, from: jpeg)
+        guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else { throw AppReferSupportError(status: status, message: "The screenshot didn't upload (\(status))") }
         return slot.attachmentId
@@ -159,10 +209,12 @@ actor SupportAPI {
 
     func registerPushToken(_ hex: String, sandbox: Bool) async throws {
         _ = try await call("POST", "/api/support/v1/push-token", body: ["platform": "ios", "token": hex, "environment": sandbox ? "sandbox" : "production"])
+        UserDefaults.standard.set(hex, forKey: "apprefer_support_push_token")
     }
 
     func removePushToken(_ hex: String) async throws {
         _ = try await call("DELETE", "/api/support/v1/push-token", body: ["token": hex])
+        UserDefaults.standard.removeObject(forKey: "apprefer_support_push_token")
     }
 
     // MARK: - Context
