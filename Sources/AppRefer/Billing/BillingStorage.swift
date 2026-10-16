@@ -243,11 +243,10 @@ final class BillingStorage {
         }
     }
 
-    /// Called by reset(): remembers the current Billing user (anonymous or not), unless it is
-    /// `skipping` (an anonymous id logOut() just minted for the next account). Nothing is
-    /// stored when Billing never had a user.
-    func recordAccountReset(current explicit: String? = nil, skipping fresh: String? = nil) {
-        guard let current = explicit ?? storedCurrentAppUserId, current != fresh else { return }
+    /// Called by reset() when Billing isn't configured in this process: remembers the stored
+    /// Billing user (anonymous or not). Nothing is stored when Billing never had a user.
+    func recordAccountReset() {
+        guard let current = storedCurrentAppUserId else { return }
         resetUser = current
     }
 

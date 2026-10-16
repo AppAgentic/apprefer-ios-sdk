@@ -80,11 +80,11 @@ final class SDK093Tests: XCTestCase {
         AppReferStorage(defaults: UserDefaults(suiteName: UUID().uuidString)!, keychain: keychain)
     }
 
-    private func supportAPI(_ userStorage: AppReferStorage, deviceId: String? = nil) -> SupportAPI {
+    private func supportAPI(_ userStorage: AppReferStorage, deviceId: String? = nil, tokenKeychain: DeviceIdKeychain = LiveDeviceIdKeychain()) -> SupportAPI {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [SupportRecorder093.self]
         return SupportAPI(baseURL: "https://support093.test", session: URLSession(configuration: config),
-                          deviceId: { deviceId }, userStorage: userStorage)
+                          deviceId: { deviceId }, userStorage: userStorage, tokenKeychain: tokenKeychain)
     }
 
     private func billingBodies(_ transport: MockBillingTransport, _ path: String) -> [[String: Any]] {
@@ -366,18 +366,17 @@ final class SDK093Tests: XCTestCase {
             return (Data(BillingFixtures.customerJSON(appUserId: user).utf8), 200)
         }
         let engine = env.engine(transport: transport, storage: storage)
-        engine.identityChanges.advance() // AppReferBilling.logOut()
         _ = await engine.logOut()
         let fresh = try XCTUnwrap(storage.storedCurrentAppUserId)
         XCTAssertTrue(BillingStorage.isAnonymous(fresh))
-        await engine.recordAccountReset(expectedIdentityChanges: engine.identityChanges.read())
+        await engine.recordAccountReset(resetTicket: engine.identityChanges.take())
         XCTAssertNil(storage.resetUser, "the next account's fresh anonymous id is not the previous account")
         _ = await engine.customerInfo(policy: .fetchCurrent)
         XCTAssertEqual(billingBodies(transport, "/api/billing/v1/customers").last?["appreferId"] as? String, "device-abc")
 
         // After a logIn, a later reset marks that user as before.
         _ = try await engine.logIn("user_c")
-        await engine.recordAccountReset(expectedIdentityChanges: engine.identityChanges.read())
+        await engine.recordAccountReset(resetTicket: engine.identityChanges.take())
         XCTAssertEqual(storage.resetUser, "user_c")
     }
 
@@ -386,20 +385,18 @@ final class SDK093Tests: XCTestCase {
         storage.loggedInAppUserId = "user_a"
         let engine = env.engine(transport: MockBillingTransport.ok(BillingFixtures.customerJSON(appUserId: "user_b")), storage: storage)
         // reset() starts (snapshot), the app calls logIn(user_b) without awaiting reset().
-        let snapshot = engine.identityChanges.read()
-        engine.identityChanges.advance()
+        let resetTicket = engine.identityChanges.take()
         _ = try await engine.logIn("user_b")
-        await engine.recordAccountReset(expectedIdentityChanges: snapshot)
+        await engine.recordAccountReset(resetTicket: resetTicket)
         XCTAssertNil(storage.resetUser, "the late write must not mark the next account")
     }
 
     func testLogInBeforeResetIsStillMarked() async throws {
         let storage = env.storage()
         let engine = env.engine(transport: MockBillingTransport.ok(BillingFixtures.customerJSON(appUserId: "user_a")), storage: storage)
-        engine.identityChanges.advance()
         _ = try await engine.logIn("user_a")
-        let snapshot = engine.identityChanges.read() // reset() called after logIn
-        await engine.recordAccountReset(expectedIdentityChanges: snapshot)
+        let resetTicket = engine.identityChanges.take() // reset() called after logIn
+        await engine.recordAccountReset(resetTicket: resetTicket)
         XCTAssertEqual(storage.resetUser, "user_a")
     }
 
@@ -445,5 +442,155 @@ final class SDK093Tests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: SupportAPI.clearedSessionKey)
         XCTAssertFalse(SupportAPI.sessionMintedWhileCleared(.failed(errSecMissingEntitlement)), "no Keychain at all: UserDefaults is the store")
         XCTAssertFalse(SupportAPI.sessionMintedWhileCleared(.notFound))
+    }
+
+    // MARK: - Round 3 E1: only an applied logIn/logOut called after reset() cancels its marker
+
+    func testThrowingLogInDoesNotCancelTheResetMarker() async throws {
+        let storage = env.storage()
+        storage.loggedInAppUserId = "user_a"
+        let engine = env.engine(transport: MockBillingTransport.ok(BillingFixtures.customerJSON(appUserId: "user_a")), storage: storage)
+        let resetTicket = engine.identityChanges.take()
+        do { _ = try await engine.logIn(""); XCTFail("expected invalidAppUserId") } catch {}
+        do { _ = try await engine.logIn("has space"); XCTFail("expected invalidAppUserId") } catch {}
+        await engine.recordAccountReset(resetTicket: resetTicket)
+        XCTAssertEqual(storage.resetUser, "user_a", "a logIn that threw changed nothing")
+    }
+
+    func testLogInCalledBeforeResetButAppliedAfterItStartedIsStillMarked() async throws {
+        let storage = env.storage()
+        let engine = env.engine(transport: MockBillingTransport.ok(BillingFixtures.customerJSON(appUserId: "user_a")), storage: storage)
+        let logInTicket = engine.identityChanges.take() // AppReferBilling.logIn("user_a") called
+        let resetTicket = engine.identityChanges.take() // then AppRefer.reset() called
+        _ = try await engine.logIn("user_a", ticket: logInTicket)
+        await engine.recordAccountReset(resetTicket: resetTicket)
+        XCTAssertEqual(storage.resetUser, "user_a")
+    }
+
+    // MARK: - Round 3 E2: configure while reset() runs only skips the marker for another user
+
+    func testConfigureDuringResetSkipsOnlyForADifferentUser() async throws {
+        XCTAssertFalse(AppReferBilling.configuredForAnotherUser(configured: nil, storedAtReset: "user_a"))
+        XCTAssertFalse(AppReferBilling.configuredForAnotherUser(configured: "user_a", storedAtReset: "user_a"))
+        XCTAssertTrue(AppReferBilling.configuredForAnotherUser(configured: "user_b", storedAtReset: "user_a"))
+        XCTAssertTrue(AppReferBilling.configuredForAnotherUser(configured: "user_b", storedAtReset: nil))
+
+        // An engine configured meanwhile without appUserId resumes user_a, who is marked.
+        let storage = env.storage()
+        storage.loggedInAppUserId = "user_a"
+        let engine = env.engine(transport: MockBillingTransport.ok(BillingFixtures.customerJSON(appUserId: "user_a")), storage: storage)
+        XCTAssertNil(engine.configuredAppUserId)
+        await engine.recordAccountReset(resetTicket: 0)
+        XCTAssertEqual(storage.resetUser, "user_a")
+
+        // A logIn on that engine (necessarily after reset() was called) cancels the write.
+        _ = try await engine.logIn("user_b")
+        await engine.recordAccountReset(resetTicket: 0)
+        XCTAssertNil(storage.resetUser)
+    }
+
+    // MARK: - Round 3 E4: the logOut exemption is used once
+
+    func testSecondResetMarksTheUserLogOutMinted() async throws {
+        let storage = env.storage()
+        storage.loggedInAppUserId = "user_a"
+        let engine = env.engine(transport: MockBillingTransport.ok(BillingFixtures.customerJSON(appUserId: "x")), storage: storage)
+        _ = await engine.logOut()
+        let fresh = try XCTUnwrap(storage.storedCurrentAppUserId)
+        await engine.recordAccountReset(resetTicket: engine.identityChanges.take())
+        XCTAssertNil(storage.resetUser)
+        // Another reset while that anonymous user is still current: marked this time.
+        await engine.recordAccountReset(resetTicket: engine.identityChanges.take())
+        XCTAssertEqual(storage.resetUser, fresh)
+    }
+
+    // MARK: - Round 3 E5: no Support session on an unreadable store; never delete what wasn't retired
+
+    func testNoSupportSessionWhileTheClearedFlagCantBeRead() async throws {
+        let flagKeychain = FakeDeviceIdKeychain()
+        let tokens = FakeDeviceIdKeychain()
+        _ = tokens.save(key: "apprefer_support_session", value: "ars_real")
+        let userStorage = attributionStorage(keychain: flagKeychain)
+        userStorage.setUserId("acct_A")
+        let api = supportAPI(userStorage, tokenKeychain: tokens)
+        await api.configure(apiKey: "pk_test")
+        await api.revokePending(using: "pk_test")
+        SupportRecorder093.clear()
+        flagKeychain.locked = true // before first unlock
+        do { _ = try await api.conversations(); XCTFail("expected a retryable error") } catch let error as AppReferSupportError {
+            XCTAssertEqual(error.status, 0)
+        }
+        XCTAssertTrue(SupportRecorder093.calls.isEmpty, "no session minted or adopted on a guess")
+        XCTAssertEqual(tokens.value("apprefer_support_session"), "ars_real")
+        XCTAssertNil(tokens.value(SupportAPI.clearedSessionKey))
+
+        // Unlocked: the real session is used as before, never retired.
+        flagKeychain.locked = false
+        _ = try await api.conversations()
+        XCTAssertEqual(SupportRecorder093.calls.last?.session, "ars_real")
+        XCTAssertEqual(tokens.value("apprefer_support_session"), "ars_real")
+        await api.reset()
+        await api.revokePending(using: "pk_test")
+    }
+
+    func testClearedMarkerIsNotRecordedForATokenThatCouldNotBeSaved() async throws {
+        let tokens = FakeDeviceIdKeychain()
+        tokens.failSaves = true
+        let userStorage = attributionStorage()
+        userStorage.setUserId("acct_A")
+        let api = supportAPI(userStorage, tokenKeychain: tokens)
+        await api.configure(apiKey: "pk_test")
+        await api.revokePending(using: "pk_test")
+        UserDefaults.standard.removeObject(forKey: SupportAPI.clearedSessionKey)
+        SupportRecorder093.clear()
+        await api.clearIdentity()
+        let cleared = try XCTUnwrap(SupportRecorder093.sessionPosts().last)
+        XCTAssertNil(cleared.session)
+        XCTAssertNil(tokens.value(SupportAPI.clearedSessionKey))
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: SupportAPI.clearedSessionKey), "not recorded for an unsaved token")
+        XCTAssertEqual(SupportAPI.sessionClearedMarkerState(keychain: tokens), .notCleared)
+
+        // In this process the unsaved cleared session is still never handed to another user.
+        _ = try await api.conversations()
+        let clearedSession = try XCTUnwrap(SupportRecorder093.calls.last?.session)
+        userStorage.setUserId("acct_B")
+        _ = try await api.conversations()
+        let forB = try XCTUnwrap(SupportRecorder093.sessionPosts().last)
+        XCTAssertNil(forB.session)
+        XCTAssertEqual(forB.body["appUserId"] as? String, "acct_B")
+        XCTAssertFalse(SupportRecorder093.calls.contains { $0.session == clearedSession && $0.body["appUserId"] as? String == "acct_B" })
+        await api.reset()
+        await api.revokePending(using: "pk_test")
+    }
+
+    func testALockedTokenStoreNeverLosesTheStoredTokenAndARetiredOneIsNotReused() async throws {
+        let tokens = FakeDeviceIdKeychain()
+        let userStorage = attributionStorage()
+        userStorage.setUserId("acct_A")
+        let api = supportAPI(userStorage, tokenKeychain: tokens)
+        await api.configure(apiKey: "pk_test")
+        await api.revokePending(using: "pk_test")
+        _ = try await api.conversations()
+        let session = try XCTUnwrap(tokens.value("apprefer_support_session"))
+
+        // reset() while the Keychain is locked: the stored token can't be read, so it isn't
+        // deleted (its revocation is queued from memory).
+        SupportRecorder093.failDeletes = true
+        tokens.locked = true
+        await api.reset()
+        tokens.locked = false
+        XCTAssertEqual(tokens.value("apprefer_support_session"), session)
+
+        // Unlocked: the retired token is never reused for the next account.
+        userStorage.setUserId("acct_B")
+        SupportRecorder093.clear()
+        SupportRecorder093.failDeletes = true
+        _ = try await api.conversations()
+        XCTAssertFalse(SupportRecorder093.calls.contains { $0.method != "DELETE" && $0.session == session })
+        XCTAssertNil(SupportRecorder093.sessionPosts().last?.session)
+        XCTAssertNotEqual(tokens.value("apprefer_support_session"), session)
+        SupportRecorder093.failDeletes = false
+        await api.reset()
+        await api.revokePending(using: "pk_test")
     }
 }

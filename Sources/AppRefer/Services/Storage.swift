@@ -83,23 +83,29 @@ final class AppReferStorage: @unchecked Sendable {
     /// so a reinstall whose session survives still knows it was cleared. 0.9.2 kept it in
     /// UserDefaults: that copy is moved on first read (and kept if the move fails).
     static let keySupportIdentityCleared = "apprefer_support_identity_cleared"
-    var supportIdentityCleared: Bool {
-        get {
-            switch keychain.load(key: Self.keySupportIdentityCleared) {
-            case .found: return true
-            // No Keychain at all (macOS without the entitlement): UserDefaults is the store.
-            case .failed(let status) where status == errSecMissingEntitlement:
-                return defaults.bool(forKey: Self.keySupportIdentityCleared)
-            // Locked (before first unlock) or failing: fail closed, treat as cleared.
-            case .unavailable, .failed: return true
-            case .notFound: break
-            }
-            guard defaults.bool(forKey: Self.keySupportIdentityCleared) else { return false }
-            if keychain.save(key: Self.keySupportIdentityCleared, value: "1") {
-                defaults.removeObject(forKey: Self.keySupportIdentityCleared)
-            }
-            return true
+    enum ClearedState: Equatable {
+        case cleared, notCleared
+        /// The Keychain couldn't be read (locked before first unlock, or failing).
+        case unknown
+    }
+    var supportIdentityClearedState: ClearedState {
+        switch keychain.load(key: Self.keySupportIdentityCleared) {
+        case .found: return .cleared
+        // No Keychain at all (macOS without the entitlement): UserDefaults is the store.
+        case .failed(let status) where status == errSecMissingEntitlement:
+            return defaults.bool(forKey: Self.keySupportIdentityCleared) ? .cleared : .notCleared
+        case .unavailable, .failed: return .unknown
+        case .notFound: break
         }
+        guard defaults.bool(forKey: Self.keySupportIdentityCleared) else { return .notCleared }
+        if keychain.save(key: Self.keySupportIdentityCleared, value: "1") {
+            defaults.removeObject(forKey: Self.keySupportIdentityCleared)
+        }
+        return .cleared
+    }
+    /// Fails closed: an unreadable Keychain reads as cleared.
+    var supportIdentityCleared: Bool {
+        get { supportIdentityClearedState != .notCleared }
         set {
             if newValue {
                 if keychain.save(key: Self.keySupportIdentityCleared, value: "1") { defaults.removeObject(forKey: Self.keySupportIdentityCleared) }
