@@ -17,6 +17,8 @@ After reset, attribution sends nothing (no consent re-report, conversion value o
 event delivery; events tracked meanwhile are dropped, never sent later) and Support sends no device id until configure is called again, so
 the next account's Support session is never linked to the previous account's
 install. Support also omits the device id while collection is off.
+
+Migration: after reset(), call configure again for the next user; until then events, attribution and consent reports are paused.
 The key remains configured so the next account can use Support; install device id,
 attribution result, consent and conversion state are retained. Advanced-matching
 hashes are never persisted by this SDK. Billing is separate: also call
