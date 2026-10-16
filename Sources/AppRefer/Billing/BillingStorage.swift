@@ -310,9 +310,13 @@ final class BillingStorage {
 
     func offeringsBucketId() -> String? {
         let key = "apprefer_billing_offerings_bucket"
-        if let existing = defaults.string(forKey: key) { return existing }
-        guard let id = anonymousId() else { return nil }
-        defaults.set(id, forKey: key)
+        switch secure.read(key) {
+        case .found(let value): return value
+        case .unavailable, .failed: return nil
+        case .notFound: break
+        }
+        guard let id = defaults.string(forKey: key) ?? anonymousId(), secure.set(id, forKey: key) else { return nil }
+        defaults.removeObject(forKey: key)
         return id
     }
     func cachedOfferings(for user: String) -> CachedOfferings? {

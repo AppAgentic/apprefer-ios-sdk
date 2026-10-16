@@ -153,7 +153,7 @@ public enum AppReferBilling {
         _engine = engine
         lock.unlock()
 
-        DispatchQueue.main.async { Task { await engine.refreshOfferingsIfStale(); await engine.start() } }
+        DispatchQueue.main.async { Task { await engine.start() } }
         observeForeground(engine)
     }
 

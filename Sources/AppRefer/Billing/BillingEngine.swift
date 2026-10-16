@@ -14,18 +14,18 @@ actor BillingEngine {
     private var offeringsInvalidated = false
     private var offeringsGeneration = 0
     private var offeringsCache: [String: CachedOfferings] = [:]
-    private var offeringsRequest: (UUID, Task<AppReferOfferings, Error>)?
+    private var offeringsRequest: (UUID, Task<AppReferOfferings, Error>, AppReferBilling.FetchPolicy)?
     func offerings(policy: AppReferBilling.FetchPolicy = .cachedOrFetched) async throws -> AppReferOfferings {
-        if let request = offeringsRequest { return try await request.1.value }
+        if let request = offeringsRequest, request.2 == policy || request.2 == .fetchCurrent { return try await request.1.value }
         let id = UUID()
         let generation = offeringsGeneration
         let task = Task { try await self.loadOfferings(policy: policy, generation: generation) }
-        offeringsRequest = (id, task)
+        offeringsRequest = (id, task, policy)
         defer { if offeringsRequest?.0 == id { offeringsRequest = nil } }
         return try await task.value
     }
     private func loadOfferings(policy: AppReferBilling.FetchPolicy, generation: Int) async throws -> AppReferOfferings {
-        guard let user = activeUser(), let bucket = storage.offeringsBucketId() else { throw AppReferBillingError.purchaseIntentNotSaved }
+        guard let user = activeUser(), let bucket = storage.offeringsBucketId() else { throw AppReferBillingError.storage("Billing identity is unreadable") }
         var cached = offeringsCache[user] ?? storage.cachedOfferings(for: user)
         if offeringsInvalidated || policy == .fetchCurrent || cached == nil || now().timeIntervalSince(cached!.fetchedAt) >= 300 {
             do {
@@ -46,7 +46,10 @@ actor BillingEngine {
         if generation == offeringsGeneration { offeringsCache[user] = cached! }
         return try await cached!.response.resolve { try await self.storeKit.products($0) }
     }
-    func refreshOfferingsIfStale() async { _ = try? await offerings() }
+    func refreshOfferingsIfStale() async {
+        guard let user = activeUser(), offeringsCache[user] != nil || storage.cachedOfferings(for: user) != nil else { return }
+        _ = try? await offerings()
+    }
     private func invalidateOfferings() {
         offeringsGeneration += 1
         offeringsInvalidated = true
@@ -201,6 +204,8 @@ actor BillingEngine {
                 }
             }
         }
+        // Offerings must never delay the listener, transaction recovery or entitlements.
+        Task { await self.refreshOfferingsIfStale() }
         for update in await storeKit.unfinishedTransactions() {
             _ = await process(update)
         }

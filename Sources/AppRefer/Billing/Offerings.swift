@@ -97,7 +97,7 @@ struct OfferingsResponse: Codable, Sendable {
     let requestDateMs: Double
     func resolve(products: @Sendable ([String]) async throws -> [Product]) async throws -> AppReferOfferings {
         let ids = Array(Set(offerings.flatMap { $0.packages.compactMap(\.productId) }))
-        let loaded = try await products(ids)
+        let loaded = (try? await products(ids)) ?? []
         let byId = Dictionary(loaded.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         var all: [String: AppReferOffering] = [:]
         for o in offerings {

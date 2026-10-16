@@ -107,7 +107,10 @@ final class PendingPurchaseQueue {
             if entries[index].restore == true, entry.restore != true {
                 return isDurable(transactionId: entry.transactionId) || save(changed: entry.transactionId)
             }
-            entries[index] = entry
+            var merged = entry
+            merged.presentedOfferingContext = entries[index].presentedOfferingContext ?? entry.presentedOfferingContext
+            merged.bucketId = entries[index].bucketId ?? entry.bucketId
+            entries[index] = merged
         } else {
             entries.append(entry)
         }
