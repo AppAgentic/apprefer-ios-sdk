@@ -128,9 +128,14 @@ actor SupportAPI {
         Task { await revokePending(using: key) }
     }
 
-    init(baseURL: String = AppReferConfig.backendURL, session: URLSession = URLSession(configuration: .default)) {
+    /// The install device id to link, or nil (Support-only, after reset, collection off).
+    private let deviceId: @Sendable () -> String?
+
+    init(baseURL: String = AppReferConfig.backendURL, session: URLSession = URLSession(configuration: .default),
+         deviceId: @escaping @Sendable () -> String? = { AppRefer.supportDeviceId() }) {
         self.baseURL = baseURL
         self.session = session
+        self.deviceId = deviceId
     }
 
     func setIdentity(name: String?, email: String?, generation expected: Int? = nil) {
@@ -150,7 +155,7 @@ actor SupportAPI {
         let storage = AppReferStorage()
         var body: [String: Any] = [:]
         if let id = storage.getUserId() { body["appUserId"] = id }
-        if AppRefer.currentApiKey() != nil, let device = storage.deviceId() { body["deviceId"] = device }
+        if let device = deviceId() { body["deviceId"] = device }
         if let name { body["name"] = name }
         if let email { body["email"] = email }
         return body

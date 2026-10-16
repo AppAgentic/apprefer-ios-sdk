@@ -25,6 +25,33 @@ private actor Updater091: ConversionValueUpdating {
     func update(fine: Int, coarse: AppReferCoarseValue) async { calls += 1 }
     func count() -> Int { calls }
 }
+/// Records Support session bodies so tests can see whether the device id was sent.
+private final class SupportCapture091: URLProtocol, @unchecked Sendable {
+    private static let lock = NSLock()
+    private nonisolated(unsafe) static var _sessionBodies: [[String: Any]] = []
+    static var sessionBodies: [[String: Any]] { lock.lock(); defer { lock.unlock() }; return _sessionBodies }
+    static func clear() { lock.lock(); _sessionBodies = []; lock.unlock() }
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let isSession = request.url!.path.hasSuffix("/session")
+        if isSession, request.httpMethod == "POST" {
+            var data = request.httpBody ?? Data()
+            if data.isEmpty, let stream = request.httpBodyStream {
+                stream.open(); defer { stream.close() }
+                var buffer = [UInt8](repeating: 0, count: 4096)
+                while stream.hasBytesAvailable { let n = stream.read(&buffer, maxLength: buffer.count); if n <= 0 { break }; data.append(buffer, count: n) }
+            }
+            let body = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+            Self.lock.lock(); Self._sessionBodies.append(body); Self.lock.unlock()
+        }
+        let reply = isSession ? "{\"session\":\"support-091b\"}" : "{\"conversations\":[]}"
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(reply.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
 private final class SupportProtocol091: URLProtocol, @unchecked Sendable {
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -165,6 +192,107 @@ final class SDK091Tests: XCTestCase {
         _ = await sdk._configure(expectedCollectionEpoch: AppRefer.collectionEpoch())
         XCTAssertTrue(storage.isCollectionEnabled())
         let resumed = await poster.count(); XCTAssertGreaterThan(resumed, 0)
+    }
+
+    // MARK: - No device id on Support after reset or with collection off
+
+    func testResetStopsAttributionAndSupportDeviceIdUntilConfigure() async throws {
+        let (sdk, storage, poster, updater) = fixture()
+        let previous = AppRefer.replaceSharedForTesting(sdk)
+        let registration = AppRefer.replaceRegistrationForTesting(apiKey: nil, active: false)
+        defer {
+            _ = AppRefer.replaceSharedForTesting(previous)
+            _ = AppRefer.replaceRegistrationForTesting(apiKey: registration.0, active: registration.1)
+            SupportCapture091.clear()
+        }
+        await poster.setStatus(200)
+        // A grants analytics: attribution is configured in this process.
+        _ = await AppRefer.configure(apiKey: "pk_test")
+        let device = try XCTUnwrap(storage.deviceId())
+        XCTAssertEqual(AppRefer.supportDeviceId(storage: storage), device)
+        try await Task.sleep(nanoseconds: 300_000_000) // let configure's follow-up refresh settle
+
+        // A signs out.
+        await AppRefer.reset()
+        XCTAssertNil(AppRefer.supportDeviceId(storage: storage))
+        let afterReset = await poster.count()
+        let updatesAfterReset = await updater.count()
+
+        // B signs in, never consents; the app only starts Support.
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [SupportCapture091.self]
+        let api = SupportAPI(baseURL: "https://support091b.test", session: URLSession(configuration: config),
+                             deviceId: { AppRefer.supportDeviceId(storage: storage) })
+        await api.reset()
+        SupportCapture091.clear()
+        await api.configure(apiKey: "pk_test")
+        _ = try await api.conversations()
+        XCTAssertEqual(SupportCapture091.sessionBodies.count, 1)
+        XCTAssertNil(SupportCapture091.sessionBodies.last?["deviceId"])
+
+        // Nothing on the attribution side sends until configure runs again.
+        await sdk.didBecomeActive()
+        await AppRefer.trackingConsentDidChange()
+        await AppRefer.updateConversionValue()
+        await AppRefer.setUserId("B")
+        await AppRefer.setAdvancedMatching(email: "b@example.test")
+        let event = await AppRefer.trackEventResult("signed_out")
+        XCTAssertEqual(event, .queued) // kept, but not sent before configure
+        await sdk.flushPendingEvents()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        let stillAfterReset = await poster.count(); XCTAssertEqual(stillAfterReset, afterReset)
+        let updates = await updater.count(); XCTAssertEqual(updates, updatesAfterReset)
+
+        // B consents: configure again links Support to the install once more.
+        _ = await AppRefer.configure(apiKey: "pk_test")
+        XCTAssertEqual(AppRefer.supportDeviceId(storage: storage), device)
+        _ = try await api.conversations()
+        XCTAssertEqual(SupportCapture091.sessionBodies.last?["deviceId"] as? String, device)
+        let resumed = await AppRefer.trackEventResult("signup")
+        XCTAssertEqual(resumed, .sent)
+        let sent = await poster.bodies().compactMap { $0["event_name"] as? String }
+        XCTAssertTrue(sent.contains("signed_out"))
+
+        // Collection withdrawn: Support stops sending the device id.
+        await AppRefer.setCollectionEnabled(false)
+        XCTAssertNil(AppRefer.supportDeviceId(storage: storage))
+        let sessionsBefore = SupportCapture091.sessionBodies.count
+        _ = try await api.conversations()
+        XCTAssertEqual(SupportCapture091.sessionBodies.count, sessionsBefore + 1)
+        XCTAssertNil(SupportCapture091.sessionBodies.last?["deviceId"])
+        await api.reset()
+        await sdk._clearPendingEvents()
+    }
+
+    func testStaleConfigureFromBeforeResetDoesNotRestartAttribution() async {
+        let (sdk, _, poster, _) = fixture()
+        _ = await sdk._configure()
+        await sdk._reset()
+        let before = await poster.count()
+        _ = await sdk._configure(expectedAccountEpoch: AppRefer.accountEpoch() - 1)
+        await sdk.refreshConversionValue(force: true, allowRecheck: false)
+        let result = await sdk._trackEvent("stale", properties: nil, revenue: nil, currency: nil)
+        XCTAssertEqual(result, .queued)
+        let after = await poster.count(); XCTAssertEqual(after, before)
+        await sdk._clearPendingEvents()
+    }
+
+    func testSupportOnlySendsNoDeviceId() async throws {
+        let (_, storage, _, _) = fixture()
+        let registration = AppRefer.replaceRegistrationForTesting(apiKey: nil, active: false)
+        defer { _ = AppRefer.replaceRegistrationForTesting(apiKey: registration.0, active: registration.1); SupportCapture091.clear() }
+        XCTAssertNil(AppRefer.supportDeviceId(storage: storage))
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [SupportCapture091.self]
+        let api = SupportAPI(baseURL: "https://support091b.test", session: URLSession(configuration: config),
+                             deviceId: { AppRefer.supportDeviceId(storage: storage) })
+        await api.reset()
+        SupportCapture091.clear()
+        await api.configure(apiKey: "pk_support_only")
+        _ = try await api.conversations()
+        XCTAssertEqual(SupportCapture091.sessionBodies.count, 1)
+        XCTAssertNil(SupportCapture091.sessionBodies.first?["deviceId"])
+        await api.reset()
     }
 
 }

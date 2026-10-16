@@ -13,6 +13,10 @@ attribution, event and Support work, best-effort revokes the old Support session
 and unregisters its push token, clears the session/profile and displayed
 conversations/unread/drafts, removes the user id and transient matching data,
 and drops queued product events. It is idempotent and safe before configuration.
+After reset, attribution sends nothing (no consent re-report, conversion value or
+event delivery) and Support sends no device id until configure is called again, so
+the next account's Support session is never linked to the previous account's
+install. Support also omits the device id while collection is off.
 The key remains configured so the next account can use Support; install device id,
 attribution result, consent and conversion state are retained. Advanced-matching
 hashes are never persisted by this SDK. Billing is separate: also call

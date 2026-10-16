@@ -43,6 +43,11 @@ public actor AppRefer {
     private nonisolated(unsafe) static var accountGeneration = 0
     static func accountEpoch() -> Int { lock.lock(); defer { lock.unlock() }; return accountGeneration }
     private static func advanceAccount() { lock.lock(); defer { lock.unlock() }; accountGeneration += 1 }
+    /// True from configure until reset() in this process. Support sends the install
+    /// device id only while it is true, so a reset never links the next account's
+    /// Support session to the previous account's attribution.
+    private nonisolated(unsafe) static var attributionActive = false
+    private static func stopAttribution() { lock.lock(); defer { lock.unlock() }; accountGeneration += 1; attributionActive = false }
 
     private static func getShared() -> AppRefer? {
         lock.lock()
@@ -60,6 +65,7 @@ public actor AppRefer {
     private static func sharedForConfiguration(_ config: AppReferConfig) -> (AppRefer, Bool, Int) {
         lock.lock(); defer { lock.unlock() }
         registeredApiKey = config.apiKey
+        attributionActive = true
         if let sdk = _shared { return (sdk, false, accountGeneration) }
         let sdk = AppRefer(config: config)
         _shared = sdk
@@ -71,6 +77,26 @@ public actor AppRefer {
         lock.lock(); defer { lock.unlock() }
         return registeredApiKey
     }
+
+    /// The install device id Support may send: only after configure in this process,
+    /// never after reset() (until configure runs again) or while collection is off.
+    /// Support-only apps never configure attribution, so they never send it.
+    static func supportDeviceId(storage: AppReferStorage = AppReferStorage()) -> String? {
+        lock.lock()
+        let active = registeredApiKey != nil && attributionActive
+        lock.unlock()
+        guard active, storage.isCollectionEnabled() else { return nil }
+        return storage.deviceId()
+    }
+
+    #if DEBUG
+    static func replaceRegistrationForTesting(apiKey: String?, active: Bool) -> (String?, Bool) {
+        lock.lock(); defer { lock.unlock() }
+        let previous = (registeredApiKey, attributionActive)
+        registeredApiKey = apiKey; attributionActive = active
+        return previous
+    }
+    #endif
 
     private var config: AppReferConfig
     private let storage: AppReferStorage
@@ -93,6 +119,11 @@ public actor AppRefer {
     private var retryTask: Task<Void, Never>?
     private var lastConfigureFailed = false
     private var configurationTask: Task<Attribution?, Never>?
+    /// Set by reset(): nothing is sent (configure-on-foreground, consent, conversion
+    /// value, events) until configure runs again for the next account.
+    private var stoppedByReset = false
+    /// Attribution and product analytics may send.
+    private var canCollect: Bool { !stoppedByReset && storage.isSdkEnabled() && storage.isCollectionEnabled() }
 
     init(
         config: AppReferConfig,
@@ -305,9 +336,10 @@ public actor AppRefer {
     }
 
     /// Clear account state; install attribution and device id are retained.
-    /// Also call AppReferBilling.logOut() if your app uses Billing.
+    /// Attribution stops sending, and Support stops sending the device id, until
+    /// configure is called again. Also call AppReferBilling.logOut() if your app uses Billing.
     public static func reset() async {
-        advanceAccount()
+        stopAttribution()
         if let sdk = getShared() { await sdk._reset() }
         else {
             AppReferStorage().clearUser()
@@ -384,14 +416,19 @@ public actor AppRefer {
 
 
     func _reset() async {
+        stoppedByReset = true
         configurationTask?.cancel(); configurationTask = nil
         generation += 1
         consentSyncTask?.cancel()
         consentSyncTask = nil
         consentRecheckRequested = false
         conversionRerunForced = false
+        conversionRecheckTask?.cancel(); conversionRecheckTask = nil
+        conversionRecheckScheduled = false
         storage.clearUser()
         await _clearPendingEvents()
+        await trackingClient.cancel()
+        await firstPartyClient.cancel()
     }
 
     func attributionResult() -> AppReferAttributionResult {
@@ -429,6 +466,8 @@ public actor AppRefer {
     // MARK: - Internal Implementation
 
     func _configure(expectedAccountEpoch: Int? = nil, expectedCollectionEpoch: Int? = nil) async -> Attribution? {
+        // A configure begun before reset() never restarts attribution for the next account.
+        if expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() { stoppedByReset = false }
         guard expectedCollectionEpoch == nil || expectedCollectionEpoch == Self.collectionEpoch() else { return storage.getCachedAttribution() }
         storage.resumeCollection()
         guard storage.isCollectionEnabled() else { return storage.getCachedAttribution() }
@@ -570,7 +609,7 @@ public actor AppRefer {
     }
 
     func syncTrackingConsent() async -> Attribution? {
-        guard storage.isCollectionEnabled() else { return nil }
+        guard !stoppedByReset, storage.isCollectionEnabled() else { return nil }
         if let running = consentSyncTask {
             // The running sync checks again before it ends, so a newer answer isn't lost;
             // wait for it so the caller sees the attribution it produced.
@@ -597,7 +636,7 @@ public actor AppRefer {
     }
 
     private func reportTrackingConsentIfChanged() async -> Attribution? {
-        guard (storage.isSdkEnabled() && storage.isCollectionEnabled()), storage.isMatchRequestAttempted() else { return nil }
+        guard canCollect, storage.isMatchRequestAttempted() else { return nil }
         let consent = trackingStatus.current()
         let previouslyAccepted = storage.reportedTrackingConsent()
         let cached = storage.getCachedAttribution()
@@ -662,7 +701,7 @@ public actor AppRefer {
     /// higher one. Always the first-party host: the value is computed from first-party
     /// data and only reaches ad networks through Apple's anonymous postbacks.
     func refreshConversionValue(force: Bool, allowRecheck: Bool = true) async {
-        guard (storage.isSdkEnabled() && storage.isCollectionEnabled()) else { return }
+        guard canCollect else { return }
         if let firstRun = storage.firstRunDate(), Date().timeIntervalSince(firstRun) > Self.conversionWindow { return }
         if conversionRefreshInFlight {
             // A purchase may have landed after the running check read its value: run again after it.
@@ -743,7 +782,8 @@ public actor AppRefer {
     func _trackEvent(
         _ eventName: String, properties: [String: Any]?, revenue: Double?, currency: String?
     ) async -> AppReferEventResult {
-        guard (storage.isSdkEnabled() && storage.isCollectionEnabled()), let deviceId = storage.deviceId() else { return .dropped }
+        // After reset() events are still queued; they are sent once configure runs again.
+        guard storage.isSdkEnabled() && storage.isCollectionEnabled(), let deviceId = storage.deviceId() else { return .dropped }
         let id = UUID().uuidString
         var body: [String: Any] = ["device_id": deviceId, "event_name": eventName, "eventId": id]
         if !eventName.hasPrefix("_"), let userId = storage.getUserId() { body["app_user_id"] = userId }
@@ -795,7 +835,7 @@ public actor AppRefer {
     /// Only the queue retries events; the transport performs one attempt.
     @discardableResult
     func flushPendingEvents(only eventId: String? = nil) async -> [String: Int] {
-        guard !draining, (storage.isSdkEnabled() && storage.isCollectionEnabled()) else {
+        guard !draining, canCollect else {
             if !(storage.isSdkEnabled() && storage.isCollectionEnabled()) { storage.pendingEvents = nil }
             return [:]
         }
@@ -807,7 +847,7 @@ public actor AppRefer {
         var results: [String: Int] = [:]
         guard let pending = loadEvents(), saveEvents(pending) else { return results }
         for event in pending where event.nextAttempt <= Date() && (eventId == nil || event.id == eventId) {
-            guard epoch == eventGeneration, !Task.isCancelled, (storage.isSdkEnabled() && storage.isCollectionEnabled()) else { break }
+            guard epoch == eventGeneration, !Task.isCancelled, canCollect else { break }
             guard let body = try? JSONSerialization.jsonObject(with: event.body) as? [String: Any] else { continue }
             let response = await client(for: trackingStatus.current()).eventResponse(body)
             let status = response.status
@@ -832,7 +872,7 @@ public actor AppRefer {
 
     private func scheduleRetry() {
         retryTask?.cancel()
-        guard storage.isCollectionEnabled() else { retryTask = nil; return }
+        guard !stoppedByReset, storage.isCollectionEnabled() else { retryTask = nil; return }
         guard let next = loadEvents()?.map(\.nextAttempt).min() else { retryTask = nil; return }
         let delay = min(3600, max(0.1, next.timeIntervalSinceNow))
         retryTask = Task { [weak self] in
@@ -850,7 +890,7 @@ public actor AppRefer {
         lastName: String?,
         dateOfBirth: String?
     ) async {
-        guard (storage.isSdkEnabled() && storage.isCollectionEnabled()) else { return }
+        guard canCollect else { return }
         // Hashed PII for Meta's matching is only for advertising: never without ATT.
         guard trackingStatus.current() == .granted else {
             logger.info("Advanced matching skipped: tracking not authorized")
@@ -885,7 +925,7 @@ public actor AppRefer {
         logger.info("User ID set: \(userId)")
 
         // Sync userId to server so webhook userId fallback can find this attribution
-        guard (storage.isSdkEnabled() && storage.isCollectionEnabled()), let deviceId = storage.deviceId() else { return }
+        guard canCollect, let deviceId = storage.deviceId() else { return }
         let body: [String: Any] = [
             "device_id": deviceId,
             "event_name": "_set_user_id",
