@@ -102,6 +102,43 @@ public final class AppReferSupport {
         present(AppReferSupportView(conversationId: conversationId))
     }
 
+    /// Opens the help chat on one help article (e.g. from a "How does this work?" link).
+    /// Back leads to the help home; "Message us" starts a conversation about the article.
+    public func open(article slug: String) {
+        present(AppReferSupportView(opening: .article(slug)))
+    }
+
+    /// Opens the help chat on the help centre: every article, with search.
+    public func openHelpCentre() {
+        present(AppReferSupportView(opening: .helpCentre))
+    }
+
+    // MARK: Help centre and status
+
+    /// The app's published help articles in the chat's language (`language`, else the app's
+    /// language), best first; with `query`, search results (titles, summaries and bodies, up
+    /// to 20). Test SDK keys (`pk_test_`) also get drafts (`isDraft`). Lists are kept in
+    /// memory for five minutes; if a request fails, the last list for the same query is
+    /// returned, and only without one is the error thrown.
+    public func articles(query: String? = nil) async throws -> [AppReferHelpArticle] {
+        try await SupportAPI.shared.helpArticleList(query: query, language: SupportStrings.language)
+    }
+
+    /// One help article with its markdown body, in the chat's language. Throws an
+    /// `AppReferSupportError` whose `isNotFound` is true (HTTP 404) when the article doesn't
+    /// exist or isn't published.
+    public func article(slug: String) async throws -> AppReferHelpArticleDetail {
+        try await SupportAPI.shared.helpArticle(slug: slug, language: SupportStrings.language)
+    }
+
+    /// What Support can do for this app: whether reply notifications work on iOS
+    /// (`pushReady`), whether customers can answer by email (`emailReplies`) and how many
+    /// help articles are published. Register for push only when `pushReady` is true.
+    /// Cached as long as the server allows (5 minutes once everything is verified, else 30 s).
+    public func status() async throws -> AppReferSupportStatus {
+        try await SupportAPI.shared.supportStatus()
+    }
+
     private func present(_ view: AppReferSupportView) {
         if let presented, presented.presentingViewController != nil {
             presented.dismiss(animated: false)

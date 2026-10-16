@@ -160,3 +160,47 @@
 "support.error.rateLimited" = "Massa missatges. Espera un moment i torna-ho a provar.";
 /* Android notification channel name for support reply notifications (shown in system settings). */
 "support.notification.channel" = "Respostes del suport";
+/* Section label (shown in capitals) above the help articles on the help home, and the title of the help centre screen. */
+"support.help.title" = "Articles d’ajuda";
+/* Placeholder in the help centre's search field. */
+"support.help.search.placeholder" = "Cerca als articles d’ajuda";
+/* Shown when a help centre search finds nothing. {query} = what the customer typed. Use your language's quotation marks. */
+"support.help.search.noResults" = "Cap article coincideix amb «{query}»";
+/* Line under the empty search result. */
+"support.help.search.noResultsHint" = "Prova amb altres paraules o escriu-nos i t’ajudarem.";
+/* Shown while a help centre search runs. */
+"support.help.searching" = "Cercant…";
+/* Button next to the help articles section on the help home; opens every article. Very short. */
+"support.help.seeAll" = "Mostra-ho tot";
+/* Shown while one help article loads. */
+"support.help.loading" = "Carregant l’article…";
+/* Shown when one help article can't be loaded (offline or removed). */
+"support.help.loadFailed" = "No s’ha pogut carregar aquest article.";
+/* Shown on the help centre screen when the article list can't be loaded and nothing is cached. */
+"support.help.listFailed" = "No s’han pogut carregar els articles d’ajuda.";
+/* Under an article's title. {date} = when it was last changed, as a date such as '16 Oct 2026' in the customer's language. */
+"support.help.updated" = "Actualitzat: {date}";
+/* Small badge on an unpublished article (only visible in test builds). */
+"support.help.draft" = "Esborrany";
+/* Heading for articles without a category, shown after the categorised ones in the help centre. */
+"support.help.otherCategory" = "Més articles";
+/* Title of the card at the end of an article and of the help centre, above the 'Message us' button. */
+"support.help.stillNeedHelp" = "Encara necessites ajuda?";
+/* Button that starts a conversation with the team (from an article or the help centre). Short. */
+"support.help.messageUs" = "Escriu-nos";
+/* Hint in the message field after the customer tapped 'Message us' on an article. */
+"support.help.prompt" = "Amb què encara necessites ajuda?";
+/* Button (and accessibility label) that opens the article's web page. */
+"support.help.openInBrowser" = "Obre al navegador";
+/* Accessibility label for the button that empties the search field. */
+"support.help.a11y.clearSearch" = "Esborra la cerca";
+/* Accessibility label for an article row. {title} = the article's title. */
+"support.help.a11y.article" = "Article: {title}";
+/* Under the customer's last message when the app can't send notifications but replies are emailed. {time} = clock time, same wording as 'support.thread.sentNotice'. */
+"support.status.sentNoticeEmail" = "Enviat a les {time} · t’enviarem un correu quan l’equip respongui";
+/* Like 'support.status.sentNoticeEmail' when the time is unknown. */
+"support.status.sentNoticeEmailNoTime" = "Enviat · t’enviarem un correu quan l’equip respongui";
+/* Under the customer's last message when neither notifications nor email can reach them, so the reply only shows in the chat. {time} = clock time. */
+"support.status.sentNoticeInApp" = "Enviat a les {time} · la resposta de l’equip apareixerà aquí";
+/* Like 'support.status.sentNoticeInApp' when the time is unknown. */
+"support.status.sentNoticeInAppNoTime" = "Enviat · la resposta de l’equip apareixerà aquí";

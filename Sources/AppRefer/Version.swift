@@ -3,5 +3,5 @@ import Foundation
 /// Single source of truth for the SDK version.
 /// Update this constant when cutting a new release.
 public enum AppReferVersion {
-    public static let current = "0.9.3"
+    public static let current = "0.10.0"
 }

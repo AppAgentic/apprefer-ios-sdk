@@ -160,3 +160,47 @@
 "support.error.rateLimited" = "Príliš veľa správ. Chvíľu počkajte a skúste to znova.";
 /* Android notification channel name for support reply notifications (shown in system settings). */
 "support.notification.channel" = "Odpovede podpory";
+/* Section label (shown in capitals) above the help articles on the help home, and the title of the help centre screen. */
+"support.help.title" = "Články pomocníka";
+/* Placeholder in the help centre's search field. */
+"support.help.search.placeholder" = "Hľadať v pomocníkovi";
+/* Shown when a help centre search finds nothing. {query} = what the customer typed. Use your language's quotation marks. */
+"support.help.search.noResults" = "Pre „{query}“ sme nenašli žiadne články";
+/* Line under the empty search result. */
+"support.help.search.noResultsHint" = "Skúste iné slová alebo nám napíšte a pomôžeme vám.";
+/* Shown while a help centre search runs. */
+"support.help.searching" = "Hľadá sa…";
+/* Button next to the help articles section on the help home; opens every article. Very short. */
+"support.help.seeAll" = "Zobraziť všetko";
+/* Shown while one help article loads. */
+"support.help.loading" = "Načítava sa článok…";
+/* Shown when one help article can't be loaded (offline or removed). */
+"support.help.loadFailed" = "Tento článok sa nepodarilo načítať.";
+/* Shown on the help centre screen when the article list can't be loaded and nothing is cached. */
+"support.help.listFailed" = "Články pomocníka sa nepodarilo načítať.";
+/* Under an article's title. {date} = when it was last changed, as a date such as '16 Oct 2026' in the customer's language. */
+"support.help.updated" = "Aktualizované {date}";
+/* Small badge on an unpublished article (only visible in test builds). */
+"support.help.draft" = "Koncept";
+/* Heading for articles without a category, shown after the categorised ones in the help centre. */
+"support.help.otherCategory" = "Ďalšie články";
+/* Title of the card at the end of an article and of the help centre, above the 'Message us' button. */
+"support.help.stillNeedHelp" = "Stále potrebujete pomoc?";
+/* Button that starts a conversation with the team (from an article or the help centre). Short. */
+"support.help.messageUs" = "Napíšte nám";
+/* Hint in the message field after the customer tapped 'Message us' on an article. */
+"support.help.prompt" = "S čím ešte potrebujete pomôcť?";
+/* Button (and accessibility label) that opens the article's web page. */
+"support.help.openInBrowser" = "Otvoriť v prehliadači";
+/* Accessibility label for the button that empties the search field. */
+"support.help.a11y.clearSearch" = "Vymazať hľadanie";
+/* Accessibility label for an article row. {title} = the article's title. */
+"support.help.a11y.article" = "Článok: {title}";
+/* Under the customer's last message when the app can't send notifications but replies are emailed. {time} = clock time, same wording as 'support.thread.sentNotice'. */
+"support.status.sentNoticeEmail" = "Odoslané o {time} · keď tím odpovie, pošleme vám e-mail";
+/* Like 'support.status.sentNoticeEmail' when the time is unknown. */
+"support.status.sentNoticeEmailNoTime" = "Odoslané · keď tím odpovie, pošleme vám e-mail";
+/* Under the customer's last message when neither notifications nor email can reach them, so the reply only shows in the chat. {time} = clock time. */
+"support.status.sentNoticeInApp" = "Odoslané o {time} · odpoveď tímu sa zobrazí tu";
+/* Like 'support.status.sentNoticeInApp' when the time is unknown. */
+"support.status.sentNoticeInAppNoTime" = "Odoslané · odpoveď tímu sa zobrazí tu";

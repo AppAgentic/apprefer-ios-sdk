@@ -160,3 +160,47 @@
 "support.error.rateLimited" = "Prea multe mesaje. Așteaptă puțin și încearcă din nou.";
 /* Android notification channel name for support reply notifications (shown in system settings). */
 "support.notification.channel" = "Răspunsuri de la asistență";
+/* Section label (shown in capitals) above the help articles on the help home, and the title of the help centre screen. */
+"support.help.title" = "Articole de ajutor";
+/* Placeholder in the help centre's search field. */
+"support.help.search.placeholder" = "Caută în articolele de ajutor";
+/* Shown when a help centre search finds nothing. {query} = what the customer typed. Use your language's quotation marks. */
+"support.help.search.noResults" = "Niciun articol pentru „{query}”";
+/* Line under the empty search result. */
+"support.help.search.noResultsHint" = "Încearcă alte cuvinte sau scrie-ne și te ajutăm.";
+/* Shown while a help centre search runs. */
+"support.help.searching" = "Se caută…";
+/* Button next to the help articles section on the help home; opens every article. Very short. */
+"support.help.seeAll" = "Vezi tot";
+/* Shown while one help article loads. */
+"support.help.loading" = "Se încarcă articolul…";
+/* Shown when one help article can't be loaded (offline or removed). */
+"support.help.loadFailed" = "Articolul nu s-a putut încărca.";
+/* Shown on the help centre screen when the article list can't be loaded and nothing is cached. */
+"support.help.listFailed" = "Articolele de ajutor nu s-au putut încărca.";
+/* Under an article's title. {date} = when it was last changed, as a date such as '16 Oct 2026' in the customer's language. */
+"support.help.updated" = "Actualizat pe {date}";
+/* Small badge on an unpublished article (only visible in test builds). */
+"support.help.draft" = "Ciornă";
+/* Heading for articles without a category, shown after the categorised ones in the help centre. */
+"support.help.otherCategory" = "Mai multe articole";
+/* Title of the card at the end of an article and of the help centre, above the 'Message us' button. */
+"support.help.stillNeedHelp" = "Încă ai nevoie de ajutor?";
+/* Button that starts a conversation with the team (from an article or the help centre). Short. */
+"support.help.messageUs" = "Scrie-ne";
+/* Hint in the message field after the customer tapped 'Message us' on an article. */
+"support.help.prompt" = "Cu ce mai ai nevoie de ajutor?";
+/* Button (and accessibility label) that opens the article's web page. */
+"support.help.openInBrowser" = "Deschide în browser";
+/* Accessibility label for the button that empties the search field. */
+"support.help.a11y.clearSearch" = "Șterge căutarea";
+/* Accessibility label for an article row. {title} = the article's title. */
+"support.help.a11y.article" = "Articol: {title}";
+/* Under the customer's last message when the app can't send notifications but replies are emailed. {time} = clock time, same wording as 'support.thread.sentNotice'. */
+"support.status.sentNoticeEmail" = "Trimis la {time} · îți trimitem un e-mail când răspunde echipa";
+/* Like 'support.status.sentNoticeEmail' when the time is unknown. */
+"support.status.sentNoticeEmailNoTime" = "Trimis · îți trimitem un e-mail când răspunde echipa";
+/* Under the customer's last message when neither notifications nor email can reach them, so the reply only shows in the chat. {time} = clock time. */
+"support.status.sentNoticeInApp" = "Trimis la {time} · răspunsul echipei va apărea aici";
+/* Like 'support.status.sentNoticeInApp' when the time is unknown. */
+"support.status.sentNoticeInAppNoTime" = "Trimis · răspunsul echipei va apărea aici";

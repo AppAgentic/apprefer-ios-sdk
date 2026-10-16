@@ -158,3 +158,47 @@
 "support.error.rateLimited" = "Πάρα πολλά μηνύματα. Περίμενε λίγο και δοκίμασε ξανά.";
 /* Android notification channel name for support reply notifications (shown in system settings). */
 "support.notification.channel" = "Απαντήσεις υποστήριξης";
+/* Section label (shown in capitals) above the help articles on the help home, and the title of the help centre screen. */
+"support.help.title" = "Άρθρα βοήθειας";
+/* Placeholder in the help centre's search field. */
+"support.help.search.placeholder" = "Αναζήτηση στα άρθρα βοήθειας";
+/* Shown when a help centre search finds nothing. {query} = what the customer typed. Use your language's quotation marks. */
+"support.help.search.noResults" = "Κανένα άρθρο για «{query}»";
+/* Line under the empty search result. */
+"support.help.search.noResultsHint" = "Δοκίμασε άλλες λέξεις ή στείλε μας μήνυμα και θα σε βοηθήσουμε.";
+/* Shown while a help centre search runs. */
+"support.help.searching" = "Αναζήτηση…";
+/* Button next to the help articles section on the help home; opens every article. Very short. */
+"support.help.seeAll" = "Εμφάνιση όλων";
+/* Shown while one help article loads. */
+"support.help.loading" = "Φόρτωση άρθρου…";
+/* Shown when one help article can't be loaded (offline or removed). */
+"support.help.loadFailed" = "Δεν ήταν δυνατή η φόρτωση του άρθρου.";
+/* Shown on the help centre screen when the article list can't be loaded and nothing is cached. */
+"support.help.listFailed" = "Δεν ήταν δυνατή η φόρτωση των άρθρων βοήθειας.";
+/* Under an article's title. {date} = when it was last changed, as a date such as '16 Oct 2026' in the customer's language. */
+"support.help.updated" = "Ενημερώθηκε {date}";
+/* Small badge on an unpublished article (only visible in test builds). */
+"support.help.draft" = "Πρόχειρο";
+/* Heading for articles without a category, shown after the categorised ones in the help centre. */
+"support.help.otherCategory" = "Περισσότερα άρθρα";
+/* Title of the card at the end of an article and of the help centre, above the 'Message us' button. */
+"support.help.stillNeedHelp" = "Χρειάζεσαι ακόμη βοήθεια;";
+/* Button that starts a conversation with the team (from an article or the help centre). Short. */
+"support.help.messageUs" = "Στείλε μας μήνυμα";
+/* Hint in the message field after the customer tapped 'Message us' on an article. */
+"support.help.prompt" = "Σε τι χρειάζεσαι ακόμη βοήθεια;";
+/* Button (and accessibility label) that opens the article's web page. */
+"support.help.openInBrowser" = "Άνοιγμα στο πρόγραμμα περιήγησης";
+/* Accessibility label for the button that empties the search field. */
+"support.help.a11y.clearSearch" = "Διαγραφή αναζήτησης";
+/* Accessibility label for an article row. {title} = the article's title. */
+"support.help.a11y.article" = "Άρθρο: {title}";
+/* Under the customer's last message when the app can't send notifications but replies are emailed. {time} = clock time, same wording as 'support.thread.sentNotice'. */
+"support.status.sentNoticeEmail" = "Στάλθηκε στις {time} · θα σου στείλουμε email όταν απαντήσει η ομάδα";
+/* Like 'support.status.sentNoticeEmail' when the time is unknown. */
+"support.status.sentNoticeEmailNoTime" = "Στάλθηκε · θα σου στείλουμε email όταν απαντήσει η ομάδα";
+/* Under the customer's last message when neither notifications nor email can reach them, so the reply only shows in the chat. {time} = clock time. */
+"support.status.sentNoticeInApp" = "Στάλθηκε στις {time} · η απάντηση της ομάδας θα εμφανιστεί εδώ";
+/* Like 'support.status.sentNoticeInApp' when the time is unknown. */
+"support.status.sentNoticeInAppNoTime" = "Στάλθηκε · η απάντηση της ομάδας θα εμφανιστεί εδώ";

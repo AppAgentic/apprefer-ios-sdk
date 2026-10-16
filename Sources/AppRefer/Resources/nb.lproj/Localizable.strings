@@ -158,3 +158,47 @@
 "support.error.rateLimited" = "For mange meldinger. Vent litt og prøv igjen.";
 /* Android notification channel name for support reply notifications (shown in system settings). */
 "support.notification.channel" = "Svar fra kundestøtte";
+/* Section label (shown in capitals) above the help articles on the help home, and the title of the help centre screen. */
+"support.help.title" = "Hjelpeartikler";
+/* Placeholder in the help centre's search field. */
+"support.help.search.placeholder" = "Søk i hjelpeartikler";
+/* Shown when a help centre search finds nothing. {query} = what the customer typed. Use your language's quotation marks. */
+"support.help.search.noResults" = "Ingen artikler samsvarer med «{query}»";
+/* Line under the empty search result. */
+"support.help.search.noResultsHint" = "Prøv andre ord, eller send oss en melding, så hjelper vi deg.";
+/* Shown while a help centre search runs. */
+"support.help.searching" = "Søker…";
+/* Button next to the help articles section on the help home; opens every article. Very short. */
+"support.help.seeAll" = "Se alle";
+/* Shown while one help article loads. */
+"support.help.loading" = "Laster inn artikkel…";
+/* Shown when one help article can't be loaded (offline or removed). */
+"support.help.loadFailed" = "Kunne ikke laste inn artikkelen.";
+/* Shown on the help centre screen when the article list can't be loaded and nothing is cached. */
+"support.help.listFailed" = "Kunne ikke laste inn hjelpeartiklene.";
+/* Under an article's title. {date} = when it was last changed, as a date such as '16 Oct 2026' in the customer's language. */
+"support.help.updated" = "Oppdatert {date}";
+/* Small badge on an unpublished article (only visible in test builds). */
+"support.help.draft" = "Utkast";
+/* Heading for articles without a category, shown after the categorised ones in the help centre. */
+"support.help.otherCategory" = "Flere artikler";
+/* Title of the card at the end of an article and of the help centre, above the 'Message us' button. */
+"support.help.stillNeedHelp" = "Trenger du fortsatt hjelp?";
+/* Button that starts a conversation with the team (from an article or the help centre). Short. */
+"support.help.messageUs" = "Send oss en melding";
+/* Hint in the message field after the customer tapped 'Message us' on an article. */
+"support.help.prompt" = "Hva trenger du fortsatt hjelp med?";
+/* Button (and accessibility label) that opens the article's web page. */
+"support.help.openInBrowser" = "Åpne i nettleseren";
+/* Accessibility label for the button that empties the search field. */
+"support.help.a11y.clearSearch" = "Tøm søket";
+/* Accessibility label for an article row. {title} = the article's title. */
+"support.help.a11y.article" = "Artikkel: {title}";
+/* Under the customer's last message when the app can't send notifications but replies are emailed. {time} = clock time, same wording as 'support.thread.sentNotice'. */
+"support.status.sentNoticeEmail" = "Sendt kl. {time} · vi sender deg en e-post når teamet svarer";
+/* Like 'support.status.sentNoticeEmail' when the time is unknown. */
+"support.status.sentNoticeEmailNoTime" = "Sendt · vi sender deg en e-post når teamet svarer";
+/* Under the customer's last message when neither notifications nor email can reach them, so the reply only shows in the chat. {time} = clock time. */
+"support.status.sentNoticeInApp" = "Sendt kl. {time} · svaret fra teamet vises her";
+/* Like 'support.status.sentNoticeInApp' when the time is unknown. */
+"support.status.sentNoticeInAppNoTime" = "Sendt · svaret fra teamet vises her";

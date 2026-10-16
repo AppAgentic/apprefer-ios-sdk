@@ -162,6 +162,15 @@ enum SupportText {
         return f.string(from: date)
     }
 
+    /// A date without the time ("16 Oct 2026") in the chat's language.
+    static func day(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = SupportStrings.locale
+        f.dateStyle = .medium
+        f.timeStyle = .none
+        return f.string(from: date)
+    }
+
     static func initial(_ name: String?) -> String {
         guard let c = name?.trimmingCharacters(in: .whitespaces).first else { return "•" }
         return String(c).uppercased()

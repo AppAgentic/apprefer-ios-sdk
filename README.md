@@ -1,6 +1,14 @@
 # AppRefer iOS SDK
 
-## 0.10.0 (unreleased): the help chat speaks 35 languages
+## 0.10.0 (unreleased): help centre in the chat; the help chat speaks 35 languages
+
+**Help centre.** When your app has published help articles in AppRefer, the help home
+shows a "Help articles" card (search plus the top articles), with a help centre screen
+(every article by category, search) and an article reader. "Still need help? Message
+us" starts a conversation about the article. Nothing changes for apps without
+articles. Read them in code too: `AppRefer.support.articles(query:)`,
+`article(slug:)`, and `AppRefer.support.status()` to decide whether to register for
+reply notifications. See [Help centre and status](#help-centre-and-status-0100).
 
 **AppRefer Support is localized.** Every label, placeholder, error and accessibility
 label in the help chat ships in 35 languages and follows the language your app is
@@ -455,7 +463,11 @@ AppRefer.support.topics = [.billing, .bug, .idea,       // quick-help tiles; [] 
 AppRefer.support.appIcon = UIImage(named: "HelpIcon")   // defaults to the app icon
 AppRefer.support.compose("Problem with my subscription") // opens with the message field filled in
 
-// Reply notifications (free push; AppRefer emails only if a reply stays unread for an hour)
+// Reply notifications (free push; AppRefer emails only if a reply stays unread for an hour).
+// Ask for push only once AppRefer has verified your APNs key (see status() below).
+if (try? await AppRefer.support.status())?.pushReady == true {
+    UIApplication.shared.registerForRemoteNotifications()
+}
 func application(_ app: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken token: Data) {
     AppRefer.support.registerDeviceToken(token)
 }
@@ -487,6 +499,32 @@ if Bundle.main.preferredLocalizations.first == "de" { AppRefer.support.strings =
 `title`, `replyTime` and topic texts you set are shown as written. The defaults are translated, and `replyTime` is inserted into a translated sentence: in most languages that sentence already carries its own "in", so give the whole phrase (German `"innerhalb weniger Stunden"`, French `"en quelques heures"`). The built-in tiles (`.billing`, `.restore`, `.bug`, `.idea`) translate themselves; their title becomes the conversation subject in the customer's language.
 
 Every key, its English text, a note for translators and all translations are in [`Localization/support-strings.json`](Localization/support-strings.json), the table all four AppRefer SDKs share. Messages your team writes and the AI assistant's answers and hand-over line come from AppRefer, not from this table.
+
+### Help centre and status (0.10.0)
+
+Publish help articles in AppRefer (dashboard, API or MCP) and they appear in the chat with no code: a "Help articles" card on the help home (search and the first three; "See all" with more), a help centre screen (articles by category, search that filters as you type and then asks the server, which also searches article bodies) and a reader. The reader renders markdown (headings, lists, bold and italic, code, quotes, links and https images); HTML is never run and only http(s) and mailto links are kept, opened outside the app. "Still need help? Message us" goes back to the message field with the article's title as the conversation subject. Apps without published articles see no help section at all. Articles come in the chat's language (the best translation the server has); lists are kept in memory for five minutes, and offline the chat shows what it had, never an error screen. Test keys (`pk_test_`) also show drafts, marked "Draft".
+
+```swift
+// Open straight on the help centre or one article (any translation's slug works)
+AppRefer.support.openHelpCentre()
+AppRefer.support.open(article: "restore-purchases")
+AppReferSupportView(opening: .article("restore-purchases"))   // or .helpCentre / .conversation(id) / .home
+
+// Your own help screens
+let articles = try await AppRefer.support.articles()                 // [AppReferHelpArticle]: slug, title, summary, category, url, updatedAt, isDraft
+let results = try await AppRefer.support.articles(query: "refund")   // server search (titles, summaries, bodies), up to 20
+do {
+    let article = try await AppRefer.support.article(slug: "refunds") // AppReferHelpArticleDetail: + body (markdown)
+} catch let error as AppReferSupportError where error.isNotFound { /* removed or unpublished */ }
+
+// Is Support ready?
+let status = try await AppRefer.support.status()
+status.pushReady            // APNs key configured and accepted by Apple (and not rejected for this build's environment)
+status.emailReplies         // customers can answer reply emails
+status.helpCentreArticles   // published articles
+```
+
+`status()` follows the server's caching (5 minutes once every configured channel is verified, else 30 seconds), so calling it on every launch is cheap. Register for reply notifications only when `pushReady` is true. The line under a customer's last message follows the same status: "we'll notify you" when push is ready and the app registered, "we'll email you" when replies are emailed and the customer gave an email in `identify`, otherwise "the team's reply will appear here".
 
 ## Offerings (0.8.0)
 

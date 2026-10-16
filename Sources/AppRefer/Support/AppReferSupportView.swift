@@ -2,17 +2,28 @@
 import SwiftUI
 import PhotosUI
 
-/// The whole help chat: home and conversations. Use `AppRefer.support.open()`
+/// The whole help chat: home, help centre and conversations. Use `AppRefer.support.open()`
 /// to present it, or embed this view yourself.
 public struct AppReferSupportView: View {
+    /// The screen the chat opens on. Back always leads to the help home.
+    public enum Destination: Hashable, Sendable {
+        case home
+        /// Every help article, with search.
+        case helpCentre
+        /// One help article by slug (any translation's slug works).
+        case article(String)
+        case conversation(String)
+    }
+
     @ObservedObject private var account = SupportAccountState.shared
-    private let conversationId: String?
+    private let destination: Destination
     private let draft: String?
     private let initialGeneration: Int
-    public init(conversationId: String? = nil) { self.conversationId = conversationId; self.draft = nil; initialGeneration = SupportAccountState.shared.generation }
-    public init(composing draft: String) { self.conversationId = nil; self.draft = draft; initialGeneration = SupportAccountState.shared.generation }
+    public init(conversationId: String? = nil) { self.init(opening: conversationId.map(Destination.conversation) ?? .home) }
+    public init(opening destination: Destination) { self.destination = destination; self.draft = nil; initialGeneration = SupportAccountState.shared.generation }
+    public init(composing draft: String) { self.destination = .home; self.draft = draft; initialGeneration = SupportAccountState.shared.generation }
     public var body: some View {
-        SupportAccountView(conversationId: account.generation == initialGeneration ? conversationId : nil,
+        SupportAccountView(destination: account.generation == initialGeneration ? destination : .home,
                            draft: account.generation == initialGeneration ? draft : nil)
             .id(account.generation)
             .environment(\.layoutDirection, SupportStrings.isRightToLeft ? .rightToLeft : .leftToRight)
@@ -24,11 +35,11 @@ struct SupportAccountView: View {
     @StateObject private var home = SupportHomeModel()
     @State private var path: [SupportRoute] = []
     @Environment(\.dismiss) private var dismiss
-    private let initialConversation: String?
+    private let destination: AppReferSupportView.Destination
     private let initialDraft: String?
 
-    init(conversationId: String?, draft: String?) {
-        self.initialConversation = conversationId
+    init(destination: AppReferSupportView.Destination, draft: String?) {
+        self.destination = destination
         self.initialDraft = draft
     }
 
@@ -42,6 +53,10 @@ struct SupportAccountView: View {
                     switch route {
                     case let .thread(id, subject):
                         SupportThreadScreen(id: id, subject: subject, palette: palette, back: pop)
+                    case let .help(search):
+                        SupportHelpScreen(palette: palette, focusSearch: search, back: pop, open: push, messageUs: messageUs)
+                    case let .article(slug, title):
+                        SupportArticleScreen(slug: slug, title: title, palette: palette, back: pop, messageUs: messageUs)
                     }
                 }
                 .background(SupportColors.background.ignoresSafeArea())
@@ -51,8 +66,20 @@ struct SupportAccountView: View {
         }
         .tint(palette.accent)
         .task {
-            if let initialConversation, path.isEmpty { path = [.thread(id: initialConversation, subject: "")] }
+            guard path.isEmpty else { return }
+            switch destination {
+            case .home: break
+            case .helpCentre: path = [.help(search: false)]
+            case let .article(slug): path = [.article(slug: slug, title: "")]
+            case let .conversation(id): path = [.thread(id: id, subject: "")]
+            }
         }
+    }
+
+    /// Back to the home's message bar; from an article its title becomes the subject.
+    private func messageUs(_ subject: String?) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) { path.removeAll() }
+        home.compose = SupportComposeRequest(subject: subject)
     }
 
     private func push(_ route: SupportRoute) {
@@ -104,6 +131,9 @@ struct SupportHomeScreen: View {
                     hero
                     VStack(alignment: .leading, spacing: 24) {
                         if let current = model.current { continueCard(current) }
+                        if !model.articles.isEmpty {
+                            SupportHelpSection(articles: model.articles, palette: palette, prominent: model.current == nil, open: push)
+                        }
                         if !support.topics.isEmpty { quickHelp }
                         if !model.others.isEmpty { pastConversations }
                         if !model.loaded && model.conversations.isEmpty {
@@ -133,6 +163,18 @@ struct SupportHomeScreen: View {
         }
         .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0.prefix(max(0, 4 - images.count))) } }
         .onAppear { if startsFocused { focused = true } }
+        .onChange(of: model.compose) { request in
+            guard let request else { return }
+            model.compose = nil
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                topic = request.subject.map {
+                    AppReferSupportTopic(title: $0, subtitle: "", systemImage: "doc.text.fill", tint: palette.accent,
+                                         prompt: SupportStrings.text("support.help.prompt"))
+                }
+            }
+            // After the help screens slide away.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { focused = true }
+        }
         .task { await model.refresh() }
         .task {
             // Keep the list fresh while the help screen is open; nothing runs once it closes.
@@ -295,7 +337,7 @@ struct SupportHomeScreen: View {
 
     private var quickHelp: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if model.current != nil { SupportSectionLabel(text: SupportStrings.text("support.home.quickHelp")).padding(.leading, 6) }
+            if model.current != nil || !model.articles.isEmpty { SupportSectionLabel(text: SupportStrings.text("support.home.quickHelp")).padding(.leading, 6) }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                 ForEach(support.topics) { t in
                     Button { pick(t) } label: { tile(t) }.buttonStyle(SupportPressStyle())
@@ -563,6 +605,7 @@ struct SupportThreadScreen: View {
     @State private var images: [UIImage] = []
     @State private var picking = false
     @State private var viewing: SupportViewedImage?
+    @State private var notice: SupportReplyNotice = .push
     @FocusState private var focused: Bool
 
     init(id: String, subject: String, palette: SupportPalette, back: @escaping () -> Void) {
@@ -596,7 +639,7 @@ struct SupportThreadScreen: View {
                             SupportPendingBubble(pending: p, palette: palette) { SupportAccountState.shared.run { await model.retry(p, generation: $0) } }.padding(.top, 6)
                         }
                         if model.loaded, model.pending.isEmpty, let last = model.messages.last, last.isFromCustomer {
-                            Text(last.date == nil ? SupportStrings.text("support.thread.sentNoticeNoTime") : SupportStrings.text("support.thread.sentNotice", ["time": SupportText.clock(last.date)]))
+                            Text(notice.text(last.date))
                                 .font(.system(size: 11.5, weight: .medium)).foregroundStyle(SupportColors.muted)
                                 .frame(maxWidth: .infinity, alignment: .trailing).padding(.top, 5).padding(.trailing, 4)
                         }
@@ -624,6 +667,8 @@ struct SupportThreadScreen: View {
         .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0.prefix(max(0, 4 - images.count))) } }
         .supportImageViewer($viewing)
         .task { await model.load() }
+        // How the reply will reach them: notification, email or only here.
+        .task { notice = await SupportReplyNotice.current() }
         .task {
             // Replies arrive by polling only while this screen is open and the app is
             // active (and by push otherwise). The app's state, not scenePhase: this view

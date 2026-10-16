@@ -320,13 +320,59 @@ actor SupportAPI {
     init(baseURL: String = AppReferConfig.backendURL, session: URLSession = URLSession(configuration: .default),
          deviceId: @escaping @Sendable () -> String? = { AppRefer.supportDeviceId() },
          userStorage: AppReferStorage = AppReferStorage(),
-         tokenKeychain: DeviceIdKeychain = LiveDeviceIdKeychain()) {
+         tokenKeychain: DeviceIdKeychain = LiveDeviceIdKeychain(),
+         now: @escaping @Sendable () -> Date = { Date() }) {
         self.baseURL = baseURL
         self.session = session
         self.deviceId = deviceId
         self.userStorage = userStorage
         self.tokenKeychain = tokenKeychain
+        self.now = now
     }
+
+    // MARK: - Help centre and status (SDK key only, no support session; SupportHelp.swift)
+
+    /// The clock for the help and status caches (injectable in tests).
+    let now: @Sendable () -> Date
+    /// Article lists by key + locale + query.
+    var helpLists: [String: SupportCached<[AppReferHelpArticle]>] = [:]
+    /// Articles by key + locale + slug.
+    var helpArticles: [String: SupportCached<AppReferHelpArticleDetail>] = [:]
+    /// The last status per SDK key, kept for as long as the server's Cache-Control allows.
+    var statusCache: [String: SupportCached<AppReferSupportStatus>] = [:]
+
+    /// The SDK key in use (Support-only configure first), or nil before configure.
+    var currentApiKey: String? { supportApiKey ?? AppRefer.currentApiKey() }
+
+    /// A GET with the SDK key alone. `query` values are percent-encoded here ("+" included).
+    func publicGet(_ path: String, query: [(String, String)] = [], language: String? = nil) async throws -> (Data, HTTPURLResponse) {
+        guard let apiKey = currentApiKey else {
+            throw AppReferSupportError(status: 0, message: "AppRefer isn't configured", reason: .unavailable)
+        }
+        let encoded = query.compactMap { name, value in
+            value.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed).map { "\(name)=\($0)" }
+        }
+        guard let url = URL(string: baseURL + path + (encoded.isEmpty ? "" : "?" + encoded.joined(separator: "&"))) else {
+            throw AppReferSupportError(status: 0, message: "Bad address", reason: .unavailable)
+        }
+        var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
+        req.setValue(apiKey, forHTTPHeaderField: "X-AppRefer-Key")
+        if let language { req.setValue(language, forHTTPHeaderField: "Accept-Language") }
+        let (data, response) = try await session.data(for: req)
+        let http = response as? HTTPURLResponse
+        let status = http?.statusCode ?? 0
+        guard let http, (200..<300).contains(status) else {
+            let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
+            throw AppReferSupportError(status: status, message: message ?? "Something went wrong (\(status))")
+        }
+        return (data, http)
+    }
+
+    /// The customer's email from identify(), for the "we'll email you" line.
+    var customerEmail: String? { email }
+
+    /// Whether this install has registered for reply notifications.
+    nonisolated var hasPushToken: Bool { UserDefaults.standard.string(forKey: Self.pushKey) != nil }
 
     func setIdentity(name: String?, email: String?, generation expected: Int? = nil) {
         guard expected == nil || expected == generation else { return }

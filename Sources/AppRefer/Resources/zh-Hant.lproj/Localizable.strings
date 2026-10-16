@@ -156,3 +156,47 @@
 "support.error.rateLimited" = "訊息傳送太頻繁，請稍候再試。";
 /* Android notification channel name for support reply notifications (shown in system settings). */
 "support.notification.channel" = "客服回覆";
+/* Section label (shown in capitals) above the help articles on the help home, and the title of the help centre screen. */
+"support.help.title" = "說明文章";
+/* Placeholder in the help centre's search field. */
+"support.help.search.placeholder" = "搜尋說明文章";
+/* Shown when a help centre search finds nothing. {query} = what the customer typed. Use your language's quotation marks. */
+"support.help.search.noResults" = "沒有與「{query}」相符的文章";
+/* Line under the empty search result. */
+"support.help.search.noResultsHint" = "換個字詞試試，或傳訊息給我們，我們來幫你。";
+/* Shown while a help centre search runs. */
+"support.help.searching" = "正在搜尋…";
+/* Button next to the help articles section on the help home; opens every article. Very short. */
+"support.help.seeAll" = "查看全部";
+/* Shown while one help article loads. */
+"support.help.loading" = "正在載入文章…";
+/* Shown when one help article can't be loaded (offline or removed). */
+"support.help.loadFailed" = "無法載入這篇文章。";
+/* Shown on the help centre screen when the article list can't be loaded and nothing is cached. */
+"support.help.listFailed" = "無法載入說明文章。";
+/* Under an article's title. {date} = when it was last changed, as a date such as '16 Oct 2026' in the customer's language. */
+"support.help.updated" = "更新於 {date}";
+/* Small badge on an unpublished article (only visible in test builds). */
+"support.help.draft" = "草稿";
+/* Heading for articles without a category, shown after the categorised ones in the help centre. */
+"support.help.otherCategory" = "更多文章";
+/* Title of the card at the end of an article and of the help centre, above the 'Message us' button. */
+"support.help.stillNeedHelp" = "還需要協助嗎？";
+/* Button that starts a conversation with the team (from an article or the help centre). Short. */
+"support.help.messageUs" = "傳訊息給我們";
+/* Hint in the message field after the customer tapped 'Message us' on an article. */
+"support.help.prompt" = "還有什麼需要協助的？";
+/* Button (and accessibility label) that opens the article's web page. */
+"support.help.openInBrowser" = "在瀏覽器中開啟";
+/* Accessibility label for the button that empties the search field. */
+"support.help.a11y.clearSearch" = "清除搜尋";
+/* Accessibility label for an article row. {title} = the article's title. */
+"support.help.a11y.article" = "文章：{title}";
+/* Under the customer's last message when the app can't send notifications but replies are emailed. {time} = clock time, same wording as 'support.thread.sentNotice'. */
+"support.status.sentNoticeEmail" = "{time} 已傳送 · 團隊回覆時會寄電子郵件通知你";
+/* Like 'support.status.sentNoticeEmail' when the time is unknown. */
+"support.status.sentNoticeEmailNoTime" = "已傳送 · 團隊回覆時會寄電子郵件通知你";
+/* Under the customer's last message when neither notifications nor email can reach them, so the reply only shows in the chat. {time} = clock time. */
+"support.status.sentNoticeInApp" = "{time} 已傳送 · 團隊的回覆會顯示在這裡";
+/* Like 'support.status.sentNoticeInApp' when the time is unknown. */
+"support.status.sentNoticeInAppNoTime" = "已傳送 · 團隊的回覆會顯示在這裡";

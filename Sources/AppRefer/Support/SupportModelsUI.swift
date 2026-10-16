@@ -27,6 +27,16 @@ final class SupportAccountState: ObservableObject {
 /// Screens on top of the help home.
 enum SupportRoute: Hashable {
     case thread(id: String, subject: String)
+    /// Every help article, with search (`search` focuses the field on arrival).
+    case help(search: Bool)
+    case article(slug: String, title: String)
+}
+
+/// "Message us" from the help centre: back to the home's message bar, optionally on an
+/// article (its title becomes the subject).
+struct SupportComposeRequest: Equatable {
+    let id = UUID()
+    let subject: String?
 }
 
 /// The app's AI assistant as last seen from AppRefer, shared by the help screens.
@@ -49,8 +59,13 @@ final class SupportHomeModel: ObservableObject {
     @Published var loaded = false
     @Published var error: String?
     @Published var name: String?
+    /// Published help articles in the chat's language; empty hides the help section.
+    @Published var articles: [AppReferHelpArticle] = []
+    /// Set by "Message us" in the help centre.
+    @Published var compose: SupportComposeRequest?
 
     func refresh() async {
+        async let help: Void = refreshArticles()
         name = await SupportAPI.shared.displayName
         do {
             conversations = try await SupportAPI.shared.conversations()
@@ -60,7 +75,16 @@ final class SupportHomeModel: ObservableObject {
         } catch {
             self.error = SupportStrings.errorText(error)
         }
+        await help
         loaded = true
+    }
+
+    /// The article list (memory cache first, five minutes). Offline keeps what was shown,
+    /// or the last list; never an error.
+    func refreshArticles() async {
+        let language = SupportStrings.language
+        if articles.isEmpty, let cached = await SupportAPI.shared.cachedHelpArticleList(language: language) { articles = cached }
+        if let fresh = try? await SupportAPI.shared.helpArticleList(query: nil, language: language) { articles = fresh }
     }
 
     /// The open conversation to pick up again: unread first, then the newest.
@@ -154,6 +178,137 @@ final class SupportThreadModel: ObservableObject {
     }
 
     private func images(_ p: PendingMessage) -> [UIImage] { p.images }
+}
+
+/// The help centre screen: every article grouped by category, and search.
+@MainActor
+final class SupportHelpModel: ObservableObject {
+    @Published var all: [AppReferHelpArticle] = []
+    @Published var loaded = false
+    @Published var failed = false
+    @Published var query = ""
+    /// nil while the field is empty.
+    @Published var results: [AppReferHelpArticle]?
+    @Published var searching = false
+    private var searchTask: Task<Void, Never>?
+    /// The server search waits this long after the last keystroke.
+    var debounceNanoseconds: UInt64 = 300_000_000
+
+    func load() async {
+        let language = SupportStrings.language
+        if all.isEmpty, let cached = await SupportAPI.shared.cachedHelpArticleList(language: language) { all = cached }
+        do {
+            all = try await SupportAPI.shared.helpArticleList(query: nil, language: language)
+            failed = false
+        } catch {
+            failed = all.isEmpty
+        }
+        loaded = true
+    }
+
+    /// Filters what's on screen at once, then asks the server (which also searches bodies).
+    func search(_ text: String) {
+        searchTask?.cancel()
+        guard let q = SupportAPI.normalizedQuery(text) else {
+            results = nil
+            searching = false
+            return
+        }
+        results = Self.localMatches(all, q)
+        searching = true
+        let language = SupportStrings.language
+        let delay = debounceNanoseconds
+        searchTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else { return }
+            let found = try? await SupportAPI.shared.helpArticleList(query: q, language: language)
+            guard !Task.isCancelled, let self else { return }
+            if let found { self.results = found }
+            self.searching = false
+        }
+    }
+
+    /// Articles whose title, summary or category contain every word of `query`.
+    static func localMatches(_ articles: [AppReferHelpArticle], _ query: String) -> [AppReferHelpArticle] {
+        let words = query.split(whereSeparator: \.isWhitespace).map(String.init)
+        return articles.filter { a in
+            let haystack = [a.title, a.summary, a.category ?? ""].joined(separator: " ")
+            return words.allSatisfy { haystack.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+        }
+    }
+
+    /// Articles by category in the server's order; uncategorised ones last ("More articles"),
+    /// or with no heading at all when nothing has a category.
+    static func groups(_ articles: [AppReferHelpArticle]) -> [(title: String?, articles: [AppReferHelpArticle])] {
+        var order: [String] = []
+        var byCategory: [String: [AppReferHelpArticle]] = [:]
+        var loose: [AppReferHelpArticle] = []
+        for article in articles {
+            guard let category = article.category?.trimmingCharacters(in: .whitespaces), !category.isEmpty else { loose.append(article); continue }
+            if byCategory[category] == nil { order.append(category) }
+            byCategory[category, default: []].append(article)
+        }
+        var result: [(title: String?, articles: [AppReferHelpArticle])] = order.map { ($0, byCategory[$0]!) }
+        if !loose.isEmpty { result.append((order.isEmpty ? nil : SupportStrings.text("support.help.otherCategory"), loose)) }
+        return result
+    }
+}
+
+/// One article in the reader.
+@MainActor
+final class SupportArticleModel: ObservableObject {
+    let slug: String
+    @Published var detail: AppReferHelpArticleDetail?
+    @Published var blocks: [SupportMarkdownBlock] = []
+    @Published var failed = false
+
+    init(slug: String) { self.slug = slug }
+
+    func load() async {
+        failed = false
+        do {
+            let article = try await SupportAPI.shared.helpArticle(slug: slug, language: SupportStrings.language)
+            blocks = SupportMarkdown.blocks(article.body)
+            detail = article
+        } catch is CancellationError {
+        } catch {
+            failed = detail == nil
+        }
+    }
+}
+
+/// What the line under the customer's last message promises about the reply.
+enum SupportReplyNotice: Equatable {
+    /// "we'll notify you" (also when the status is unknown, as before 0.10.0).
+    case push
+    case email
+    /// Neither push nor email can reach them: the reply shows in the chat.
+    case inApp
+
+    static func choose(status: AppReferSupportStatus?, hasPushToken: Bool, hasEmail: Bool) -> SupportReplyNotice {
+        guard let status else { return .push }
+        if status.pushReady && hasPushToken { return .push }
+        if status.email.configured && hasEmail { return .email }
+        return .inApp
+    }
+
+    static func current() async -> SupportReplyNotice {
+        let status = try? await SupportAPI.shared.supportStatus()
+        let email = await SupportAPI.shared.customerEmail
+        return choose(status: status, hasPushToken: SupportAPI.shared.hasPushToken, hasEmail: email != nil)
+    }
+
+    func text(_ date: Date?) -> String {
+        let time = date.map { SupportText.clock($0) }
+        switch self {
+        case .push:
+            return time.map { SupportStrings.text("support.thread.sentNotice", ["time": $0]) } ?? SupportStrings.text("support.thread.sentNoticeNoTime")
+        case .email:
+            return time.map { SupportStrings.text("support.status.sentNoticeEmail", ["time": $0]) } ?? SupportStrings.text("support.status.sentNoticeEmailNoTime")
+        case .inApp:
+            return time.map { SupportStrings.text("support.status.sentNoticeInApp", ["time": $0]) } ?? SupportStrings.text("support.status.sentNoticeInAppNoTime")
+        }
+    }
 }
 
 enum SupportImages {
