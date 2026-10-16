@@ -96,7 +96,8 @@ actor BillingEngine {
     private var heldUpdates: [String: StoreKitUpdate] = [:]
     private var identifyFlush: Task<Void, Never>?
     /// The install device id for a request made for `owner`: only when the gate is open,
-    /// `owner` is the current Billing user and that user was set after the last reset.
+    /// `owner` is the current Billing user and that user was set after the last reset
+    /// (in this process, or, through the persisted reset marker, in an earlier one).
     /// A purchase or queued entry of a previous account never gets it.
     private func linkableDeviceId(for owner: String?) -> String? {
         let epoch = accountEpoch()
@@ -104,8 +105,15 @@ actor BillingEngine {
             unlinkedUsers.removeAll()
             unlinkedEpoch = epoch
         }
-        guard let owner, identityEpoch == epoch, owner == activeUser() else { return nil }
+        guard let owner, identityEpoch == epoch, let current = activeUser(), owner == current,
+              !storage.resetMarkerHolds(for: current) else { return nil }
         return appreferId()
+    }
+
+    /// Called by `AppRefer.reset()`: persists the current Billing user as the previous
+    /// account, so the gate stays closed for it after a relaunch.
+    func recordAccountReset() {
+        storage.recordAccountReset()
     }
 
     /// Attribution and device signals among the customer attributes.
@@ -181,6 +189,8 @@ actor BillingEngine {
             }
         }
         storage.loggedInAppUserId = BillingStorage.isAnonymous(appUserId) ? nil : appUserId
+        // A different Billing user ends the reset marker.
+        _ = storage.resetMarkerHolds(for: storage.storedCurrentAppUserId)
         return true
     }
 
@@ -871,6 +881,8 @@ actor BillingEngine {
         guard Self.isValid(appUserId), !BillingStorage.isAnonymous(appUserId) else {
             throw AppReferBillingError.invalidAppUserId
         }
+        // The app is saying who the user is now, even when it is the same id.
+        storage.resetUser = nil
         pendingIdentityChanges.append(.logIn(appUserId))
         identityEpoch = accountEpoch()
         invalidateOfferings()
@@ -880,6 +892,7 @@ actor BillingEngine {
     }
 
     func logOut() async -> AppReferCustomerInfo {
+        storage.resetUser = nil
         pendingIdentityChanges.append(.logOut)
         identityEpoch = accountEpoch()
         invalidateOfferings()
@@ -908,9 +921,11 @@ actor BillingEngine {
     private func sendPendingIdentifies() async {
         for pending in storage.pendingIdentifies {
             do {
-                // link: false while the gate is closed, so the server never copies the
+                // link: false while the gate is closed (or the current Billing user is the
+                // one from before the last reset), so the server never copies the
                 // anonymous customer's install link to the signed-in one.
-                _ = try await api.send(.identify(anonymousId: pending.anonymousId, appUserId: pending.appUserId, link: linkAllowed()))
+                let link = linkAllowed() && !storage.resetMarkerHolds(for: activeUser())
+                _ = try await api.send(.identify(anonymousId: pending.anonymousId, appUserId: pending.appUserId, link: link))
                 storage.removePendingIdentify(pending)
             } catch let error as AppReferBillingError where error.isRetryable {
                 logger.warn("Billing: identify will be retried (\(error.localizedDescription))")

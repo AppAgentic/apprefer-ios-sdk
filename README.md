@@ -1,5 +1,22 @@
 # AppRefer iOS SDK
 
+## 0.9.3: reset gate survives relaunch; Support revocation and push fixes
+
+**Billing remembers the reset across launches.** `AppRefer.reset()` saves the Billing
+user that was current at that moment. If the app relaunches and Billing still serves
+that user (no `AppReferBilling.logIn`/`logOut` yet), its requests still carry no
+install device id or device attributes, it is never re-linked, and `/identify` sends
+`link: false`. Any explicit `logIn` (even with the same id) or `logOut`, or a
+different Billing user, ends this. Calling `logIn`/`logOut` after `reset()` is still
+the recommended flow.
+
+**Support.** A revocation queued while another revocation pass is running (for
+example by `clearIdentity()`) is processed straight after it, in the same app
+session. Registering a push token that a session waiting for revocation still holds
+is deferred: the token moves to the current session only once the old session is
+revoked. The "cleared" markers now live in the Keychain with the Support session
+token, so they survive a reinstall together.
+
 ## 0.9.2: Billing follows the collection choice; Support clearIdentity
 
 **Billing sends no device id while it must not.** AppReferBilling uses the same rule

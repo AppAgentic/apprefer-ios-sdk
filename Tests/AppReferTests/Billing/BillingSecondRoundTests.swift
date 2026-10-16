@@ -450,4 +450,6 @@ final class ScriptedDeviceIdKeychain: DeviceIdKeychain, @unchecked Sendable {
         addCalls += 1
         return addStatus
     }
+    func save(key: String, value: String) -> Bool { false }
+    func delete(key: String) {}
 }

@@ -180,6 +180,14 @@ public enum AppReferBilling {
         #endif
     }
 
+    /// Called by `AppRefer.reset()`: the current Billing user (if Billing ever had one) is
+    /// remembered as the previous account, so it gets no install device id, device
+    /// attributes or re-link, even after a relaunch, until logIn/logOut or a different user.
+    static func recordAccountReset() async {
+        if let engine { await engine.recordAccountReset() }
+        else { BillingStorage.live(createDirectory: false).recordAccountReset() }
+    }
+
     private static func requireEngine() throws -> BillingEngine {
         guard let engine else { throw AppReferBillingError.notConfigured }
         return engine

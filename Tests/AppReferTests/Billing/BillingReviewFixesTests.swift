@@ -299,6 +299,29 @@ final class FakeDeviceIdKeychain: DeviceIdKeychain, @unchecked Sendable {
         values[key] = value
         return errSecSuccess
     }
+
+    /// Simulates a Keychain that can't save (e.g. no entitlement).
+    var failSaves = false
+
+    func save(key: String, value: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if locked || failSaves { return false }
+        values[key] = value
+        return true
+    }
+
+    func delete(key: String) {
+        lock.lock()
+        values[key] = nil
+        lock.unlock()
+    }
+
+    func value(_ key: String) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return values[key]
+    }
 }
 
 final class DeviceIdTests: XCTestCase {

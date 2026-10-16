@@ -86,26 +86,28 @@ final class BillingStorage {
         static let learnedEntitlements = "apprefer_billing_learned_entitlements"
         static let pendingIdentify = "apprefer_billing_pending_identify"
         static let pendingIdentifies = "apprefer_billing_pending_identifies"
+        static let resetUser = "apprefer_billing_reset_user"
     }
 
     let directory: URL
     private let secure: BillingSecureStore
     private let defaults: UserDefaults
 
-    init(secure: BillingSecureStore, defaults: UserDefaults, directory: URL) {
+    init(secure: BillingSecureStore, defaults: UserDefaults, directory: URL, createDirectory: Bool = true) {
         self.secure = secure
         self.defaults = defaults
         self.directory = directory
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        if createDirectory { try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true) }
     }
 
-    static func live() -> BillingStorage {
+    static func live(createDirectory: Bool = true) -> BillingStorage {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         return BillingStorage(
             secure: KeychainBillingSecureStore(),
             defaults: .standard,
-            directory: base.appendingPathComponent("AppRefer/Billing", isDirectory: true)
+            directory: base.appendingPathComponent("AppRefer/Billing", isDirectory: true),
+            createDirectory: createDirectory
         )
     }
 
@@ -195,6 +197,45 @@ final class BillingStorage {
     var loggedInAppUserId: String? {
         get { defaults.string(forKey: Key.appUserId) }
         set { defaults.set(newValue, forKey: Key.appUserId) }
+    }
+
+    /// The current Billing user as stored, without minting an anonymous id: nil when
+    /// Billing never had one (or it can't be read).
+    var storedCurrentAppUserId: String? {
+        if let loggedIn = loggedInAppUserId { return loggedIn }
+        if case .found(let anonymousId) = storedAnonymousId { return anonymousId }
+        return nil
+    }
+
+    // MARK: - Account reset marker (survives relaunch)
+
+    /// The Billing user that was current when `AppRefer.reset()` last ran. While it is still
+    /// the current user, that user belongs to the previous account: no install device id,
+    /// device attributes or re-link, and identify sends `link: false`. Cleared by an explicit
+    /// logIn/logOut and once the Billing user changes to a different id.
+    var resetUser: String? {
+        get { defaults.string(forKey: Key.resetUser) }
+        set {
+            if let newValue { defaults.set(newValue, forKey: Key.resetUser) }
+            else { defaults.removeObject(forKey: Key.resetUser) }
+        }
+    }
+
+    /// Called by reset(): remembers the current Billing user (anonymous or not). Nothing is
+    /// stored when Billing never had a user.
+    func recordAccountReset() {
+        guard let current = storedCurrentAppUserId else { return }
+        resetUser = current
+    }
+
+    /// True while the reset marker names the current Billing user `user` (or the user can't
+    /// be read). A marker for a different user is cleared: the Billing user has changed.
+    func resetMarkerHolds(for user: String?) -> Bool {
+        guard let marker = resetUser else { return false }
+        guard let user else { return true }
+        if marker == user { return true }
+        resetUser = nil
+        return false
     }
 
     /// Nil only while protected data is unavailable.

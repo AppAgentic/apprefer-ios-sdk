@@ -1,3 +1,10 @@
+## 0.9.3
+
+- Support: a revocation queued while a revocation pass is running (by clearIdentity() or by retiring a cleared session) is now processed in the same app session: the running pass runs again when it finishes, instead of waiting for the next launch or foreground.
+- Billing: reset() now saves the Billing user that was current at that moment (anonymous or signed in) as `apprefer_billing_reset_user`, so the account gate survives a relaunch. While that user is still the current Billing user, customers/purchases requests carry no install device id or device attributes, the customer is never re-linked, and `/identify` sends `link: false`. The marker is cleared by any explicit logIn (even with the same id) or logOut, and when the Billing user changes to a different id. Nothing is saved if Billing never had a user.
+- Support: registering a push token that a session waiting for revocation still holds (after reset() or clearIdentity(), including tokens saved by older versions) no longer posts it at once. The pending revocation is marked to move the token with the environment just registered, and the token is posted to the current session only after the old session is revoked.
+- The "session started while identity was cleared" marker and the identity-cleared flag are now kept in the Keychain next to the Support session token, so a reinstall that keeps the session also keeps them. Values saved in UserDefaults by 0.9.2 are moved on first read.
+
 ## 0.9.2
 
 - Billing sends no install device id (`appreferId`) or device attribute (`$idfa`, `$idfv`, `$fbAnonId`, `$attConsentStatus`, `$deviceVersion`, `$ip`, `$gpsAdId`) with customers/purchases requests while collection is off (including a pause waiting for configure), after reset() until configure/configureResult runs again, or in Billing-only apps. It reuses the Support device id gate; queued purchases are resent without it while the gate is closed, and Billing then uses apprefer.com rather than trk.apprefer.com. Purchases, restore, entitlements and offerings are unchanged. A customer registered without the device id is linked once after configure.

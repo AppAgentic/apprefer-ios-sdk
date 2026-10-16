@@ -1,15 +1,21 @@
 import Foundation
 import Security
 
-/// Keychain access for the device id, abstracted so the mint race is testable.
+/// Keychain access for the device id (and the Support identity-cleared flag), abstracted
+/// so the mint race is testable.
 protocol DeviceIdKeychain: Sendable {
     func load(key: String) -> KeychainReadResult
     func add(key: String, value: String) -> OSStatus
+    /// Writes or replaces the value; false when it couldn't be saved.
+    func save(key: String, value: String) -> Bool
+    func delete(key: String)
 }
 
 struct LiveDeviceIdKeychain: DeviceIdKeychain {
     func load(key: String) -> KeychainReadResult { KeychainHelper.load(key: key) }
     func add(key: String, value: String) -> OSStatus { KeychainHelper.add(key: key, value: value) }
+    func save(key: String, value: String) -> Bool { KeychainHelper.save(key: key, value: value) }
+    func delete(key: String) { KeychainHelper.delete(key: key) }
 }
 
 final class AppReferStorage: @unchecked Sendable {
@@ -70,14 +76,31 @@ final class AppReferStorage: @unchecked Sendable {
 
     func clearUser() {
         defaults.removeObject(forKey: Self.keyUserId)
-        defaults.removeObject(forKey: Self.keySupportIdentityCleared)
+        supportIdentityCleared = false
     }
     /// Set by `AppRefer.support.clearIdentity()`: Support sends no app user id until the
-    /// user id changes or reset() runs.
+    /// user id changes or reset() runs. Kept in the Keychain with the Support session token,
+    /// so a reinstall whose session survives still knows it was cleared. 0.9.2 kept it in
+    /// UserDefaults: that copy is moved on first read (and kept if the move fails).
     static let keySupportIdentityCleared = "apprefer_support_identity_cleared"
     var supportIdentityCleared: Bool {
-        get { defaults.bool(forKey: Self.keySupportIdentityCleared) }
-        set { newValue ? defaults.set(true, forKey: Self.keySupportIdentityCleared) : defaults.removeObject(forKey: Self.keySupportIdentityCleared) }
+        get {
+            if case .found = keychain.load(key: Self.keySupportIdentityCleared) { return true }
+            guard defaults.bool(forKey: Self.keySupportIdentityCleared) else { return false }
+            if keychain.save(key: Self.keySupportIdentityCleared, value: "1") {
+                defaults.removeObject(forKey: Self.keySupportIdentityCleared)
+            }
+            return true
+        }
+        set {
+            if newValue {
+                if keychain.save(key: Self.keySupportIdentityCleared, value: "1") { defaults.removeObject(forKey: Self.keySupportIdentityCleared) }
+                else { defaults.set(true, forKey: Self.keySupportIdentityCleared) }
+            } else {
+                keychain.delete(key: Self.keySupportIdentityCleared)
+                defaults.removeObject(forKey: Self.keySupportIdentityCleared)
+            }
+        }
     }
     var organicConfirmed: Bool {
         get { defaults.bool(forKey: "apprefer_organic_confirmed") }
@@ -216,7 +239,7 @@ final class AppReferStorage: @unchecked Sendable {
 
     func setUserId(_ userId: String) {
         // A different account ends a Support identity clear; the same id keeps it.
-        if defaults.string(forKey: Self.keyUserId) != userId { defaults.removeObject(forKey: Self.keySupportIdentityCleared) }
+        if defaults.string(forKey: Self.keyUserId) != userId { supportIdentityCleared = false }
         defaults.set(userId, forKey: Self.keyUserId)
     }
 
