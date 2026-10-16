@@ -1,5 +1,51 @@
 # AppRefer iOS SDK
 
+## 0.9.2: Billing follows the collection choice; Support clearIdentity
+
+**Billing sends no device id while it must not.** AppReferBilling uses the same rule
+Support has used since 0.9.1: the install device id (`appreferId`) and the device
+signals among the customer attributes (`$idfa`, `$idfv`, `$fbAnonId`,
+`$attConsentStatus`, `$deviceVersion`, `$ip`, `$gpsAdId`) are sent with
+customers/purchases requests only after `configure`/`configureResult` in this
+process, never while collection is off (including an "off" that was turned back on
+but not yet configured), and never after `reset()` until configure runs again for
+the next user. A withheld device attribute is dropped, not sent later. While the
+gate is closed Billing also uses `apprefer.com`, never `trk.apprefer.com`.
+Purchases, restore, entitlements and offerings work exactly as before without it.
+Purchases queued earlier keep their device id only if linking is allowed when they
+are resent. A customer registered without the device id is linked once on the next
+customer refresh after configure. Billing-only apps (no attribution configure)
+never send it.
+
+The device id is also tied to the account: after `reset()` it is sent only for the
+Billing user set after that reset, so call `AppReferBilling.logIn`/`logOut` for the
+next account. Until then, purchases and queued purchases of the previous Billing user
+are recorded without it and that user is never re-linked. `logIn` sends
+`link: false` to `/identify` while the gate is closed, so the server merges the
+anonymous purchases without copying the install link.
+
+**Remove the account from Support without a full reset**, e.g. when the user
+withdraws consent:
+
+```swift
+await AppRefer.support.clearIdentity() // @MainActor
+```
+
+This forgets the Support name, email and app user id, revokes the current Support
+session (through the same durable revocation used by reset) and starts a new
+anonymous session that carries no link to the old id: it sends neither the app user
+id nor the install device id. A registered reply notification token moves to the new
+session once the old session's revocation has succeeded (retried on launch and
+foreground if offline), so the two sessions never hold it at once. **Conversations
+from the old session are no longer visible in the app**; they stay in your team
+inbox. The app user id is not sent to Support again until it changes (another
+account is stored with `setUserId`/`configure(userId:)`) or `reset()` runs;
+configuring with the same user id on the next launch keeps Support anonymous. When
+a different user id is stored later without `reset()`, the anonymous session is
+never handed to that account: it is revoked and a fresh session is started. Attribution, Billing and the stored
+user id are not changed. Combine it with `setCollectionEnabled(false)` to stop
+attribution as well.
+
 ## 0.9.1: account switching, independent Support and reliable events
 
 Support can start independently of attribution. Its configuration does not configure
@@ -264,7 +310,7 @@ await AppReferBilling.setAttributes(["$email": "a@b.com", "$displayName": "Alex"
 await AppReferBilling.setEmail("a@b.com")     // also setDisplayName / setPhoneNumber
 ```
 
-The AppRefer attribution device id is sent automatically as `appreferId`, so purchases are matched to the ad click without `setUserId`.
+The AppRefer attribution device id is sent automatically as `appreferId`, so purchases are matched to the ad click without `setUserId` (only after `AppRefer.configure`, and not while collection is off or after `reset()` until configure runs again; see 0.9.2).
 
 ### Outage safety
 

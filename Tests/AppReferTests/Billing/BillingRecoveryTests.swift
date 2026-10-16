@@ -408,6 +408,8 @@ private enum BillingEngineFactory {
             options: .init(),
             appUserId: nil,
             appreferId: { "device-abc" },
+            accountEpoch: { 0 },
+            linkAllowed: { true },
             logger: AppReferLogger(debug: false, logLevel: 0),
             now: { BillingFixtures.now }
         )

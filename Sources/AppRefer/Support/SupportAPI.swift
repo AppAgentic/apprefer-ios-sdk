@@ -18,6 +18,10 @@ actor SupportAPI {
 
     private static let tokenKey = "apprefer_support_session"
     private static let profileKey = "apprefer_support_profile"
+    /// Set when the stored session was minted (or adopted) while the identity was cleared.
+    /// Such a session is never handed to an account stored later; it is retired instead.
+    static let clearedSessionKey = "apprefer_support_session_cleared"
+    private static let pushKey = "apprefer_support_push_token"
     private let session: URLSession
     private let baseURL: String
     private var token: String?
@@ -31,6 +35,9 @@ actor SupportAPI {
         let token: String; let push: String?; let key: String?
         var createdAt: Double? = nil
         var attempts: Int? = nil
+        /// Register `push` on the current session once this one is revoked (clearIdentity),
+        /// so the two sessions never hold the same token at once.
+        var move: Bool? = nil
     }
     private let revocationKey = "apprefer_support_revocations"
 
@@ -77,14 +84,22 @@ actor SupportAPI {
             item.attempts = item.attempts ?? 0
             let expired = Date().timeIntervalSince1970 - item.createdAt! > 400 * 86_400
             var remove = expired || item.attempts! >= 20
+            var revoked = false
             if !remove {
-                remove = await revoke(item, using: item.key ?? key)
+                revoked = await revoke(item, using: item.key ?? key)
+                remove = revoked
                 if !remove { item.attempts! += 1; remove = item.attempts! >= 20 }
             }
             var current = savedRevocations()
             if let index = current.firstIndex(where: { $0.token == item.token && $0.key == item.key }) {
                 if remove { current.remove(at: index) } else { current[index] = item }
                 saveRevocations(current)
+            }
+            // The old session is gone: move its push token to the current session, unless a
+            // reset has removed the token since (it never moves to the next account).
+            if revoked, item.move == true, let push = item.push,
+               UserDefaults.standard.string(forKey: Self.pushKey) == push {
+                try? await registerPushToken(push, sandbox: Self.pushSandbox)
             }
         }
     }
@@ -102,26 +117,82 @@ actor SupportAPI {
     }
 
     func reset() async {
-        let oldToken = token ?? KeychainHelper.load(key: Self.tokenKey).value
-        let key = supportApiKey ?? AppRefer.currentApiKey() ?? UserDefaults.standard.string(forKey: "apprefer_support_last_key")
-        let pushToken = UserDefaults.standard.string(forKey: "apprefer_support_push_token")
-        UserDefaults.standard.removeObject(forKey: "apprefer_support_push_token")
+        retireSession(keepPushToken: false)
+        // Local cleanup completes before any network work starts.
+    }
+
+    /// True while a revoked-but-not-yet-confirmed session still holds `push`.
+    private func pushMovePending(_ push: String) -> Bool {
+        savedRevocations().contains { $0.move == true && $0.push == push }
+    }
+
+    /// Removes the account from Support without a full reset (consent withdrawn): forgets
+    /// the name, email and app user id, revokes the current session through the durable
+    /// revocation list and starts a new anonymous one with no link to the old id. The old
+    /// session's conversations stay in the team inbox but are no longer shown in the app.
+    /// The app user id stays off Support until it changes or reset() runs.
+    func clearIdentity() async {
+        userStorage.supportIdentityCleared = true
+        // The push token stays stored and moves to the new session once the old one is
+        // revoked (revokePending), never before.
+        retireSession(keepPushToken: true)
+        guard supportApiKey ?? AppRefer.currentApiKey() != nil else { return }
+        // Mint the anonymous replacement now.
+        _ = try? await sessionToken()
+    }
+
+    /// Forgets the session locally and queues its revocation. With `keepPushToken` the
+    /// token stays stored and is moved to the next session after the revocation succeeds.
+    private func retireSession(keepPushToken: Bool) {
         accountGeneration.advance()
         minting?.cancel()
         minting = nil
-        token = nil
         name = nil
         email = nil
         persona = nil
-        KeychainHelper.delete(key: Self.tokenKey)
-        UserDefaults.standard.removeObject(forKey: Self.profileKey)
+        retireToken(keepPushToken: keepPushToken)
+    }
+
+    /// Drops the stored session (token, cleared marker, profile fingerprint) and queues its
+    /// durable revocation, without touching the account generation or the profile.
+    private func retireToken(keepPushToken: Bool) {
+        let oldToken = token ?? KeychainHelper.load(key: Self.tokenKey).value
+        let key = supportApiKey ?? AppRefer.currentApiKey() ?? UserDefaults.standard.string(forKey: "apprefer_support_last_key")
+        let pushToken = UserDefaults.standard.string(forKey: Self.pushKey)
+        if !keepPushToken { UserDefaults.standard.removeObject(forKey: Self.pushKey) }
+        dropToken()
         if let oldToken {
             var pending = savedRevocations()
-            pending.append(Revocation(token: oldToken, push: pushToken, key: key, createdAt: Date().timeIntervalSince1970, attempts: 0))
+            pending.append(Revocation(token: oldToken, push: pushToken, key: key, createdAt: Date().timeIntervalSince1970, attempts: 0,
+                                      move: keepPushToken && pushToken != nil ? true : nil))
             saveRevocations(pending)
         }
-        // Local cleanup completes before any network work starts.
     }
+
+    private func dropToken() {
+        token = nil
+        KeychainHelper.delete(key: Self.tokenKey)
+        UserDefaults.standard.removeObject(forKey: Self.profileKey)
+        UserDefaults.standard.removeObject(forKey: Self.clearedSessionKey)
+    }
+
+    /// A session minted while the identity was cleared is never handed to an account stored
+    /// later (a different user id turns the clear off without a reset): it is revoked, its
+    /// push token moves once that succeeds, and the caller mints a fresh session.
+    /// In-flight calls are not cancelled.
+    private func retireClearedSessionIfNeeded() -> Bool {
+        guard !userStorage.supportIdentityCleared, UserDefaults.standard.bool(forKey: Self.clearedSessionKey) else { return false }
+        minting = nil
+        retireToken(keepPushToken: true)
+        Task { await self.retryRevocations() }
+        return true
+    }
+
+    #if DEBUG
+    static let pushSandbox = true
+    #else
+    static let pushSandbox = false
+    #endif
 
     func retryRevocations() {
         guard let key = supportApiKey ?? AppRefer.currentApiKey() ?? UserDefaults.standard.string(forKey: "apprefer_support_last_key") else { return }
@@ -130,12 +201,16 @@ actor SupportAPI {
 
     /// The install device id to link, or nil (Support-only, after reset, collection off).
     private let deviceId: @Sendable () -> String?
+    /// Where the app user id (and the identity-cleared flag) are kept.
+    private let userStorage: AppReferStorage
 
     init(baseURL: String = AppReferConfig.backendURL, session: URLSession = URLSession(configuration: .default),
-         deviceId: @escaping @Sendable () -> String? = { AppRefer.supportDeviceId() }) {
+         deviceId: @escaping @Sendable () -> String? = { AppRefer.supportDeviceId() },
+         userStorage: AppReferStorage = AppReferStorage()) {
         self.baseURL = baseURL
         self.session = session
         self.deviceId = deviceId
+        self.userStorage = userStorage
     }
 
     func setIdentity(name: String?, email: String?, generation expected: Int? = nil) {
@@ -152,10 +227,13 @@ actor SupportAPI {
     // MARK: - Session
 
     private var profile: [String: Any] {
-        let storage = AppReferStorage()
         var body: [String: Any] = [:]
-        if let id = storage.getUserId() { body["appUserId"] = id }
-        if let device = deviceId() { body["deviceId"] = device }
+        // After clearIdentity(): neither the app user id nor the install id (which would
+        // link the anonymous session straight back to the account).
+        if !userStorage.supportIdentityCleared {
+            if let id = userStorage.getUserId() { body["appUserId"] = id }
+            if let device = deviceId() { body["deviceId"] = device }
+        }
         if let name { body["name"] = name }
         if let email { body["email"] = email }
         return body
@@ -168,8 +246,10 @@ actor SupportAPI {
     /// id, name, email) is re-sent only when it changes, and recorded as synced
     /// only once the server has it.
     private func sessionToken() async throws -> String {
+        _ = retireClearedSessionIfNeeded()
         let epoch = generation
         if token == nil { token = KeychainHelper.load(key: Self.tokenKey).value }
+        let cleared = userStorage.supportIdentityCleared
         let current = profile
         let profileJSON = (try? JSONSerialization.data(withJSONObject: current, options: .sortedKeys)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
         if let token {
@@ -177,28 +257,35 @@ actor SupportAPI {
                 let data = try await raw("POST", "/api/support/v1/session", body: current, session: token, expectedGeneration: epoch)
                 let refreshed = try JSONDecoder().decode(SupportSession.self, from: data)
                 // The server may hand back a replacement session.
-                if refreshed.session != token { adopt(refreshed.session) }
+                if refreshed.session != token { adopt(refreshed.session, cleared: cleared) }
                 UserDefaults.standard.set(profileJSON, forKey: Self.profileKey)
             }
             return self.token ?? token
         }
-        if let minting { return try await minting.value }
+        if let minting, mintingCleared == cleared { return try await minting.value }
         let task = Task { () throws -> String in
             let data = try await self.raw("POST", "/api/support/v1/session", body: current, session: nil, expectedGeneration: epoch)
             return try JSONDecoder().decode(SupportSession.self, from: data).session
         }
         minting = task
-        defer { if epoch == generation { minting = nil } }
+        mintingCleared = cleared
+        defer { if epoch == generation, minting == task { minting = nil } }
         let minted = try await task.value
         guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
-        adopt(minted)
+        adopt(minted, cleared: cleared)
         UserDefaults.standard.set(profileJSON, forKey: Self.profileKey)
+        // Minted for a cleared identity that was turned off meanwhile: never use it.
+        if retireClearedSessionIfNeeded() { return try await sessionToken() }
         return minted
     }
 
-    private func adopt(_ session: String) {
+    private var mintingCleared = false
+
+    private func adopt(_ session: String, cleared: Bool) {
         _ = KeychainHelper.save(key: Self.tokenKey, value: session)
         token = session
+        if cleared { UserDefaults.standard.set(true, forKey: Self.clearedSessionKey) }
+        else { UserDefaults.standard.removeObject(forKey: Self.clearedSessionKey) }
     }
 
     // MARK: - HTTP
@@ -237,8 +324,7 @@ actor SupportAPI {
             return try await raw(method, path, body: body, session: bearer, expectedGeneration: epoch)
         } catch let error as AppReferSupportError where error.status == 401 && error.message.contains("support session") {
             guard epoch == generation else { throw CancellationError() }
-            KeychainHelper.delete(key: Self.tokenKey)
-            token = nil
+            dropToken()
             return try await raw(method, path, body: body, session: try await sessionToken(), expectedGeneration: epoch)
         }
     }
@@ -295,13 +381,20 @@ actor SupportAPI {
     func registerPushToken(_ hex: String, sandbox: Bool, generation expected: Int? = nil) async throws {
         let epoch = expected ?? generation
         guard epoch == generation else { throw CancellationError() }
+        // Still on a session whose revocation hasn't been confirmed: it moves once that
+        // succeeds, so the two sessions never hold it at the same time.
+        if pushMovePending(hex) {
+            UserDefaults.standard.set(hex, forKey: Self.pushKey)
+            retryRevocations()
+            return
+        }
         _ = try await call("POST", "/api/support/v1/push-token", body: ["platform": "ios", "token": hex, "environment": sandbox ? "sandbox" : "production"], expectedGeneration: epoch)
-        UserDefaults.standard.set(hex, forKey: "apprefer_support_push_token")
+        UserDefaults.standard.set(hex, forKey: Self.pushKey)
     }
 
     func removePushToken(_ hex: String) async throws {
         _ = try await call("DELETE", "/api/support/v1/push-token", body: ["token": hex])
-        UserDefaults.standard.removeObject(forKey: "apprefer_support_push_token")
+        UserDefaults.standard.removeObject(forKey: Self.pushKey)
     }
 
     // MARK: - Context
