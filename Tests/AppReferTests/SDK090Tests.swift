@@ -145,6 +145,7 @@ final class SDK090Tests: XCTestCase {
         let first = try await api.conversations()
         XCTAssertEqual(first.count, 1)
         await api.reset()
+        await api.revokePending(using: "pk_test")
         AppReferStorage().clearUser()
         AppReferStorage().setUserId("B")
         await api.setIdentity(name: "B", email: "b@example.test")
@@ -419,7 +420,8 @@ extension SDK090Tests {
         _ = await sdk._configure()
         let consent = storage.reportedTrackingConsent()
         poster.response = ["attribution": ["network": "meta", "matchType": "click", "trackingDecisionPending": false]]
-        _ = await sdk.syncTrackingConsent()
+        await sdk.didEnterBackground()
+        await sdk.didBecomeActive()
         XCTAssertEqual(storage.reportedTrackingConsent(), consent)
         if case .attributed(let attr) = await sdk.attributionResult() { XCTAssertEqual(attr.network, "meta") } else { XCTFail("Must poll pending without a consent change") }
     }
@@ -471,7 +473,7 @@ extension SDK090Tests {
         let restarted = SupportAPI(baseURL: "https://support.test", session: session)
         await restarted.revokePending(using: "pk_retry")
         XCTAssertEqual(KeychainHelper.load(key: "apprefer_support_revocations").value, "[]")
-        XCTAssertEqual(deletes.count, 4)
+        XCTAssertEqual(deletes, ["/api/support/v1/session", "/api/support/v1/session"])
         Support090Protocol.handler = nil
     }
     func testEventAcceptedAfterResetClearSurvivesResetCompletion() async throws {
@@ -492,5 +494,156 @@ final class BeforeConfigureResetTests: XCTestCase {
         XCTAssertNotNil(storage.pendingEvents)
         await AppRefer.reset()
         XCTAssertNil(storage.pendingEvents)
+    }
+}
+
+private actor ResetUserGatePoster: AppReferPosting {
+    private var gate: CheckedContinuation<Void, Never>?
+    private var blocked = false
+    func post(_ path: String, body: [String: Any]) async -> [String: Any]? { [:] }
+    func cancelEvents() async {
+        guard !blocked else { return }
+        blocked = true
+        await withCheckedContinuation { gate = $0 }
+    }
+    func waitForClear() async { while gate == nil { await Task.yield() } }
+    func release() { gate?.resume(); gate = nil }
+}
+
+extension SDK090Tests {
+    func testUserBArrivingDuringUnawaitedPublicResetSurvives() async {
+        let storage = AppReferStorage()
+        let poster = ResetUserGatePoster()
+        let sdk = AppRefer(config: AppReferConfig(apiKey: "pk_race"), storage: storage, trackingClient: poster, firstPartyClient: poster)
+        let previous = AppRefer.replaceSharedForTesting(sdk)
+        defer { _ = AppRefer.replaceSharedForTesting(previous); storage.clearUser() }
+        storage.setUserId("A")
+        let reset = Task { await AppRefer.reset() }
+        await poster.waitForClear()
+        await AppRefer.setUserId("B")
+        await poster.release()
+        await reset.value
+        XCTAssertEqual(storage.getUserId(), "B")
+    }
+
+    func testAlreadyGoneRevocationsAreRemovedAndPollingNeverRetries() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [Support090Protocol.self]
+        let session = URLSession(configuration: configuration)
+        for status in [200, 204, 299, 401, 403, 404] {
+            KeychainHelper.delete(key: "apprefer_support_session")
+            let api = SupportAPI(baseURL: "https://support.test", session: session)
+            await api.configure(apiKey: "pk_test")
+            await api.revokePending(using: "pk_test")
+            let raw = "[{\"token\":\"old\",\"key\":\"pk_old\",\"push\":\"push-old\"}]"
+            XCTAssertTrue(KeychainHelper.save(key: "apprefer_support_revocations", value: raw))
+            var deletes = 0
+            Support090Protocol.handler = { request in
+                if request.httpMethod == "DELETE" {
+                    deletes += 1
+                    XCTAssertEqual(request.url!.path, "/api/support/v1/session")
+                    XCTAssertEqual(request.value(forHTTPHeaderField: "X-AppRefer-Key"), "pk_old")
+                    return (status, "{}")
+                }
+                return request.httpMethod == "POST" ? (200, "{\"session\":\"B\"}") : (200, "{\"conversations\":[]}")
+            }
+            // A saved record must not trigger any request from chat polling.
+            for _ in 0..<3 { _ = try await api.conversations() }
+            XCTAssertEqual(deletes, 0)
+            XCTAssertEqual(KeychainHelper.load(key: "apprefer_support_revocations").value, raw)
+            await api.revokePending(using: "pk_test")
+            XCTAssertEqual(deletes, 1)
+            XCTAssertEqual(KeychainHelper.load(key: "apprefer_support_revocations").value, "[]")
+        }
+        Support090Protocol.handler = nil
+        KeychainHelper.delete(key: "apprefer_support_session")
+        KeychainHelper.delete(key: "apprefer_support_revocations")
+    }
+
+    func testRevocationAgeAndAttemptCapsDropWithoutNetwork() async throws {
+        KeychainHelper.delete(key: "apprefer_support_revocations")
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [Support090Protocol.self]
+        let api = SupportAPI(baseURL: "https://support.test", session: URLSession(configuration: configuration))
+        let records: [[String: Any]] = [
+            ["token": "old", "createdAt": Date().timeIntervalSince1970 - 401 * 86400],
+            ["token": "capped", "attempts": 20],
+            ["token": "last-attempt", "attempts": 19],
+        ]
+        let data = try JSONSerialization.data(withJSONObject: records)
+        XCTAssertTrue(KeychainHelper.save(key: "apprefer_support_revocations", value: String(decoding: data, as: UTF8.self)))
+        var deletes = 0
+        Support090Protocol.handler = { req in
+            deletes += 1
+            XCTAssertEqual(req.value(forHTTPHeaderField: "X-AppRefer-Support-Session"), "last-attempt")
+            return (503, "{}")
+        }
+        await api.revokePending(using: "pk_test")
+        XCTAssertEqual(deletes, 1)
+        XCTAssertEqual(KeychainHelper.load(key: "apprefer_support_revocations").value, "[]")
+        await api.revokePending(using: "pk_test")
+        XCTAssertEqual(deletes, 1)
+        Support090Protocol.handler = nil
+        KeychainHelper.delete(key: "apprefer_support_revocations")
+    }
+}
+
+private actor PendingConfigurePoster: AppReferPosting {
+    private var continuation: CheckedContinuation<[String: Any]?, Never>?
+    private var calls = 0
+    private let reply: [String: Any] = ["attribution": ["network": "organic", "matchType": "organic", "trackingDecisionPending": true]]
+    func post(_ path: String, body: [String: Any]) async -> [String: Any]? {
+        calls += 1
+        if calls == 1 { return await withCheckedContinuation { continuation = $0 } }
+        return reply
+    }
+    func waitForRequest() async { while continuation == nil { await Task.yield() } }
+    func finish() { continuation?.resume(returning: reply); continuation = nil }
+    func count() -> Int { calls }
+}
+
+extension SDK090Tests {
+    func testPendingConfigureIsOncePerLaunchAndForegroundDespiteOverlappingSyncs() async {
+        let storage = AppReferStorage(defaults: UserDefaults(suiteName: UUID().uuidString)!, keychain: FakeDeviceIdKeychain())
+        storage.setMatchRequestAttempted(true)
+        storage.setReportedTrackingConsent("undetermined")
+        storage.setAttributionCache("{\"network\":\"organic\",\"trackingDecisionPending\":true}")
+        let poster = PendingConfigurePoster()
+        let sdk = AppRefer(config: AppReferConfig(apiKey: "pk_pending"), storage: storage, trackingClient: poster, firstPartyClient: poster)
+        let launch = Task { await sdk._configure() }
+        await poster.waitForRequest()
+        let active = Task { await sdk.didBecomeActive() }
+        let consent = Task { await sdk.syncTrackingConsent() }
+        let joinedConfigure = Task { await sdk._configure() }
+        for _ in 0..<20 { await Task.yield() }
+        await poster.finish()
+        _ = await launch.value; await active.value; _ = await consent.value; _ = await joinedConfigure.value
+        _ = await sdk._configure() // configureResult's repeated existing-install path
+        _ = await sdk.syncTrackingConsent()
+        await sdk.didBecomeActive() // a duplicate activation still belongs to launch
+        let launchCalls = await poster.count()
+        XCTAssertEqual(launchCalls, 1)
+        await sdk.didEnterBackground()
+        async let first: Void = sdk.didBecomeActive()
+        async let second: Void = sdk.didBecomeActive()
+        _ = await (first, second)
+        _ = await sdk._configure()
+        let foregroundCalls = await poster.count()
+        XCTAssertEqual(foregroundCalls, 2)
+    }
+
+    func testFreshPendingConfigureDoesNotImmediatelySendConsentSyncAgain() async {
+        let storage = AppReferStorage(defaults: UserDefaults(suiteName: UUID().uuidString)!, keychain: FakeDeviceIdKeychain())
+        let pending = PendingConfigurePoster()
+        let fresh = AppRefer(config: AppReferConfig(apiKey: "pk_new"), storage: storage, trackingClient: pending, firstPartyClient: pending)
+        let configure = Task { await fresh._configure() }
+        await pending.waitForRequest()
+        await fresh.didBecomeActive()
+        await pending.finish()
+        _ = await configure.value
+        await fresh.didBecomeActive()
+        _ = await fresh._configure()
+        let calls = await pending.count()
+        XCTAssertEqual(calls, 1)
     }
 }

@@ -47,6 +47,13 @@ public actor AppRefer {
         return _shared
     }
 
+    #if DEBUG
+    static func replaceSharedForTesting(_ sdk: AppRefer?) -> AppRefer? {
+        lock.lock(); defer { lock.unlock() }
+        let previous = _shared; _shared = sdk; return previous
+    }
+    #endif
+
     private static func sharedForConfiguration(_ config: AppReferConfig) -> (AppRefer, Bool, Int) {
         lock.lock(); defer { lock.unlock() }
         registeredApiKey = config.apiKey
@@ -186,6 +193,7 @@ public actor AppRefer {
     }
 
     private nonisolated(unsafe) static var activationObserver: NSObjectProtocol?
+    private nonisolated(unsafe) static var backgroundObserver: NSObjectProtocol?
 
     /// The user can change ATT in Settings at any time; re-check when the app comes back.
     private static func observeActivation() {
@@ -193,12 +201,15 @@ public actor AppRefer {
         lock.lock()
         defer { lock.unlock() }
         guard activationObserver == nil else { return }
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil
+        ) { _ in Task { await getShared()?.didEnterBackground() } }
         activationObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil
         ) { _ in
             Task {
                 if let key = currentApiKey() { await SupportAPI.shared.resumeRevocations(apiKey: key) }
-                await AppRefer.trackingConsentDidChange()
+                await getShared()?.didBecomeActive()
                 await getShared()?.refreshConversionValue(force: false)
                 await getShared()?.flushPendingEvents()
             }
@@ -293,8 +304,10 @@ public actor AppRefer {
     public static func reset() async {
         advanceAccount()
         if let sdk = getShared() { await sdk._reset() }
-        else { await clearPendingEvents() }
-        AppReferStorage().clearUser()
+        else {
+            AppReferStorage().clearUser()
+            await clearPendingEvents()
+        }
         await SupportAPI.shared.reset()
         #if os(iOS)
         await AppReferSupport.shared.dismissForReset()
@@ -453,6 +466,7 @@ public actor AppRefer {
             body["customer_user_id"] = userId
         }
 
+        pendingConfigureSent = true
         logger.info("Sending configure request...")
         let epoch = generation
         guard let response = await client(for: consent).post("/api/track/configure", body: body) else {
@@ -506,6 +520,20 @@ public actor AppRefer {
     /// install whose first configure failed is also registered this way. Returns the
     /// attribution the server now holds, or nil when nothing was sent or it failed
     /// (tried again on the next launch or activation).
+    private var pendingConfigureSent = false
+
+    private var wasBackgrounded = false
+    func didEnterBackground() { wasBackgrounded = true }
+    func didBecomeActive() async {
+        // The initial activation belongs to launch. Only a real return from
+        // background gives a pending decision another refresh opportunity.
+        if wasBackgrounded {
+            wasBackgrounded = false
+            if configurationTask == nil && consentSyncTask == nil { pendingConfigureSent = false }
+        }
+        _ = await syncTrackingConsent()
+    }
+
     func syncTrackingConsent() async -> Attribution? {
         if let running = consentSyncTask {
             // The running sync checks again before it ends, so a newer answer isn't lost;
@@ -537,7 +565,7 @@ public actor AppRefer {
         let consent = trackingStatus.current()
         let previouslyAccepted = storage.reportedTrackingConsent()
         let cached = storage.getCachedAttribution()
-        guard previouslyAccepted != consent.rawValue || (cached?.trackingDecisionPending == true && cached?.matchType != "adservices") else { return nil }
+        guard previouslyAccepted != consent.rawValue || (cached?.trackingDecisionPending == true && cached?.matchType != "adservices" && !pendingConfigureSent) else { return nil }
         guard let deviceId = storage.deviceId() else { return nil }
 
         var body: [String: Any] = [
@@ -559,6 +587,7 @@ public actor AppRefer {
             body["customer_user_id"] = userId
         }
 
+        pendingConfigureSent = true
         logger.info("Reporting tracking consent: \(consent.rawValue)")
         let epoch = generation
         guard let response = await client(for: consent).post("/api/track/configure", body: body) else {

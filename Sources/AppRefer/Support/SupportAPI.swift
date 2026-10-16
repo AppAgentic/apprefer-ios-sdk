@@ -27,7 +27,11 @@ actor SupportAPI {
     private nonisolated let accountGeneration = SupportGeneration()
     nonisolated var actionGeneration: Int { accountGeneration.read() }
     private var generation: Int { actionGeneration }
-    private struct Revocation: Codable { let token: String; let push: String?; let key: String? }
+    private struct Revocation: Codable, Equatable {
+        let token: String; let push: String?; let key: String?
+        var createdAt: Double? = nil
+        var attempts: Int? = nil
+    }
     private let revocationKey = "apprefer_support_revocations"
 
     /// Functional Support startup: deliberately never constructs an attribution SDK.
@@ -53,7 +57,9 @@ actor SupportAPI {
     private func saveRevocations(_ items: [Revocation]) {
         deferredRevocations = items
         switch KeychainHelper.load(key: revocationKey) {
-        case .found, .notFound: break
+        case .found(let raw):
+            if let data = raw.data(using: .utf8), let saved = try? JSONDecoder().decode([Revocation].self, from: data), saved == items { return }
+        case .notFound: if items.isEmpty { return }
         case .unavailable, .failed: return // Never overwrite unreadable saved work.
         }
         if let data = try? JSONEncoder().encode(items) {
@@ -65,31 +71,34 @@ actor SupportAPI {
         revoking = true
         defer { revoking = false }
         let pending = savedRevocations()
-        saveRevocations(pending)
-        for item in pending {
-            if await revoke(item, using: item.key ?? key) {
-                saveRevocations(savedRevocations().filter { $0.token != item.token || $0.key != item.key })
+        for original in pending {
+            var item = original
+            item.createdAt = item.createdAt ?? Date().timeIntervalSince1970
+            item.attempts = item.attempts ?? 0
+            let expired = Date().timeIntervalSince1970 - item.createdAt! > 400 * 86_400
+            var remove = expired || item.attempts! >= 20
+            if !remove {
+                remove = await revoke(item, using: item.key ?? key)
+                if !remove { item.attempts! += 1; remove = item.attempts! >= 20 }
+            }
+            var current = savedRevocations()
+            if let index = current.firstIndex(where: { $0.token == item.token && $0.key == item.key }) {
+                if remove { current.remove(at: index) } else { current[index] = item }
+                saveRevocations(current)
             }
         }
     }
     private func revoke(_ item: Revocation, using key: String) async -> Bool {
-        var succeeded = true
-        for path in (item.push == nil ? [] : ["/push-token"]) + ["/session"] {
-            guard let url = URL(string: baseURL + "/api/support/v1" + path) else { return false }
-            var request = URLRequest(url: url, timeoutInterval: 5)
-            request.httpMethod = "DELETE"
-            request.setValue(key, forHTTPHeaderField: "X-AppRefer-Key")
-            request.setValue(item.token, forHTTPHeaderField: "X-AppRefer-Support-Session")
-            if path == "/push-token", let push = item.push {
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.httpBody = try? JSONSerialization.data(withJSONObject: ["token": push])
-            }
-            do {
-                let (_, response) = try await session.data(for: request)
-                if !(200..<300).contains((response as? HTTPURLResponse)?.statusCode ?? 0) { succeeded = false }
-            } catch { succeeded = false }
-        }
-        return succeeded
+        guard let url = URL(string: baseURL + "/api/support/v1/session") else { return false }
+        var request = URLRequest(url: url, timeoutInterval: 5)
+        request.httpMethod = "DELETE"
+        request.setValue(key, forHTTPHeaderField: "X-AppRefer-Key")
+        request.setValue(item.token, forHTTPHeaderField: "X-AppRefer-Support-Session")
+        do {
+            let (_, response) = try await session.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            return (200..<300).contains(status) || [401, 403, 404].contains(status)
+        } catch { return false }
     }
 
     func reset() async {
@@ -108,7 +117,7 @@ actor SupportAPI {
         UserDefaults.standard.removeObject(forKey: Self.profileKey)
         if let oldToken {
             var pending = savedRevocations()
-            pending.append(Revocation(token: oldToken, push: pushToken, key: key))
+            pending.append(Revocation(token: oldToken, push: pushToken, key: key, createdAt: Date().timeIntervalSince1970, attempts: 0))
             saveRevocations(pending)
         }
         // Local cleanup completes before any network work starts.
@@ -217,7 +226,6 @@ actor SupportAPI {
     private func call(_ method: String, _ path: String, body: [String: Any]? = nil, expectedGeneration: Int? = nil) async throws -> Data {
         let epoch = expectedGeneration ?? generation
         guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
-        retryRevocations()
         do {
             let bearer = try await sessionToken()
             guard epoch == generation else { throw CancellationError() }
