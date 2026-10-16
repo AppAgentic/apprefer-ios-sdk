@@ -51,6 +51,18 @@ public final class AppReferSupport {
         presented = nil
     }
 
+    /// Removes the account from Support without a full reset, e.g. when the user withdraws
+    /// consent: forgets the name, email and app user id, revokes the current Support session
+    /// and starts a new anonymous one. Conversations from the old session stay in your team
+    /// inbox but are no longer shown in the app. The app user id is not sent to Support again
+    /// until it changes (another account signs in) or `AppRefer.reset()` runs. Attribution,
+    /// Billing and the stored user id are untouched.
+    public func clearIdentity() async {
+        dismissForReset()
+        await SupportAPI.shared.clearIdentity()
+        Task { await SupportAPI.shared.retryRevocations() }
+    }
+
     /// Who the customer is, so the team can greet them and reply by email.
     public func identify(name: String? = nil, email: String? = nil) {
         let epoch = SupportAPI.shared.actionGeneration
@@ -86,11 +98,7 @@ public final class AppReferSupport {
     /// Pass the APNs device token from `application(_:didRegisterForRemoteNotificationsWithDeviceToken:)`.
     public func registerDeviceToken(_ deviceToken: Data) {
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
-        #if DEBUG
-        let sandbox = true
-        #else
-        let sandbox = false
-        #endif
+        let sandbox = SupportAPI.pushSandbox
         let epoch = SupportAPI.shared.actionGeneration
         Task { try? await SupportAPI.shared.registerPushToken(hex, sandbox: sandbox, generation: epoch) }
     }

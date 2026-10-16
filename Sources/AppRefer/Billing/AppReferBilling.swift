@@ -132,7 +132,10 @@ public enum AppReferBilling {
             api: BillingAPIClient(
                 // Purchases may be forwarded as conversions only for ATT-authorized installs,
                 // so they go to the tracking host only then; otherwise to the first-party host.
-                baseURLProvider: { [LiveTrackingStatusProvider().current().baseURL] },
+                // With collection off or after reset, never the tracking host.
+                baseURLProvider: {
+                    [AppRefer.installLinkAllowed() ? LiveTrackingStatusProvider().current().baseURL : AppReferConfig.backendURL]
+                },
                 apiKey: { explicitKey ?? AppRefer.currentApiKey() },
                 transport: URLSessionBillingTransport()
             ),
@@ -141,7 +144,9 @@ public enum AppReferBilling {
             storeKit: LiveBillingStoreKit(),
             options: .init(productEntitlements: entitlementsByProduct, defaultEntitlement: defaultEntitlement),
             appUserId: appUserId,
-            appreferId: { AppReferStorage().deviceId() },
+            // Same gate as Support: no device id while collection is off, or after
+            // reset() until configure runs again.
+            appreferId: { AppRefer.supportDeviceId() },
             logger: logger,
             onChange: { info in
                 broadcaster.publish(info)
@@ -211,7 +216,8 @@ public enum AppReferBilling {
 
     /// Customer attributes, sent with the next AppRefer call. Supported keys:
     /// `$email`, `$displayName`, `$phoneNumber`, `$idfa`, `$idfv`, `$fbAnonId`,
-    /// `$attConsentStatus`, `$deviceVersion`, `$ip`, `$gpsAdId`.
+    /// `$attConsentStatus`, `$deviceVersion`, `$ip`, `$gpsAdId`. The device keys are dropped,
+    /// not sent, while collection is off or after `AppRefer.reset()` until configure.
     public static func setAttributes(_ attributes: [String: String]) async {
         await engine?.setAttributes(attributes)
     }

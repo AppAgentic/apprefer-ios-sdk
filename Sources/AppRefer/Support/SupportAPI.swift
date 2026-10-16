@@ -102,10 +102,35 @@ actor SupportAPI {
     }
 
     func reset() async {
+        retireSession(keepPushToken: false)
+        // Local cleanup completes before any network work starts.
+    }
+
+    /// Removes the account from Support without a full reset (consent withdrawn): forgets
+    /// the name, email and app user id, revokes the current session through the durable
+    /// revocation list and starts a new anonymous one with no link to the old id. The old
+    /// session's conversations stay in the team inbox but are no longer shown in the app.
+    /// The app user id stays off Support until it changes or reset() runs.
+    func clearIdentity() async {
+        userStorage.supportIdentityCleared = true
+        let pushToken = retireSession(keepPushToken: true)
+        guard supportApiKey ?? AppRefer.currentApiKey() != nil else { return }
+        // Mint the replacement now, carrying a reply-notification registration over.
+        if let pushToken {
+            try? await registerPushToken(pushToken, sandbox: Self.pushSandbox)
+        } else {
+            _ = try? await sessionToken()
+        }
+    }
+
+    /// Forgets the session locally and queues its revocation. Returns the push token
+    /// that was registered on it.
+    @discardableResult
+    private func retireSession(keepPushToken: Bool) -> String? {
         let oldToken = token ?? KeychainHelper.load(key: Self.tokenKey).value
         let key = supportApiKey ?? AppRefer.currentApiKey() ?? UserDefaults.standard.string(forKey: "apprefer_support_last_key")
         let pushToken = UserDefaults.standard.string(forKey: "apprefer_support_push_token")
-        UserDefaults.standard.removeObject(forKey: "apprefer_support_push_token")
+        if !keepPushToken { UserDefaults.standard.removeObject(forKey: "apprefer_support_push_token") }
         accountGeneration.advance()
         minting?.cancel()
         minting = nil
@@ -120,8 +145,14 @@ actor SupportAPI {
             pending.append(Revocation(token: oldToken, push: pushToken, key: key, createdAt: Date().timeIntervalSince1970, attempts: 0))
             saveRevocations(pending)
         }
-        // Local cleanup completes before any network work starts.
+        return pushToken
     }
+
+    #if DEBUG
+    static let pushSandbox = true
+    #else
+    static let pushSandbox = false
+    #endif
 
     func retryRevocations() {
         guard let key = supportApiKey ?? AppRefer.currentApiKey() ?? UserDefaults.standard.string(forKey: "apprefer_support_last_key") else { return }
@@ -130,12 +161,16 @@ actor SupportAPI {
 
     /// The install device id to link, or nil (Support-only, after reset, collection off).
     private let deviceId: @Sendable () -> String?
+    /// Where the app user id (and the identity-cleared flag) are kept.
+    private let userStorage: AppReferStorage
 
     init(baseURL: String = AppReferConfig.backendURL, session: URLSession = URLSession(configuration: .default),
-         deviceId: @escaping @Sendable () -> String? = { AppRefer.supportDeviceId() }) {
+         deviceId: @escaping @Sendable () -> String? = { AppRefer.supportDeviceId() },
+         userStorage: AppReferStorage = AppReferStorage()) {
         self.baseURL = baseURL
         self.session = session
         self.deviceId = deviceId
+        self.userStorage = userStorage
     }
 
     func setIdentity(name: String?, email: String?, generation expected: Int? = nil) {
@@ -152,9 +187,8 @@ actor SupportAPI {
     // MARK: - Session
 
     private var profile: [String: Any] {
-        let storage = AppReferStorage()
         var body: [String: Any] = [:]
-        if let id = storage.getUserId() { body["appUserId"] = id }
+        if !userStorage.supportIdentityCleared, let id = userStorage.getUserId() { body["appUserId"] = id }
         if let device = deviceId() { body["deviceId"] = device }
         if let name { body["name"] = name }
         if let email { body["email"] = email }

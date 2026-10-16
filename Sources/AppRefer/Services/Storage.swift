@@ -68,7 +68,17 @@ final class AppReferStorage: @unchecked Sendable {
         collectionPaused = false
     }
 
-    func clearUser() { defaults.removeObject(forKey: Self.keyUserId) }
+    func clearUser() {
+        defaults.removeObject(forKey: Self.keyUserId)
+        defaults.removeObject(forKey: Self.keySupportIdentityCleared)
+    }
+    /// Set by `AppRefer.support.clearIdentity()`: Support sends no app user id until the
+    /// user id changes or reset() runs.
+    static let keySupportIdentityCleared = "apprefer_support_identity_cleared"
+    var supportIdentityCleared: Bool {
+        get { defaults.bool(forKey: Self.keySupportIdentityCleared) }
+        set { newValue ? defaults.set(true, forKey: Self.keySupportIdentityCleared) : defaults.removeObject(forKey: Self.keySupportIdentityCleared) }
+    }
     var organicConfirmed: Bool {
         get { defaults.bool(forKey: "apprefer_organic_confirmed") }
         set { defaults.set(newValue, forKey: "apprefer_organic_confirmed") }
@@ -205,6 +215,8 @@ final class AppReferStorage: @unchecked Sendable {
     }
 
     func setUserId(_ userId: String) {
+        // A different account ends a Support identity clear; the same id keeps it.
+        if defaults.string(forKey: Self.keyUserId) != userId { defaults.removeObject(forKey: Self.keySupportIdentityCleared) }
         defaults.set(userId, forKey: Self.keyUserId)
     }
 

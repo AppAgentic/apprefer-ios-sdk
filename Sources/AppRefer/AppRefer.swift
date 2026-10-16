@@ -78,15 +78,26 @@ public actor AppRefer {
         return registeredApiKey
     }
 
-    /// The install device id Support may send: only after configure in this process,
-    /// never after reset() (until configure runs again) or while collection is off.
-    /// Support-only apps never configure attribution, so they never send it.
-    static func supportDeviceId(storage: AppReferStorage = AppReferStorage()) -> String? {
+    /// True while Support and Billing may link requests to this install: only after
+    /// configure in this process, never after reset() (until configure runs again) or
+    /// while collection is off, including an "off" that is paused waiting for configure.
+    /// Support-only and Billing-only apps never configure attribution, so never link.
+    static func installLinkAllowed(storage: AppReferStorage? = nil) -> Bool {
         lock.lock()
         let active = registeredApiKey != nil && attributionActive
+        let shared = _shared
         lock.unlock()
-        guard active, storage.isCollectionEnabled() else { return nil }
-        return storage.deviceId()
+        guard active else { return false }
+        // The SDK's own storage also knows about a pause that isn't saved yet.
+        if let storage { return storage.isCollectionEnabled() }
+        return (shared?.storage ?? AppReferStorage()).isCollectionEnabled()
+            && AppReferStorage().isCollectionEnabled()
+    }
+
+    /// The install device id Support and Billing may send (see `installLinkAllowed`).
+    static func supportDeviceId(storage: AppReferStorage? = nil) -> String? {
+        guard installLinkAllowed(storage: storage) else { return nil }
+        return (storage ?? AppReferStorage()).deviceId()
     }
 
     #if DEBUG

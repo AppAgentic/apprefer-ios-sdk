@@ -64,6 +64,8 @@ actor BillingEngine {
     private let intents: PurchaseIntentStore
     private let storeKit: BillingStoreKit
     private let options: Options
+    /// The install device id, or nil while it must not be sent (collection off, after
+    /// reset until configure, never configured). Read per request.
     private let appreferId: @Sendable () -> String?
     private let logger: AppReferLogger
     private let onChange: @Sendable (AppReferCustomerInfo) -> Void
@@ -73,6 +75,8 @@ actor BillingEngine {
     private var lastServerFetch: (appUserId: String, at: Date)?
     /// Users whose appreferId/attributes were registered (POST customers) this launch.
     private var registeredUsers = Set<String>()
+    /// Of those, the ones registered without a device id.
+    private var unlinkedUsers = Set<String>()
     private var updatesTask: Task<Void, Never>?
     private var isDraining = false
     private var migratingUsers = Set<String>()
@@ -82,6 +86,12 @@ actor BillingEngine {
     /// or AppRefer records them.
     private var heldUpdates: [String: StoreKitUpdate] = [:]
     private var identifyFlush: Task<Void, Never>?
+    /// Attribution and device signals among the customer attributes.
+    static let deviceAttributeKeys: Set<String> = ["$idfa", "$idfv", "$fbAnonId", "$attConsentStatus", "$deviceVersion", "$ip", "$gpsAdId"]
+    /// While the install may not be linked, device signals are dropped, never sent later.
+    static func sendable(_ attributes: [String: String], linked: Bool) -> [String: String] {
+        linked ? attributes : attributes.filter { !deviceAttributeKeys.contains($0.key) }
+    }
     static let minBackoff: TimeInterval = 30
     static let maxBackoff: TimeInterval = 3600
 
@@ -288,14 +298,20 @@ actor BillingEngine {
     private func fetchFromServer(_ user: String, drain: Bool = true) async throws -> AppReferCustomerInfo {
         await flushPendingIdentifies()
         let attributes = storage.pendingAttributes
+        let deviceId = appreferId()
+        let sent = Self.sendable(attributes, linked: deviceId != nil)
+        // Registered without a device id (collection off, reset, before configure): link
+        // the install once it's allowed again.
         let needsRegister = !registeredUsers.contains(user) || !attributes.isEmpty || storage.accountToken(for: user) == nil
+            || (deviceId != nil && unlinkedUsers.contains(user))
         let response = try await api.send(
             needsRegister
-                ? .createCustomer(appUserId: user, appreferId: appreferId(), attributes: attributes)
+                ? .createCustomer(appUserId: user, appreferId: deviceId, attributes: sent)
                 : .getCustomer(appUserId: user)
         )
         if needsRegister {
             registeredUsers.insert(user)
+            if deviceId == nil { unlinkedUsers.insert(user) } else { unlinkedUsers.remove(user) }
             storage.clearSentAttributes(attributes)
         }
         let info = await accept(response, for: user)
@@ -479,6 +495,7 @@ actor BillingEngine {
         // Attributes belong to whoever is signed in now.
         let attributes = owner == user ? storage.pendingAttributes : [:]
         let deviceId = appreferId()
+        let sent = Self.sendable(attributes, linked: deviceId != nil)
         do {
             // Never a restore: purchases and Transaction.updates (renewals included) must
             // not move a purchase owned by another app user to whoever is signed in.
@@ -486,7 +503,7 @@ actor BillingEngine {
                 appUserId: owner,
                 appreferId: deviceId,
                 signedTransaction: transaction.signedTransaction,
-                attributes: attributes,
+                attributes: sent,
                 restore: false,
                 presentedOfferingContext: intent?.presentedOfferingContext,
                 bucketId: intent?.bucketId
@@ -721,8 +738,10 @@ actor BillingEngine {
         }
         for entry in queue.entries {
             do {
+                // A queued device id is sent only while linking is allowed now
+                // (collection on, configured since the last reset).
                 let response = try await api.send(.purchase(
-                    appUserId: entry.appUserId, appreferId: entry.appreferId,
+                    appUserId: entry.appUserId, appreferId: appreferId() == nil ? nil : entry.appreferId,
                     signedTransaction: entry.signedTransaction, attributes: [:],
                     restore: entry.restore == true,
                     presentedOfferingContext: entry.presentedOfferingContext,
