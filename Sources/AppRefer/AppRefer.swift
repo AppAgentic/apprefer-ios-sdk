@@ -81,6 +81,7 @@ public actor AppRefer {
     private var draining = false
     private var retryTask: Task<Void, Never>?
     private var lastConfigureFailed = false
+    private var configurationTask: Task<Attribution?, Never>?
 
     init(
         config: AppReferConfig,
@@ -196,6 +197,7 @@ public actor AppRefer {
             forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil
         ) { _ in
             Task {
+                if let key = currentApiKey() { await SupportAPI.shared.resumeRevocations(apiKey: key) }
                 await AppRefer.trackingConsentDidChange()
                 await getShared()?.refreshConversionValue(force: false)
                 await getShared()?.flushPendingEvents()
@@ -292,11 +294,11 @@ public actor AppRefer {
         advanceAccount()
         await getShared()?._reset()
         AppReferStorage().clearUser()
-        AppReferStorage().pendingEvents = nil
         await SupportAPI.shared.reset()
         #if os(iOS)
         await AppReferSupport.shared.dismissForReset()
         #endif
+        Task { await SupportAPI.shared.retryRevocations() }
     }
 
     public static func clearPendingEvents() async {
@@ -316,6 +318,8 @@ public actor AppRefer {
 
     func replaceConfiguration(_ newConfig: AppReferConfig, expectedAccountEpoch: Int? = nil, trackingClient: AppReferPosting? = nil, firstPartyClient: AppReferPosting? = nil) async {
         guard expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() else { return }
+        guard newConfig.apiKey != config.apiKey || newConfig.userId != config.userId || newConfig.debug != config.debug || newConfig.logLevel != config.logLevel || trackingClient != nil || firstPartyClient != nil else { return }
+        configurationTask?.cancel(); configurationTask = nil
         generation += 1
         let epoch = generation
         eventGeneration += 1
@@ -334,6 +338,7 @@ public actor AppRefer {
 
 
     func _reset() async {
+        configurationTask?.cancel(); configurationTask = nil
         generation += 1
         consentSyncTask?.cancel()
         consentSyncTask = nil
@@ -345,7 +350,7 @@ public actor AppRefer {
 
     func attributionResult() -> AppReferAttributionResult {
         if let attribution = storage.getCachedAttribution() {
-            if attribution.trackingDecisionPending { return .pending }
+            if attribution.trackingDecisionPending && attribution.matchType != "adservices" { return .pending }
             return attribution.network.lowercased() == "organic" ? .organic : .attributed(attribution)
         }
         if storage.organicConfirmed { return .organic }
@@ -378,6 +383,15 @@ public actor AppRefer {
     // MARK: - Internal Implementation
 
     func _configure(expectedAccountEpoch: Int? = nil) async -> Attribution? {
+        if let task = configurationTask { return await task.value }
+        let epoch = generation
+        let task = Task { await self.runConfiguration(expectedAccountEpoch: expectedAccountEpoch) }
+        configurationTask = task
+        let result = await task.value
+        if epoch == generation { configurationTask = nil }
+        return result
+    }
+    private func runConfiguration(expectedAccountEpoch: Int? = nil) async -> Attribution? {
         guard expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() else { return nil }
         logger.info("AppRefer SDK initialized")
 
@@ -521,7 +535,8 @@ public actor AppRefer {
         guard storage.isSdkEnabled(), storage.isMatchRequestAttempted() else { return nil }
         let consent = trackingStatus.current()
         let previouslyAccepted = storage.reportedTrackingConsent()
-        guard previouslyAccepted != consent.rawValue else { return nil }
+        let cached = storage.getCachedAttribution()
+        guard previouslyAccepted != consent.rawValue || (cached?.trackingDecisionPending == true && cached?.matchType != "adservices") else { return nil }
         guard let deviceId = storage.deviceId() else { return nil }
 
         var body: [String: Any] = [
@@ -669,11 +684,11 @@ public actor AppRefer {
         guard saveEvents(events) else { return .dropped }
         let epoch = eventGeneration
         let statuses = await flushPendingEvents(only: id)
-        guard epoch == eventGeneration else { return .dropped }
+        guard epoch == eventGeneration else { return loadEvents()?.contains(where: { $0.id == id }) == true ? .queued : .dropped }
         if (revenue ?? 0) > 0 || Self.trialEvents.contains(eventName) {
             Task { await self.refreshConversionValue(force: true) }
         }
-        guard epoch == eventGeneration else { return .dropped }
+        guard epoch == eventGeneration else { return loadEvents()?.contains(where: { $0.id == id }) == true ? .queued : .dropped }
         if let status = statuses[id] { return (200..<300).contains(status) ? .sent : .dropped }
         return .queued
     }

@@ -366,7 +366,7 @@ extension SDK090Tests {
         XCTAssertEqual(b, .sent)
         await old.finishEvent()
         let result = await a.value
-        XCTAssertEqual(result, .dropped)
+        XCTAssertEqual(result, .queued)
         // Reconfigure preserves the old durable event; stale completion must not delete it.
         let saved = try? JSONDecoder().decode([PendingProductEvent].self, from: storage.pendingEvents ?? Data())
         XCTAssertEqual(saved?.count, 1)
@@ -409,5 +409,78 @@ extension SDK090Tests {
         _ = await sdk._configure(expectedAccountEpoch: epoch)
         XCTAssertNil(storage.getUserId())
         XCTAssertFalse(storage.isMatchRequestAttempted())
+    }
+}
+
+extension SDK090Tests {
+    func testPendingRefreshesWithUnchangedConsentAfterServerFinalizes() async {
+        let (sdk, storage, poster) = fixture()
+        poster.response = ["attribution": ["network": "organic", "trackingDecisionPending": true]]
+        _ = await sdk._configure()
+        let consent = storage.reportedTrackingConsent()
+        poster.response = ["attribution": ["network": "meta", "matchType": "click", "trackingDecisionPending": false]]
+        _ = await sdk.syncTrackingConsent()
+        XCTAssertEqual(storage.reportedTrackingConsent(), consent)
+        if case .attributed(let attr) = await sdk.attributionResult() { XCTAssertEqual(attr.network, "meta") } else { XCTFail("Must poll pending without a consent change") }
+    }
+    func testAdServicesIsAttributedDespitePendingMarker() async {
+        let (sdk, _, poster) = fixture()
+        poster.response = ["attribution": ["network": "apple_search_ads", "matchType": "adservices", "trackingDecisionPending": true]]
+        _ = await sdk._configure()
+        if case .attributed = await sdk.attributionResult() {} else { XCTFail("AdServices is final") }
+    }
+    func testDoubleConfigureJoinsWithoutCancellingOriginal() async {
+        let storage = AppReferStorage(defaults: UserDefaults(suiteName: UUID().uuidString)!, keychain: FakeDeviceIdKeychain())
+        let poster = Suspended090Poster()
+        let sdk = AppRefer(config: AppReferConfig(apiKey: "pk_same"), storage: storage, trackingClient: poster, firstPartyClient: poster)
+        let first = Task { await sdk._configure() }
+        await poster.waitForConfigure()
+        await sdk.replaceConfiguration(AppReferConfig(apiKey: "pk_same"))
+        let second = Task { await sdk._configure() }
+        for _ in 0..<20 { await Task.yield() }
+        await poster.finishConfigure()
+        let a = await first.value, b = await second.value
+        XCTAssertEqual(a?.network, "meta"); XCTAssertEqual(b?.network, "meta")
+        if case .attributed = await sdk.attributionResult() {} else { XCTFail("Both see attribution") }
+    }
+    func testLocalSupportResetSavesRevocationBeforeNetworkAndRetriesAcrossRestart() async throws {
+        KeychainHelper.delete(key: "apprefer_support_revocations")
+        KeychainHelper.delete(key: "apprefer_support_session")
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [Support090Protocol.self]
+        let session = URLSession(configuration: config)
+        let api = SupportAPI(baseURL: "https://support.test", session: session)
+        var status = 503
+        var deletes: [String] = []
+        Support090Protocol.handler = { req in
+            if req.httpMethod == "DELETE" { deletes.append(req.url!.path); return (status, "{}") }
+            if req.url!.path.hasSuffix("/session") { return (200, "{\"session\":\"A\"}") }
+            return (200, "{\"conversations\":[]}")
+        }
+        await api.configure(apiKey: "pk_retry")
+        _ = try await api.conversations()
+        try await api.registerPushToken("push-A", sandbox: true)
+        await api.reset()
+        XCTAssertTrue(deletes.isEmpty, "Local reset must return without network")
+        XCTAssertNil(KeychainHelper.load(key: "apprefer_support_session").value)
+        await api.revokePending(using: "pk_retry")
+        XCTAssertNotNil(KeychainHelper.load(key: "apprefer_support_revocations").value)
+        let saved = KeychainHelper.load(key: "apprefer_support_revocations").value!
+        XCTAssertTrue(saved.contains("push-A")); XCTAssertTrue(saved.contains("A"))
+        status = 200
+        let restarted = SupportAPI(baseURL: "https://support.test", session: session)
+        await restarted.revokePending(using: "pk_retry")
+        XCTAssertEqual(KeychainHelper.load(key: "apprefer_support_revocations").value, "[]")
+        XCTAssertEqual(deletes.count, 4)
+        Support090Protocol.handler = nil
+    }
+    func testEventAcceptedAfterResetClearSurvivesResetCompletion() async throws {
+        let (sdk, storage, poster) = fixture()
+        await sdk._reset()
+        poster.status = 503
+        let result = await sdk._trackEvent("signed_out", properties: nil, revenue: nil, currency: nil)
+        XCTAssertEqual(result, .queued)
+        XCTAssertEqual(try JSONDecoder().decode([PendingProductEvent].self, from: storage.pendingEvents!).count, 1)
+        await sdk._clearPendingEvents()
     }
 }

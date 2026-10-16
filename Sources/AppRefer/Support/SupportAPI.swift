@@ -10,7 +10,11 @@ private final class SupportGeneration: @unchecked Sendable {
 }
 
 actor SupportAPI {
-    static let shared = SupportAPI()
+    static let shared: SupportAPI = {
+        let api = SupportAPI()
+        Task { await api.retryRevocations() }
+        return api
+    }()
 
     private static let tokenKey = "apprefer_support_session"
     private static let profileKey = "apprefer_support_profile"
@@ -38,30 +42,54 @@ actor SupportAPI {
         Task { await revokePending(using: key) }
     }
 
-    private func revokePending(using key: String) async {
-        guard let json = KeychainHelper.load(key: revocationKey).value,
-              let data = json.data(using: .utf8),
-              let pending = try? JSONDecoder().decode([Revocation].self, from: data) else { return }
-        KeychainHelper.delete(key: revocationKey)
-        for item in pending { await revoke(item, using: item.key ?? key) }
+    private var revoking = false
+    private var deferredRevocations: [Revocation] = []
+    private func savedRevocations() -> [Revocation] {
+        let stored = KeychainHelper.load(key: revocationKey).value?.data(using: .utf8).flatMap { try? JSONDecoder().decode([Revocation].self, from: $0) } ?? []
+        return deferredRevocations.reduce(into: stored) { result, item in
+            if !result.contains(where: { $0.token == item.token && $0.key == item.key }) { result.append(item) }
+        }
     }
-
-    private func revoke(_ item: Revocation, using key: String) async {
-        if let push = item.push, let url = URL(string: baseURL + "/api/support/v1/push-token") {
+    private func saveRevocations(_ items: [Revocation]) {
+        deferredRevocations = items
+        switch KeychainHelper.load(key: revocationKey) {
+        case .found, .notFound: break
+        case .unavailable, .failed: return // Never overwrite unreadable saved work.
+        }
+        if let data = try? JSONEncoder().encode(items) {
+            _ = KeychainHelper.save(key: revocationKey, value: String(decoding: data, as: UTF8.self))
+        }
+    }
+    func revokePending(using key: String) async {
+        guard !revoking else { return }
+        revoking = true
+        defer { revoking = false }
+        let pending = savedRevocations()
+        saveRevocations(pending)
+        for item in pending {
+            if await revoke(item, using: item.key ?? key) {
+                saveRevocations(savedRevocations().filter { $0.token != item.token || $0.key != item.key })
+            }
+        }
+    }
+    private func revoke(_ item: Revocation, using key: String) async -> Bool {
+        var succeeded = true
+        for path in (item.push == nil ? [] : ["/push-token"]) + ["/session"] {
+            guard let url = URL(string: baseURL + "/api/support/v1" + path) else { return false }
             var request = URLRequest(url: url, timeoutInterval: 5)
             request.httpMethod = "DELETE"
             request.setValue(key, forHTTPHeaderField: "X-AppRefer-Key")
             request.setValue(item.token, forHTTPHeaderField: "X-AppRefer-Support-Session")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try? JSONSerialization.data(withJSONObject: ["token": push])
-            _ = try? await session.data(for: request)
+            if path == "/push-token", let push = item.push {
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.httpBody = try? JSONSerialization.data(withJSONObject: ["token": push])
+            }
+            do {
+                let (_, response) = try await session.data(for: request)
+                if !(200..<300).contains((response as? HTTPURLResponse)?.statusCode ?? 0) { succeeded = false }
+            } catch { succeeded = false }
         }
-        guard let url = URL(string: baseURL + "/api/support/v1/session") else { return }
-        var request = URLRequest(url: url, timeoutInterval: 5)
-        request.httpMethod = "DELETE"
-        request.setValue(key, forHTTPHeaderField: "X-AppRefer-Key")
-        request.setValue(item.token, forHTTPHeaderField: "X-AppRefer-Support-Session")
-        _ = try? await session.data(for: request)
+        return succeeded
     }
 
     func reset() async {
@@ -78,20 +106,17 @@ actor SupportAPI {
         persona = nil
         KeychainHelper.delete(key: Self.tokenKey)
         UserDefaults.standard.removeObject(forKey: Self.profileKey)
-        let tasks = await session.allTasks
-        tasks.forEach { $0.cancel() }
         if let oldToken {
-            let item = Revocation(token: oldToken, push: pushToken, key: key)
-            if let key { await revoke(item, using: key) }
-            else {
-                let old = KeychainHelper.load(key: revocationKey).value?.data(using: .utf8)
-                var pending = old.flatMap { try? JSONDecoder().decode([Revocation].self, from: $0) } ?? []
-                pending.append(item)
-                if let data = try? JSONEncoder().encode(pending) {
-                    _ = KeychainHelper.save(key: revocationKey, value: String(decoding: data, as: UTF8.self))
-                }
-            }
+            var pending = savedRevocations()
+            pending.append(Revocation(token: oldToken, push: pushToken, key: key))
+            saveRevocations(pending)
         }
+        // Local cleanup completes before any network work starts.
+    }
+
+    func retryRevocations() {
+        guard let key = supportApiKey ?? AppRefer.currentApiKey() ?? UserDefaults.standard.string(forKey: "apprefer_support_last_key") else { return }
+        Task { await revokePending(using: key) }
     }
 
     init(baseURL: String = AppReferConfig.backendURL, session: URLSession = URLSession(configuration: .default)) {
@@ -192,6 +217,7 @@ actor SupportAPI {
     private func call(_ method: String, _ path: String, body: [String: Any]? = nil, expectedGeneration: Int? = nil) async throws -> Data {
         let epoch = expectedGeneration ?? generation
         guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
+        retryRevocations()
         do {
             let bearer = try await sessionToken()
             guard epoch == generation else { throw CancellationError() }

@@ -32,7 +32,12 @@ public final class AppReferSupport {
 
     private weak var presented: UIViewController?
 
-    private init() {}
+    private var activationObserver: NSObjectProtocol?
+    private init() {
+        activationObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil) { _ in
+            Task { await SupportAPI.shared.retryRevocations() }
+        }
+    }
 
     /// Start Support without attribution, device signals or product analytics.
     public func configure(apiKey: String) async {
