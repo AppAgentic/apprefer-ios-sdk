@@ -1,6 +1,7 @@
 import Foundation
 
 final class AppReferHTTPClient: @unchecked Sendable {
+    private let collectionAllowed: @Sendable () -> Bool
     private let primaryURL: String
     private let fallbackURL: String?
     private let apiKey: String
@@ -21,7 +22,8 @@ final class AppReferHTTPClient: @unchecked Sendable {
     private let maxRetries = 3
     private let requestTimeout: TimeInterval = 10
 
-    init(primaryURL: String, fallbackURL: String? = nil, apiKey: String, logger: AppReferLogger) {
+    init(primaryURL: String, fallbackURL: String? = nil, apiKey: String, logger: AppReferLogger, collectionAllowed: @escaping @Sendable () -> Bool = { true }) {
+        self.collectionAllowed = collectionAllowed
         self.primaryURL = primaryURL
         self.fallbackURL = fallbackURL
         self.apiKey = apiKey
@@ -57,6 +59,7 @@ final class AppReferHTTPClient: @unchecked Sendable {
     func event(_ body: [String: Any]) async -> Int? { await eventResponse(body).status }
 
     func eventResponse(_ body: [String: Any]) async -> ProductEventResponse {
+        guard collectionAllowed(), !Task.isCancelled else { return ProductEventResponse(status: nil, retryAfter: nil) }
         guard let url = URL(string: primaryURL + "/api/track/event"),
               let data = try? JSONSerialization.data(withJSONObject: body) else { return ProductEventResponse(status: 400, retryAfter: nil) }
         var request = URLRequest(url: url, timeoutInterval: requestTimeout)
@@ -84,13 +87,14 @@ final class AppReferHTTPClient: @unchecked Sendable {
     }
 
     func post(_ path: String, body: [String: Any]) async -> [String: Any]? {
+        guard collectionAllowed() else { return nil }
         let epoch = generation()
         // Try primary URL first
         if let result = await performPost(baseURL: primaryURL, path: path, body: body) {
             return result
         }
 
-        guard epoch == generation() else { return nil }
+        guard epoch == generation(), collectionAllowed() else { return nil }
         // Fallback if primary failed and a fallback URL is configured
         if let fallbackURL = fallbackURL, fallbackURL != primaryURL {
             logger.info("Primary URL failed, retrying on fallback: \(fallbackURL)\(path)")
@@ -114,6 +118,7 @@ final class AppReferHTTPClient: @unchecked Sendable {
             return nil
         }
 
+        guard collectionAllowed() else { return nil }
         let epoch = generation()
         for attempt in 0..<maxRetries {
             guard !Task.isCancelled else { return nil }
@@ -124,7 +129,7 @@ final class AppReferHTTPClient: @unchecked Sendable {
                 catch { return nil }
             }
 
-            guard epoch == generation() else { return nil }
+            guard epoch == generation(), collectionAllowed() else { return nil }
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.httpBody = bodyData
@@ -137,7 +142,7 @@ final class AppReferHTTPClient: @unchecked Sendable {
 
             do {
                 let (data, response) = try await performRequest(request)
-                guard epoch == generation() else { return nil }
+                guard epoch == generation(), collectionAllowed() else { return nil }
 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     logger.error("POST \(path): invalid response")

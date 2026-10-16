@@ -44,6 +44,30 @@ final class AppReferStorage: @unchecked Sendable {
                 .appendingPathComponent("AppRefer/product-events.json") : nil)
     }
 
+    private let collectionLock = NSLock()
+    private var collectionPaused = false
+    func isCollectionEnabled() -> Bool {
+        collectionLock.lock(); defer { collectionLock.unlock() }
+        return !collectionPaused && (defaults.object(forKey: "apprefer_collection_enabled") as? Bool != false)
+    }
+    func setCollectionEnabled(_ enabled: Bool) {
+        collectionLock.lock(); defer { collectionLock.unlock() }
+        // Turning off pauses at once; turning back on takes effect only on configure. An
+        // unchanged "on" never pauses anything.
+        if !enabled || defaults.object(forKey: "apprefer_collection_enabled") as? Bool == false { collectionPaused = true }
+        defaults.set(enabled, forKey: "apprefer_collection_enabled")
+    }
+    /// The app saved "off". Only this (or the server kill switch) clears queued events; a pause
+    /// waiting for configure after re-enabling does not.
+    func collectionSavedOff() -> Bool {
+        collectionLock.lock(); defer { collectionLock.unlock() }
+        return defaults.object(forKey: "apprefer_collection_enabled") as? Bool == false
+    }
+    func resumeCollection() {
+        collectionLock.lock(); defer { collectionLock.unlock() }
+        collectionPaused = false
+    }
+
     func clearUser() { defaults.removeObject(forKey: Self.keyUserId) }
     var organicConfirmed: Bool {
         get { defaults.bool(forKey: "apprefer_organic_confirmed") }
