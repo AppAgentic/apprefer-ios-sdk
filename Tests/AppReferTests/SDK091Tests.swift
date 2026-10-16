@@ -298,4 +298,61 @@ final class SDK091Tests: XCTestCase {
         await api.reset()
     }
 
+    // MARK: - Review fixes
+
+    func testEnablingWhileAlreadyOnIsANoOpAndKeepsTheQueue() async {
+        let (sdk, storage, poster, _) = fixture()
+        let previous = AppRefer.replaceSharedForTesting(sdk)
+        defer { _ = AppRefer.replaceSharedForTesting(previous) }
+        _ = await sdk._configure()
+        await poster.setStatus(503)
+        let first = await AppRefer.trackEventResult("kept")
+        XCTAssertEqual(first, .queued)
+        let epoch = AppRefer.collectionEpoch()
+        await AppRefer.setCollectionEnabled(true) // e.g. a consent tool reporting "granted" each launch
+        XCTAssertEqual(AppRefer.collectionEpoch(), epoch)
+        XCTAssertTrue(storage.isCollectionEnabled())
+        let second = await AppRefer.trackEventResult("still-collecting")
+        XCTAssertEqual(second, .queued)
+        await sdk.flushPendingEvents()
+        let events = try? JSONDecoder().decode([PendingProductEvent].self, from: storage.pendingEvents ?? Data())
+        XCTAssertEqual(events?.count, 2)
+        await sdk._clearPendingEvents()
+    }
+
+    func testPauseWaitingForConfigureNeverClearsTheQueue() async throws {
+        let (sdk, storage, poster, _) = fixture()
+        _ = await sdk._configure()
+        await poster.setStatus(503)
+        _ = await sdk._trackEvent("saved", properties: nil, revenue: nil, currency: nil)
+        let saved = try XCTUnwrap(storage.pendingEvents)
+        // Saved "off" from an earlier choice, then turned back on: paused until configure.
+        storage.setCollectionEnabled(false)
+        storage.setCollectionEnabled(true)
+        XCTAssertFalse(storage.isCollectionEnabled())
+        await sdk.flushPendingEvents()
+        XCTAssertEqual(storage.pendingEvents, saved)
+        await poster.setStatus(200)
+        _ = await sdk._configure()
+        var events = try JSONDecoder().decode([PendingProductEvent].self, from: storage.pendingEvents!)
+        events[0].nextAttempt = .distantPast; storage.pendingEvents = try JSONEncoder().encode(events)
+        await sdk.flushPendingEvents()
+        XCTAssertNil(storage.pendingEvents.flatMap { try? JSONDecoder().decode([PendingProductEvent].self, from: $0) }?.first)
+    }
+
+    func testConfigureWithUserIdWhileCollectionOffStoresTheNewUser() async {
+        let storage = AppReferStorage(defaults: UserDefaults(suiteName: UUID().uuidString)!, keychain: FakeDeviceIdKeychain())
+        let poster = Poster091()
+        storage.setUserId("A")
+        storage.setCollectionEnabled(false)
+        let sdk = AppRefer(config: AppReferConfig(apiKey: "pk_test", userId: "B"), storage: storage, trackingClient: poster, firstPartyClient: poster)
+        _ = await sdk._configure()
+        XCTAssertEqual(storage.getUserId(), "B") // Support now uses B
+        let count = await poster.count(); XCTAssertEqual(count, 0)
+        // A configure begun before reset() stores nothing.
+        storage.setUserId("C")
+        _ = await sdk._configure(expectedAccountEpoch: AppRefer.accountEpoch() - 1)
+        XCTAssertEqual(storage.getUserId(), "C")
+    }
+
 }

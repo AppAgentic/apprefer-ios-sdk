@@ -52,8 +52,16 @@ final class AppReferStorage: @unchecked Sendable {
     }
     func setCollectionEnabled(_ enabled: Bool) {
         collectionLock.lock(); defer { collectionLock.unlock() }
-        collectionPaused = true // enabling takes effect only on configure
+        // Turning off pauses at once; turning back on takes effect only on configure. An
+        // unchanged "on" never pauses anything.
+        if !enabled || defaults.object(forKey: "apprefer_collection_enabled") as? Bool == false { collectionPaused = true }
         defaults.set(enabled, forKey: "apprefer_collection_enabled")
+    }
+    /// The app saved "off". Only this (or the server kill switch) clears queued events; a pause
+    /// waiting for configure after re-enabling does not.
+    func collectionSavedOff() -> Bool {
+        collectionLock.lock(); defer { collectionLock.unlock() }
+        return defaults.object(forKey: "apprefer_collection_enabled") as? Bool == false
     }
     func resumeCollection() {
         collectionLock.lock(); defer { collectionLock.unlock() }

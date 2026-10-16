@@ -355,8 +355,11 @@ public actor AppRefer {
     /// Persistently pause attribution and product analytics. Support and Billing remain available.
     /// Enabling resumes collection on the next configure call.
     public static func setCollectionEnabled(_ enabled: Bool) async {
+        let shared = getShared()
+        // Already on: a consent tool reporting "granted" on every launch changes nothing.
+        if enabled, (shared?.storage ?? AppReferStorage()).isCollectionEnabled() { return }
         advanceCollection()
-        if let sdk = getShared() { await sdk._setCollectionEnabled(enabled) }
+        if let sdk = shared { await sdk._setCollectionEnabled(enabled) }
         else {
             let storage = AppReferStorage()
             storage.setCollectionEnabled(enabled)
@@ -467,7 +470,11 @@ public actor AppRefer {
 
     func _configure(expectedAccountEpoch: Int? = nil, expectedCollectionEpoch: Int? = nil) async -> Attribution? {
         // A configure begun before reset() never restarts attribution for the next account.
-        if expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() { stoppedByReset = false }
+        if expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() {
+            stoppedByReset = false
+            // Stored even while collection is off, so Support uses this account, not the last one.
+            if let userId = config.userId { storage.setUserId(userId) }
+        }
         guard expectedCollectionEpoch == nil || expectedCollectionEpoch == Self.collectionEpoch() else { return storage.getCachedAttribution() }
         storage.resumeCollection()
         guard storage.isCollectionEnabled() else { return storage.getCachedAttribution() }
@@ -837,7 +844,8 @@ public actor AppRefer {
     @discardableResult
     func flushPendingEvents(only eventId: String? = nil) async -> [String: Int] {
         guard !draining, canCollect else {
-            if !(storage.isSdkEnabled() && storage.isCollectionEnabled()) { storage.pendingEvents = nil }
+            // Only a saved "off" or the kill switch clears the queue, never a pause alone.
+            if !storage.isSdkEnabled() || storage.collectionSavedOff() { storage.pendingEvents = nil }
             return [:]
         }
         draining = true
