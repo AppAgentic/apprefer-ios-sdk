@@ -112,8 +112,9 @@ struct BillingAPIClient: Sendable {
         case getCustomer(appUserId: String)
         /// `restore` is true only for Restore Purchases: it lets the server move a purchase
         /// that already belongs to another app user to this one.
-        case purchase(appUserId: String, appreferId: String?, signedTransaction: String, attributes: [String: String], restore: Bool)
+        case purchase(appUserId: String, appreferId: String?, signedTransaction: String, attributes: [String: String], restore: Bool, presentedOfferingContext: PresentedOfferingContext? = nil, bucketId: String? = nil)
         case identify(anonymousId: String, appUserId: String)
+        case offerings(body: [String: String], known: [String: String]?)
     }
 
     private let baseURLProvider: @Sendable () -> [String]
@@ -160,6 +161,11 @@ struct BillingAPIClient: Sendable {
         var body: [String: Any]?
 
         switch endpoint {
+        case let .offerings(fields, known):
+            path = "/api/billing/v1/offerings"
+            var b: [String: Any] = fields
+            if let known { b["known"] = known }
+            body = b
         case let .createCustomer(appUserId, appreferId, attributes):
             path = "/api/billing/v1/customers"
             var b: [String: Any] = ["appUserId": appUserId]
@@ -170,7 +176,7 @@ struct BillingAPIClient: Sendable {
             path = "/api/billing/v1/customers"
             method = "GET"
             query = [URLQueryItem(name: "appUserId", value: appUserId)]
-        case let .purchase(appUserId, appreferId, signedTransaction, attributes, restore):
+        case let .purchase(appUserId, appreferId, signedTransaction, attributes, restore, context, bucketId):
             path = "/api/billing/v1/purchases"
             var b: [String: Any] = [
                 "appUserId": appUserId,
@@ -180,6 +186,8 @@ struct BillingAPIClient: Sendable {
             if let appreferId { b["appreferId"] = appreferId }
             if !attributes.isEmpty { b["attributes"] = attributes }
             if restore { b["restore"] = true }
+            if let context { b["presentedOfferingContext"] = context.dictionary }
+            if let bucketId { b["bucketId"] = bucketId }
             body = b
         case let .identify(anonymousId, appUserId):
             path = "/api/billing/v1/identify"
@@ -222,6 +230,11 @@ struct BillingAPIClient: Sendable {
 
     /// Sends the request. 5xx and network errors fail over to the next host; 4xx are final.
     func send(_ endpoint: Endpoint) async throws -> BillingCustomerResponse {
+        do { return try JSONDecoder().decode(BillingCustomerResponse.self, from: try await sendRaw(endpoint)) }
+        catch let error as AppReferBillingError { throw error }
+        catch { throw AppReferBillingError.invalidResponse }
+    }
+    func sendRaw(_ endpoint: Endpoint) async throws -> Data {
         guard let key = await resolveApiKey() else { throw AppReferBillingError.missingApiKey }
         var lastError = AppReferBillingError.network("no endpoint")
 
@@ -247,11 +260,7 @@ struct BillingAPIClient: Sendable {
                         status: 503, message: "Purchase verified but not recorded yet", retryAfter: Self.defaultRetryAfter
                     )
                 }
-                do {
-                    return try JSONDecoder().decode(BillingCustomerResponse.self, from: data)
-                } catch {
-                    throw AppReferBillingError.invalidResponse
-                }
+                return data
             }
             let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
             let error = AppReferBillingError.server(

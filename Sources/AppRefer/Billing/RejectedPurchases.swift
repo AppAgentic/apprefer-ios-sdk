@@ -182,6 +182,8 @@ final class RejectedPurchaseLog {
 /// Who opened a purchase sheet, saved before it opened, so a purchase delivered later
 /// (Ask to Buy, slow payment, after a restart, logout or user switch) goes to them.
 struct PurchaseIntent: Codable, Equatable, Sendable {
+    var presentedOfferingContext: PresentedOfferingContext? = nil
+    var bucketId: String? = nil
     var id = UUID()
     let appUserId: String
     let productId: String

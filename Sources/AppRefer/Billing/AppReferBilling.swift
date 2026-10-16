@@ -153,7 +153,7 @@ public enum AppReferBilling {
         _engine = engine
         lock.unlock()
 
-        DispatchQueue.main.async { Task { await engine.start() } }
+        DispatchQueue.main.async { Task { await engine.refreshOfferingsIfStale(); await engine.start() } }
         observeForeground(engine)
     }
 
@@ -162,6 +162,7 @@ public enum AppReferBilling {
         let observer = NotificationCenter.default.addObserver(
             forName: UIApplication.willEnterForegroundNotification, object: nil, queue: nil
         ) { _ in
+            Task { await engine.refreshOfferingsIfStale() }
             Task {
                 _ = await engine.customerInfo(policy: .cachedOrFetched)
                 await engine.migrationSync()
@@ -238,6 +239,12 @@ public enum AppReferBilling {
         broadcaster.stream()
     }
 
+    public static func offerings(fetchPolicy: FetchPolicy = .cachedOrFetched) async throws -> AppReferOfferings {
+        try await requireEngine().offerings(policy: fetchPolicy)
+    }
+    public static func purchase(package: AppReferPackage) async throws -> PurchaseResult {
+        try await purchase(package.storeProduct, presentedOfferingContext: package.presentedOfferingContext)
+    }
     // MARK: - Products and purchases
 
     /// StoreKit products in the order requested.
@@ -256,12 +263,13 @@ public enum AppReferBilling {
     public static func purchase(
         _ product: Product,
         promotionalOffer: PromotionalOffer? = nil,
-        options extraOptions: Set<Product.PurchaseOption> = []
+        options extraOptions: Set<Product.PurchaseOption> = [],
+        presentedOfferingContext: PresentedOfferingContext? = nil
     ) async throws -> PurchaseResult {
         let engine = try requireEngine()
         var options = extraOptions
         // Whoever is signed in now owns the purchase, even if logIn/logOut runs during the sheet.
-        let intent = try await engine.beginPurchase(productId: product.id)
+        let intent = try await engine.beginPurchase(productId: product.id, context: presentedOfferingContext)
         if let token = intent.accountToken {
             options.insert(.appAccountToken(token))
         }

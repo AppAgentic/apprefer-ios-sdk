@@ -11,6 +11,49 @@ actor BillingEngine {
         var cacheTTL: TimeInterval = 5 * 60
     }
 
+    private var offeringsInvalidated = false
+    private var offeringsGeneration = 0
+    private var offeringsCache: [String: CachedOfferings] = [:]
+    private var offeringsRequest: (UUID, Task<AppReferOfferings, Error>)?
+    func offerings(policy: AppReferBilling.FetchPolicy = .cachedOrFetched) async throws -> AppReferOfferings {
+        if let request = offeringsRequest { return try await request.1.value }
+        let id = UUID()
+        let generation = offeringsGeneration
+        let task = Task { try await self.loadOfferings(policy: policy, generation: generation) }
+        offeringsRequest = (id, task)
+        defer { if offeringsRequest?.0 == id { offeringsRequest = nil } }
+        return try await task.value
+    }
+    private func loadOfferings(policy: AppReferBilling.FetchPolicy, generation: Int) async throws -> AppReferOfferings {
+        guard let user = activeUser(), let bucket = storage.offeringsBucketId() else { throw AppReferBillingError.purchaseIntentNotSaved }
+        var cached = offeringsCache[user] ?? storage.cachedOfferings(for: user)
+        if offeringsInvalidated || policy == .fetchCurrent || cached == nil || now().timeIntervalSince(cached!.fetchedAt) >= 300 {
+            do {
+                var fields = ["appUserId": user, "bucketId": bucket, "platform": "ios"]
+                if let country = await storeKit.storefrontCountry() { fields["country"] = country }
+                fields["appVersion"] = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+                let c = cached?.response.context
+                let known: [String: String]? = c?.experimentId.flatMap { exp in c?.variantId.map { ["experimentId": exp, "variantId": $0] } }
+                let data = try await api.sendRaw(.offerings(body: fields, known: known))
+                guard let response = try? JSONDecoder().decode(OfferingsResponse.self, from: data) else { throw AppReferBillingError.invalidResponse }
+                cached = CachedOfferings(response: response, fetchedAt: now())
+                if generation == offeringsGeneration {
+                    offeringsInvalidated = false
+                    storage.saveOfferings(cached!, for: user)
+                }
+            } catch { if cached == nil { throw error as? AppReferBillingError ?? AppReferBillingError.network(error.localizedDescription) } }
+        }
+        if generation == offeringsGeneration { offeringsCache[user] = cached! }
+        return try await cached!.response.resolve { try await self.storeKit.products($0) }
+    }
+    func refreshOfferingsIfStale() async { _ = try? await offerings() }
+    private func invalidateOfferings() {
+        offeringsGeneration += 1
+        offeringsInvalidated = true
+        offeringsRequest = nil
+        for key in offeringsCache.keys { offeringsCache[key]?.fetchedAt = .distantPast }
+        if !offeringsCache.isEmpty { Task { _ = try? await self.offerings(policy: .fetchCurrent) } }
+    }
     private let api: BillingAPIClient
     private let storage: BillingStorage
     private let queue: PendingPurchaseQueue
@@ -439,7 +482,9 @@ actor BillingEngine {
                 appreferId: deviceId,
                 signedTransaction: transaction.signedTransaction,
                 attributes: attributes,
-                restore: false
+                restore: false,
+                presentedOfferingContext: intent?.presentedOfferingContext,
+                bucketId: intent?.bucketId
             ))
             storage.clearSentAttributes(attributes)
             await finish(update)
@@ -454,6 +499,7 @@ actor BillingEngine {
         } catch let error as AppReferBillingError where error.isRetryable {
             pause(after: error)
             let durable = queue.add(PendingPurchase(
+                presentedOfferingContext: intent?.presentedOfferingContext, bucketId: intent?.bucketId,
                 transactionId: transaction.id,
                 productId: transaction.productId,
                 appUserId: owner,
@@ -673,7 +719,9 @@ actor BillingEngine {
                 let response = try await api.send(.purchase(
                     appUserId: entry.appUserId, appreferId: entry.appreferId,
                     signedTransaction: entry.signedTransaction, attributes: [:],
-                    restore: entry.restore == true
+                    restore: entry.restore == true,
+                    presentedOfferingContext: entry.presentedOfferingContext,
+                    bucketId: entry.bucketId
                 ))
                 queue.remove(transactionId: entry.transactionId)
                 drainBackoff = nil
@@ -740,11 +788,11 @@ actor BillingEngine {
     /// a purchase delivered later (Ask to Buy, restart, user switch) finds it on disk. The
     /// token is nil when AppRefer is unreachable: the purchase still goes ahead. Throws
     /// `purchaseIntentNotSaved` when the intent can't be saved: the sheet must not open.
-    func beginPurchase(productId: String) async throws -> PurchaseIntent {
+    func beginPurchase(productId: String, context: PresentedOfferingContext? = nil) async throws -> PurchaseIntent {
         guard let user = activeUser() else { throw AppReferBillingError.purchaseIntentNotSaved }
         if storage.accountToken(for: user) == nil { _ = try? await fetchFromServer(user, drain: false) }
         let intent = PurchaseIntent(
-            appUserId: user, productId: productId, accountToken: storage.accountToken(for: user), startedAt: now()
+            presentedOfferingContext: context, bucketId: context == nil ? nil : storage.offeringsBucketId(), appUserId: user, productId: productId, accountToken: storage.accountToken(for: user), startedAt: now()
         )
         guard intents.add(intent) else {
             logger.error("Billing: couldn't save the purchase intent; not opening the purchase sheet")
@@ -772,6 +820,7 @@ actor BillingEngine {
             throw AppReferBillingError.invalidAppUserId
         }
         pendingIdentityChanges.append(.logIn(appUserId))
+        invalidateOfferings()
         let info = await customerInfo(policy: .fetchCurrent)
         Task { await self.migrationSync(forUser: appUserId) }
         return info
@@ -779,6 +828,7 @@ actor BillingEngine {
 
     func logOut() async -> AppReferCustomerInfo {
         pendingIdentityChanges.append(.logOut)
+        invalidateOfferings()
         return await customerInfo(policy: .fetchCurrent)
     }
 

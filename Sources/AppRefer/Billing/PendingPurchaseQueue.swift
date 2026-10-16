@@ -2,6 +2,8 @@ import Foundation
 
 /// A verified StoreKit transaction AppRefer has not accepted yet.
 struct PendingPurchase: Codable, Equatable, Sendable {
+    var presentedOfferingContext: PresentedOfferingContext? = nil
+    var bucketId: String? = nil
     let transactionId: String
     let productId: String
     let appUserId: String
