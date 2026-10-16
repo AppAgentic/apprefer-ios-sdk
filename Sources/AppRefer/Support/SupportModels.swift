@@ -70,6 +70,11 @@ struct SupportUploadSlot: Decodable { let attachmentId: String; let uploadUrl: S
 
 public struct AppReferSupportError: LocalizedError, Sendable {
     public let status: Int
+    /// The server's (or the SDK's) English message, for logs. The chat shows its own
+    /// localized text instead (`SupportStrings.errorText`).
     public let message: String
+    /// What kind of failure, so the chat can explain it in the customer's language.
+    enum Reason: Sendable { case server, locked, upload, unavailable }
+    var reason: Reason = .server
     public var errorDescription: String? { message }
 }

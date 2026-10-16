@@ -65,21 +65,21 @@ actor SupportAPI {
     private var revokeKey: String?
     private var deferredRevocations: [Revocation] = []
     private func savedRevocations() -> [Revocation] {
-        let stored = KeychainHelper.load(key: revocationKey).value?.data(using: .utf8).flatMap { try? JSONDecoder().decode([Revocation].self, from: $0) } ?? []
+        let stored = tokenKeychain.load(key: revocationKey).value?.data(using: .utf8).flatMap { try? JSONDecoder().decode([Revocation].self, from: $0) } ?? []
         return deferredRevocations.reduce(into: stored) { result, item in
             if !result.contains(where: { $0.token == item.token && $0.key == item.key }) { result.append(item) }
         }
     }
     private func saveRevocations(_ items: [Revocation]) {
         deferredRevocations = items
-        switch KeychainHelper.load(key: revocationKey) {
+        switch tokenKeychain.load(key: revocationKey) {
         case .found(let raw):
             if let data = raw.data(using: .utf8), let saved = try? JSONDecoder().decode([Revocation].self, from: data), saved == items { return }
         case .notFound: if items.isEmpty { return }
         case .unavailable, .failed: return // Never overwrite unreadable saved work.
         }
         if let data = try? JSONEncoder().encode(items) {
-            _ = KeychainHelper.save(key: revocationKey, value: String(decoding: data, as: UTF8.self))
+            _ = tokenKeychain.save(key: revocationKey, value: String(decoding: data, as: UTF8.self))
         }
     }
     /// Runs a revocation pass. Called while one is running, it asks for one more pass after
@@ -276,7 +276,7 @@ actor SupportAPI {
     private var memoryClearedMarker = false
 
     static func storeUnavailable() -> AppReferSupportError {
-        AppReferSupportError(status: 0, message: "Support isn't available until the device is unlocked. Try again.")
+        AppReferSupportError(status: 0, message: "Support isn't available until the device is unlocked. Try again.", reason: .locked)
     }
 
     /// A session minted while the identity was cleared is never handed to an account stored
@@ -425,7 +425,7 @@ actor SupportAPI {
         let epoch = expectedGeneration ?? generation
         guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
         guard let apiKey = supportApiKey ?? AppRefer.currentApiKey(), let url = URL(string: baseURL + path) else {
-            throw AppReferSupportError(status: 0, message: "AppRefer isn't configured")
+            throw AppReferSupportError(status: 0, message: "AppRefer isn't configured", reason: .unavailable)
         }
         var req = URLRequest(url: url, timeoutInterval: 20)
         req.httpMethod = method
@@ -498,7 +498,7 @@ actor SupportAPI {
         guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
         let slotData = try await call("POST", "/api/support/v1/attachments", body: ["contentType": "image/jpeg", "size": jpeg.count, "name": name], expectedGeneration: epoch)
         let slot = try JSONDecoder().decode(SupportUploadSlot.self, from: slotData)
-        guard let url = URL(string: slot.uploadUrl) else { throw AppReferSupportError(status: 0, message: "Bad upload address") }
+        guard let url = URL(string: slot.uploadUrl) else { throw AppReferSupportError(status: 0, message: "Bad upload address", reason: .upload) }
         var put = URLRequest(url: url, timeoutInterval: 60)
         put.httpMethod = "PUT"
         for (k, v) in slot.headers { put.setValue(v, forHTTPHeaderField: k) }
@@ -506,7 +506,7 @@ actor SupportAPI {
         let (_, response) = try await session.upload(for: put, from: jpeg)
         guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status) else { throw AppReferSupportError(status: status, message: "The screenshot didn't upload (\(status))") }
+        guard (200..<300).contains(status) else { throw AppReferSupportError(status: status, message: "The screenshot didn't upload (\(status))", reason: .upload) }
         return slot.attachmentId
     }
 

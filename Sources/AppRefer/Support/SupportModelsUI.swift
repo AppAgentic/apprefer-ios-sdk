@@ -58,7 +58,7 @@ final class SupportHomeModel: ObservableObject {
             await SupportPersonaStore.shared.refresh()
             error = nil
         } catch {
-            self.error = error.localizedDescription
+            self.error = SupportStrings.errorText(error)
         }
         loaded = true
     }
@@ -102,7 +102,7 @@ final class SupportThreadModel: ObservableObject {
             lastSeen = t.messages.last?.createdAt
             error = nil
         } catch {
-            self.error = error.localizedDescription
+            self.error = SupportStrings.errorText(error)
         }
         loaded = true
     }
@@ -141,7 +141,7 @@ final class SupportThreadModel: ObservableObject {
             merge([sent])
         } catch {
             if let i = pending.firstIndex(where: { $0.id == p.id }) { pending[i].failed = true }
-            self.error = error.localizedDescription
+            self.error = SupportStrings.errorText(error)
         }
     }
 

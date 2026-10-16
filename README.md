@@ -1,5 +1,13 @@
 # AppRefer iOS SDK
 
+## 0.10.0 (unreleased): the help chat speaks 35 languages
+
+**AppRefer Support is localized.** Every label, placeholder, error and accessibility
+label in the help chat ships in 35 languages and follows the language your app is
+running in, so the chat matches your screens. Override any string or force a language;
+see [Support chat → Languages](#languages-and-your-own-wording). Arabic and Hebrew lay
+out right to left.
+
 ## 0.9.3: reset gate survives relaunch; Support revocation and push fixes
 
 **Billing remembers the reset across launches.** `AppRefer.reset()` saves the Billing
@@ -204,22 +212,25 @@ Call once at app launch. Resolves attribution on first install, returns cached r
 ```swift
 let attribution = await AppRefer.configure(
     apiKey: "pk_live_...",  // or "pk_test_..." for development
-    userId: nil,            // optional — link RevenueCat user ID at init
+    userId: nil,            // optional — your app's user id (the one you pass to AppReferBilling.logIn)
     debug: false            // optional — enable verbose logging
 )
 ```
 
-### Link RevenueCat User ID
+### Link your user ID
 
-Connect the device to RevenueCat so purchase webhooks can be attributed.
+Tell AppRefer who is signed in, so Support conversations and product events carry the account.
+AppRefer Billing links purchases to the ad click on its own (the install device id is sent
+automatically), so this isn't needed for purchase attribution.
 
 ```swift
-await AppRefer.setUserId(Purchases.shared.appUserID)
+await AppRefer.setUserId(currentUser.id)
+try await AppReferBilling.logIn(currentUser.id)  // if you use AppRefer Billing
 ```
 
 ### Track Events
 
-Track non-purchase events. Purchases are handled automatically via RevenueCat webhooks.
+Track non-purchase events. Purchases made with AppRefer Billing are recorded and sent to your ad networks automatically.
 
 ```swift
 await AppRefer.trackEvent("signup")
@@ -243,7 +254,7 @@ await AppRefer.setAdvancedMatching(
 
 ```swift
 let cached = await AppRefer.getAttribution()    // no network call
-let deviceId = await AppRefer.getDeviceId()     // for RC subscriber attributes
+let deviceId = await AppRefer.getDeviceId()     // e.g. for your support tools or backend
 ```
 
 ## Attribution Model
@@ -369,9 +380,9 @@ Testing: use a sandbox Apple ID. Transactions from an Xcode StoreKit configurati
 ## Best Practices
 
 - **Call `configure()` once** — ideally in `App.init()` or `AppDelegate.didFinishLaunching`. The SDK deduplicates automatically; subsequent calls return the cached result with no network overhead.
-- **Set the RevenueCat user ID early** — call `AppRefer.setUserId()` right after `Purchases.configure()` so purchase webhooks can be attributed to the correct device.
+- **Set the user ID when someone signs in** — call `AppRefer.setUserId()` and `AppReferBilling.logIn()` with the same id, so Support, product events and purchases all belong to that account.
 - **Call `setAdvancedMatching()` after login/signup** — this sends hashed PII to improve Meta CAPI match rates. Only needs to be called once per user session.
-- **Don't track purchases with `trackEvent()`** — revenue events are handled automatically via RevenueCat webhooks. Use `trackEvent()` only for non-purchase milestones like `signup`, `tutorial_complete`, or `onboarding_finish`.
+- **Don't track purchases with `trackEvent()`** — AppRefer Billing records purchases, renewals and refunds and forwards them for you. Use `trackEvent()` only for non-purchase milestones like `signup`, `tutorial_complete`, or `onboarding_finish`.
 - **Use the test key during development** — `pk_test_` keys create sandbox events that are isolated from production data and never forwarded to ad networks. Switch to `pk_live_` for release builds.
 - **Use the Debugger** — verify events are flowing correctly in the [AppRefer dashboard](https://apprefer.com) → Debugger before going to production. Toggle the Sandbox switch to see test events.
 - **No IDFA required** — the SDK uses Apple's AdServices framework and works without ATT permission. It never shows the ATT prompt; it reads the status your app already has.
@@ -398,7 +409,7 @@ AppRefer does this for you:
 
 - On first launch it registers the install (value 0, coarse `low`), as Apple recommends.
 - It then sets the value AppRefer computes from what it already knows: **10** (`medium`) once a free trial starts, **20 + whole dollars paid** (`high`, capped at 63) once the user pays, e.g. $9.99 → 30, $39.99 → 60. Values only go up and windows are never locked early.
-- It checks on launch, when the app becomes active, after trial or revenue events and after AppReferBilling purchases, for the 35 days Apple's postbacks cover. If you take payments elsewhere (e.g. RevenueCat), call `await AppRefer.updateConversionValue()` after a purchase to set it sooner.
+- It checks on launch, when the app becomes active, after trial or revenue events and after AppReferBilling purchases, for the 35 days Apple's postbacks cover. If you take payments outside AppReferBilling, call `await AppRefer.updateConversionValue()` after a purchase to set it sooner.
 - It updates both AdAttributionKit (iOS 17.4+) and SKAdNetwork (iOS 15.4+), as Apple asks when your ad networks may use either.
 
 To receive copies of the winning postbacks in AppRefer, add to your app's Info.plist:
@@ -453,6 +464,29 @@ if AppRefer.support.handleNotification(response.notification.request.content.use
 ```
 
 Customers can attach up to four screenshots per message; they are compressed on the device (about 1600 px, under 700 KB) and uploaded straight to storage. The chat checks for replies only while it's open.
+
+### Languages and your own wording
+
+The chat ships in 35 languages: ar, ca, cs, da, de, el, en, es, es-MX, fi, fr, he, hi, hr, hu, id, it, ja, ko, ms, nb, nl, pl, pt-BR, pt-PT, ro, ru, sk, sv, th, tr, uk, vi, zh-Hans, zh-Hant. Nothing to set up.
+
+- **Which language:** the one your app is running in (`Bundle.main.preferredLocalizations`), so an app that ships fewer languages than the SDK gets a chat that matches its own screens (an English-only app on a German phone shows an English chat). If the SDK has no table for it, the device's preferred languages are tried, then English. Regional variants map sensibly: Latin American Spanish → es-MX, Portuguese outside Brazil → pt-PT, Chinese by script and region, Norwegian → nb.
+- **Force a language:** `AppRefer.support.language = "de"` (any shipped code; `nil` follows the app again).
+- **Right to left:** in Arabic and Hebrew the chat lays out right to left, bubbles' tails included.
+- **Your own wording:** set any key; your text wins over the SDK's translation in every language. Placeholders are written `{name}` and filled in by name, so you can reorder them.
+
+```swift
+AppRefer.support.strings = [
+    "support.home.subtitle": "What can we fix for you?",
+    "support.presence.team": "Real humans · usually {time}",
+    "support.a11y.unread#one": "One new reply",   // plural keys: "#one", "#few", … or the bare key for every count
+]
+// For your own app languages, set the values for the language you're showing:
+if Bundle.main.preferredLocalizations.first == "de" { AppRefer.support.strings = ["support.home.subtitle": "Wie können wir helfen?"] }
+```
+
+`title`, `replyTime` and topic texts you set are shown as written. The defaults are translated, and `replyTime` is inserted into a translated sentence: in most languages that sentence already carries its own "in", so give the whole phrase (German `"innerhalb weniger Stunden"`, French `"en quelques heures"`). The built-in tiles (`.billing`, `.restore`, `.bug`, `.idea`) translate themselves; their title becomes the conversation subject in the customer's language.
+
+Every key, its English text, a note for translators and all translations are in [`Localization/support-strings.json`](Localization/support-strings.json), the table all four AppRefer SDKs share. Messages your team writes and the AI assistant's answers and hand-over line come from AppRefer, not from this table.
 
 ## Offerings (0.8.0)
 

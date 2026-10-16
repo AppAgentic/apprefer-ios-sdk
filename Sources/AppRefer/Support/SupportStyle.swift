@@ -71,12 +71,16 @@ enum SupportColors {
 }
 
 /// A bubble with its own radius per corner (iOS 15 has no UnevenRoundedRectangle).
+/// Corners are leading/trailing: in a right-to-left layout the tail moves to the mirrored
+/// corner (a Shape's path is drawn in unflipped coordinates).
 struct SupportBubbleShape: Shape {
     var topLeading: CGFloat = 22, topTrailing: CGFloat = 22, bottomTrailing: CGFloat = 22, bottomLeading: CGFloat = 22
+    var rightToLeft = false
 
     func path(in rect: CGRect) -> Path {
         let m = min(rect.width, rect.height) / 2
-        let tl = min(topLeading, m), tr = min(topTrailing, m), br = min(bottomTrailing, m), bl = min(bottomLeading, m)
+        let (left, right) = rightToLeft ? ((topTrailing, bottomTrailing), (topLeading, bottomLeading)) : ((topLeading, bottomLeading), (topTrailing, bottomTrailing))
+        let tl = min(left.0, m), tr = min(right.0, m), br = min(right.1, m), bl = min(left.1, m)
         var p = Path()
         p.move(to: CGPoint(x: rect.minX + tl, y: rect.minY))
         p.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY))
@@ -125,11 +129,11 @@ struct SupportAvatar: View {
 struct SupportAITag: View {
     let palette: SupportPalette
     var body: some View {
-        Text("AI").font(.system(size: 10, weight: .heavy)).tracking(0.4)
+        Text(SupportStrings.text("support.ai.tag")).font(.system(size: 10, weight: .heavy)).tracking(0.4)
             .foregroundStyle(palette.accent)
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(palette.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .accessibilityLabel("AI assistant")
+            .accessibilityLabel(SupportStrings.text("support.a11y.aiAssistant"))
     }
 }
 
@@ -137,6 +141,7 @@ enum SupportText {
     static func clock(_ date: Date?) -> String {
         guard let date else { return "" }
         let f = DateFormatter()
+        f.locale = SupportStrings.locale
         f.dateStyle = .none
         f.timeStyle = .short
         return f.string(from: date)
@@ -150,6 +155,7 @@ enum SupportText {
     static func time(_ date: Date?) -> String {
         guard let date else { return "" }
         let f = DateFormatter()
+        f.locale = SupportStrings.locale
         f.doesRelativeDateFormatting = true
         f.dateStyle = Calendar.current.isDateInToday(date) || Calendar.current.isDateInYesterday(date) ? .short : .medium
         f.timeStyle = .short
