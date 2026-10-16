@@ -4,7 +4,7 @@
 
 - Product events capture `app_user_id` at track time and persist it with the queued payload, preserving identity across retries, restarts, and account switches. Internal `_` events are unchanged.
 - Add persistent `setCollectionEnabled` control. Disabling cancels attribution, consent, conversion-value and event requests and clears queued events; Support and Billing remain available. Enable, then call configure to resume.
-- Support sends no device id after reset() or while collection is off. reset() also stops attribution (consent re-reports, conversion values, event sends) until configure is called again; events tracked meanwhile stay queued.
+- Support sends no device id after reset() or while collection is off. reset() also stops attribution (consent re-reports, conversion values, event sends) until configure is called again; events tracked meanwhile are dropped, never queued or sent later.
 
 - Add async reset for account switching: cancel old work, revoke Support sessions and push registrations, clear account/profile/UI state and pending product events, retain install attribution and device id. Billing logout stays explicit.
 - Add Support-only configuration with no attribution initialization or analytics.

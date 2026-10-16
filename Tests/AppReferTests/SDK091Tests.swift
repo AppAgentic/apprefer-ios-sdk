@@ -237,7 +237,9 @@ final class SDK091Tests: XCTestCase {
         await AppRefer.setUserId("B")
         await AppRefer.setAdvancedMatching(email: "b@example.test")
         let event = await AppRefer.trackEventResult("signed_out")
-        XCTAssertEqual(event, .queued) // kept, but not sent before configure
+        XCTAssertEqual(event, .dropped) // before B consents: never queued or sent later
+        await AppRefer.trackEvent("signed_out_fire_and_forget")
+        XCTAssertNil(storage.pendingEvents)
         await sdk.flushPendingEvents()
         try await Task.sleep(nanoseconds: 100_000_000)
         let stillAfterReset = await poster.count(); XCTAssertEqual(stillAfterReset, afterReset)
@@ -251,7 +253,8 @@ final class SDK091Tests: XCTestCase {
         let resumed = await AppRefer.trackEventResult("signup")
         XCTAssertEqual(resumed, .sent)
         let sent = await poster.bodies().compactMap { $0["event_name"] as? String }
-        XCTAssertTrue(sent.contains("signed_out"))
+        XCTAssertFalse(sent.contains("signed_out"))
+        XCTAssertFalse(sent.contains("signed_out_fire_and_forget"))
 
         // Collection withdrawn: Support stops sending the device id.
         await AppRefer.setCollectionEnabled(false)
@@ -272,7 +275,7 @@ final class SDK091Tests: XCTestCase {
         _ = await sdk._configure(expectedAccountEpoch: AppRefer.accountEpoch() - 1)
         await sdk.refreshConversionValue(force: true, allowRecheck: false)
         let result = await sdk._trackEvent("stale", properties: nil, revenue: nil, currency: nil)
-        XCTAssertEqual(result, .queued)
+        XCTAssertEqual(result, .dropped)
         let after = await poster.count(); XCTAssertEqual(after, before)
         await sdk._clearPendingEvents()
     }

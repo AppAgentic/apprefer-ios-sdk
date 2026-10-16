@@ -782,8 +782,9 @@ public actor AppRefer {
     func _trackEvent(
         _ eventName: String, properties: [String: Any]?, revenue: Double?, currency: String?
     ) async -> AppReferEventResult {
-        // After reset() events are still queued; they are sent once configure runs again.
-        guard storage.isSdkEnabled() && storage.isCollectionEnabled(), let deviceId = storage.deviceId() else { return .dropped }
+        // After reset() nothing is queued until configure runs for the next account: those events
+        // come before the new user consents, so they must never be sent later.
+        guard canCollect, let deviceId = storage.deviceId() else { return .dropped }
         let id = UUID().uuidString
         var body: [String: Any] = ["device_id": deviceId, "event_name": eventName, "eventId": id]
         if !eventName.hasPrefix("_"), let userId = storage.getUserId() { body["app_user_id"] = userId }

@@ -476,13 +476,17 @@ extension SDK090Tests {
         XCTAssertEqual(deletes, ["/api/support/v1/session", "/api/support/v1/session"])
         Support090Protocol.handler = nil
     }
-    func testEventAcceptedAfterResetClearSurvivesResetCompletion() async throws {
+    func testEventTrackedAfterResetIsDroppedUntilConfigure() async throws {
         let (sdk, storage, poster) = fixture()
         await sdk._reset()
         poster.status = 503
         let result = await sdk._trackEvent("signed_out", properties: nil, revenue: nil, currency: nil)
-        XCTAssertEqual(result, .queued)
-        XCTAssertEqual(try JSONDecoder().decode([PendingProductEvent].self, from: storage.pendingEvents!).count, 1)
+        XCTAssertEqual(result, .dropped)
+        XCTAssertNil(storage.pendingEvents)
+        XCTAssertTrue(poster.bodies.isEmpty)
+        _ = await sdk._configure()
+        let resumed = await sdk._trackEvent("signed_in", properties: nil, revenue: nil, currency: nil)
+        XCTAssertEqual(resumed, .queued)
         await sdk._clearPendingEvents()
     }
 }
