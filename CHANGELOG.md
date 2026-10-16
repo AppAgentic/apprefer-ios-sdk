@@ -1,7 +1,9 @@
 ## 0.9.2
 
 - Billing sends no install device id (`appreferId`) or device attribute (`$idfa`, `$idfv`, `$fbAnonId`, `$attConsentStatus`, `$deviceVersion`, `$ip`, `$gpsAdId`) with customers/purchases requests while collection is off (including a pause waiting for configure), after reset() until configure/configureResult runs again, or in Billing-only apps. It reuses the Support device id gate; queued purchases are resent without it while the gate is closed, and Billing then uses apprefer.com rather than trk.apprefer.com. Purchases, restore, entitlements and offerings are unchanged. A customer registered without the device id is linked once after configure.
-- Add `AppRefer.support.clearIdentity()`: forgets the Support name, email and app user id, revokes the current Support session through the durable revocation path and starts a new anonymous session (push token carried over). Conversations from the old session are no longer visible in the app; they stay in the team inbox. Support stays anonymous until the user id changes or reset() runs.
+- Billing's device id and that re-link are tied to the account: after reset() they are sent only for the Billing user set after the reset (logIn/logOut); purchases and queued purchases of the previous Billing user never get it. `/identify` sends `link: false` while the gate is closed, so the server merges anonymous purchases without copying the install link.
+- setCollectionEnabled(false) pauses at once, before any await, so Billing and Support see it immediately.
+- Add `AppRefer.support.clearIdentity()`: forgets the Support name, email and app user id, revokes the current Support session through the durable revocation path and starts a new anonymous session that sends neither the app user id nor the install device id. The push token moves to the new session only after the old session's revocation succeeds. Conversations from the old session are no longer visible in the app; they stay in the team inbox. Support stays anonymous until the user id changes or reset() runs; a different user id stored later without reset() gets a fresh session (the anonymous one is revoked, never handed over).
 
 ## 0.9.1
 

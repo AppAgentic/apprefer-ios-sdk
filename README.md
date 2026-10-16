@@ -17,6 +17,13 @@ are resent. A customer registered without the device id is linked once on the ne
 customer refresh after configure. Billing-only apps (no attribution configure)
 never send it.
 
+The device id is also tied to the account: after `reset()` it is sent only for the
+Billing user set after that reset, so call `AppReferBilling.logIn`/`logOut` for the
+next account. Until then, purchases and queued purchases of the previous Billing user
+are recorded without it and that user is never re-linked. `logIn` sends
+`link: false` to `/identify` while the gate is closed, so the server merges the
+anonymous purchases without copying the install link.
+
 **Remove the account from Support without a full reset**, e.g. when the user
 withdraws consent:
 
@@ -26,12 +33,16 @@ await AppRefer.support.clearIdentity() // @MainActor
 
 This forgets the Support name, email and app user id, revokes the current Support
 session (through the same durable revocation used by reset) and starts a new
-anonymous session that carries no link to the old id. A registered reply
-notification token moves to the new session. **Conversations from the old session
-are no longer visible in the app**; they stay in your team inbox. The app user id
-is not sent to Support again until it changes (another account is stored with
-`setUserId`/`configure(userId:)`) or `reset()` runs; configuring with the same user
-id on the next launch keeps Support anonymous. Attribution, Billing and the stored
+anonymous session that carries no link to the old id: it sends neither the app user
+id nor the install device id. A registered reply notification token moves to the new
+session once the old session's revocation has succeeded (retried on launch and
+foreground if offline), so the two sessions never hold it at once. **Conversations
+from the old session are no longer visible in the app**; they stay in your team
+inbox. The app user id is not sent to Support again until it changes (another
+account is stored with `setUserId`/`configure(userId:)`) or `reset()` runs;
+configuring with the same user id on the next launch keeps Support anonymous. When
+a different user id is stored later without `reset()`, the anonymous session is
+never handed to that account: it is revoked and a fresh session is started. Attribution, Billing and the stored
 user id are not changed. Combine it with `setCollectionEnabled(false)` to stop
 attribution as well.
 

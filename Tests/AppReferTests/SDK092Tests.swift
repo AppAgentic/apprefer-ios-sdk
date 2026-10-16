@@ -12,8 +12,15 @@ private final class SupportRecorder092: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     private nonisolated(unsafe) static var _calls: [Call] = []
     private nonisolated(unsafe) static var minted = 0
+    private nonisolated(unsafe) static var _failDeletes = false
+    static var failDeletes: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _failDeletes }
+        set { lock.lock(); _failDeletes = newValue; lock.unlock() }
+    }
     static var calls: [Call] { lock.lock(); defer { lock.unlock() }; return _calls }
-    static func clear() { lock.lock(); _calls = []; lock.unlock() }
+    static func clear() { lock.lock(); _calls = []; _failDeletes = false; lock.unlock() }
+    static func pushPosts() -> [Call] { calls.filter { $0.method == "POST" && $0.path.hasSuffix("/push-token") } }
+    static func deletes(_ session: String?) -> [Call] { calls.filter { $0.method == "DELETE" && $0.path.hasSuffix("/session") && $0.session == session } }
     static func sessionPosts() -> [Call] { calls.filter { $0.method == "POST" && $0.path.hasSuffix("/session") } }
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -31,11 +38,13 @@ private final class SupportRecorder092: URLProtocol, @unchecked Sendable {
         Self.lock.lock()
         Self._calls.append(Call(method: method, path: path, session: header, body: body))
         var reply = "{}"
+        var status = 200
+        if path.hasSuffix("/session"), method == "DELETE", Self._failDeletes { status = 500 }
         if path.hasSuffix("/session"), method == "POST" {
             if let header { reply = "{\"session\":\"\(header)\"}" } else { Self.minted += 1; reply = "{\"session\":\"ars_092_\(Self.minted)\"}" }
         } else if path.hasSuffix("/conversations") { reply = "{\"conversations\":[]}" }
         Self.lock.unlock()
-        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(reply.utf8))
         client?.urlProtocolDidFinishLoading(self)
     }
@@ -166,19 +175,79 @@ final class SDK092Tests: XCTestCase {
         XCTAssertEqual(BillingEngine.sendable(["$gpsAdId": "g", "$ip": "1.2.3.4", "$displayName": "Sam"], linked: false), ["$displayName": "Sam"])
     }
 
+    // MARK: - 3/4. Billing device id is tied to the account; identify sends link
+
+    func testDeviceIdOnlyForTheBillingUserSetAfterTheLastReset() async throws {
+        let epoch = Counter092()
+        let transport = MockBillingTransport.ok(BillingFixtures.customerJSON(appUserId: "user_a"))
+        let storage = env.storage()
+        storage.loggedInAppUserId = "user_a"
+        let gate = Gate092()
+        let engine = env.engine(transport: transport, storage: storage, appreferId: { gate.open ? "device-abc" : nil },
+                                accountEpoch: { epoch.value })
+        // Registered while the gate was closed (collection off): unlinked.
+        gate.open = false
+        _ = await engine.customerInfo(policy: .fetchCurrent)
+        // reset(), then configure again: the gate opens, but user_a is the previous account.
+        epoch.value = 1; gate.open = true
+        _ = await engine.customerInfo(policy: .fetchCurrent)
+        _ = await engine.process(BillingFixtures.update(BillingFixtures.transaction(), counter: FinishCounter()))
+        let queue = env.queue()
+        XCTAssertTrue(queue.isEmpty)
+        let before = billingBodies(transport, "/api/billing/v1/customers") + billingBodies(transport, "/api/billing/v1/purchases")
+        XCTAssertFalse(before.isEmpty)
+        XCTAssertTrue(before.allSatisfy { $0["appreferId"] == nil }, "no device id or re-link for the previous account")
+        XCTAssertEqual(billingBodies(transport, "/api/billing/v1/customers").count, 1, "no re-link registration")
+
+        // The next account signs in to Billing: its requests carry the device id.
+        transport.setHandler { request in
+            let user = request.jsonBody?["appUserId"] as? String ?? "user_b"
+            return (Data(BillingFixtures.customerJSON(appUserId: user).utf8), 200)
+        }
+        _ = try await engine.logIn("user_b")
+        _ = await engine.process(BillingFixtures.update(BillingFixtures.transaction(id: "2000000000000005"), counter: FinishCounter()))
+        let customers = billingBodies(transport, "/api/billing/v1/customers")
+        XCTAssertEqual(customers.last?["appUserId"] as? String, "user_b")
+        XCTAssertEqual(customers.last?["appreferId"] as? String, "device-abc")
+        XCTAssertEqual(billingBodies(transport, "/api/billing/v1/purchases").last?["appreferId"] as? String, "device-abc")
+
+        // A purchase owned by someone other than the current user never gets it.
+        let foreign = BillingFixtures.transaction(id: "2000000000000006", appAccountToken: BillingFixtures.otherAccountToken)
+        storage.setAccountToken(BillingFixtures.otherAccountToken.uuidString, for: "user_a")
+        _ = await engine.process(BillingFixtures.update(foreign, counter: FinishCounter()))
+        let last = billingBodies(transport, "/api/billing/v1/purchases").last
+        XCTAssertEqual(last?["appUserId"] as? String, "user_a")
+        XCTAssertNil(last?["appreferId"])
+    }
+
+    func testIdentifySendsLinkFromTheGate() async throws {
+        let gate = Gate092()
+        gate.open = false
+        let transport = MockBillingTransport.ok(BillingFixtures.customerJSON(appUserId: "user_1"))
+        let storage = env.storage()
+        _ = try XCTUnwrap(storage.anonymousId())
+        let engine = env.engine(transport: transport, storage: storage, linkAllowed: { gate.open })
+        _ = try await engine.logIn("user_1")
+        XCTAssertEqual(billingBodies(transport, "/api/billing/v1/identify").last?["link"] as? Bool, false)
+        gate.open = true
+        _ = await engine.logOut()
+        _ = try await engine.logIn("user_2")
+        XCTAssertEqual(billingBodies(transport, "/api/billing/v1/identify").last?["link"] as? Bool, true)
+    }
+
     // MARK: - 2. Support clearIdentity
 
-    private func supportAPI(_ userStorage: AppReferStorage) -> SupportAPI {
+    private func supportAPI(_ userStorage: AppReferStorage, deviceId: String? = nil) -> SupportAPI {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [SupportRecorder092.self]
         return SupportAPI(baseURL: "https://support092.test", session: URLSession(configuration: config),
-                          deviceId: { nil }, userStorage: userStorage)
+                          deviceId: { deviceId }, userStorage: userStorage)
     }
 
     func testClearIdentityRevokesTheSessionAndStartsAnAnonymousOne() async throws {
         let userStorage = attributionStorage()
         userStorage.setUserId("acct_A")
-        let api = supportAPI(userStorage)
+        let api = supportAPI(userStorage, deviceId: "install-1")
         await api.reset()
         SupportRecorder092.clear()
         await api.configure(apiKey: "pk_test")
@@ -186,6 +255,7 @@ final class SDK092Tests: XCTestCase {
         _ = try await api.conversations()
         let first = try XCTUnwrap(SupportRecorder092.sessionPosts().last)
         XCTAssertEqual(first.body["appUserId"] as? String, "acct_A")
+        XCTAssertEqual(first.body["deviceId"] as? String, "install-1")
         XCTAssertEqual(first.body["name"] as? String, "Sam")
         let oldSession = try XCTUnwrap(SupportRecorder092.calls.last?.session)
 
@@ -193,6 +263,7 @@ final class SDK092Tests: XCTestCase {
         let fresh = try XCTUnwrap(SupportRecorder092.sessionPosts().last)
         XCTAssertNil(fresh.session, "a new session, not an update of the old one")
         XCTAssertNil(fresh.body["appUserId"]); XCTAssertNil(fresh.body["name"]); XCTAssertNil(fresh.body["email"])
+        XCTAssertNil(fresh.body["deviceId"], "no install id: it would link the session back to the account")
         let displayName = await api.displayName
         XCTAssertNil(displayName)
         XCTAssertTrue(userStorage.supportIdentityCleared)
@@ -200,27 +271,34 @@ final class SDK092Tests: XCTestCase {
 
         // The old session is revoked through the durable revocation path.
         await api.revokePending(using: "pk_test")
-        XCTAssertTrue(SupportRecorder092.calls.contains { $0.method == "DELETE" && $0.path.hasSuffix("/session") && $0.session == oldSession })
+        XCTAssertFalse(SupportRecorder092.deletes(oldSession).isEmpty)
 
-        // Later requests use the new session and still carry no account id,
-        // even when the app stores the same user id again (configure on the next launch).
+        // The same user id stored again (configure on the next launch) keeps the anonymous session.
         userStorage.setUserId("acct_A")
         let posts = SupportRecorder092.sessionPosts().count
         _ = try await api.conversations()
         XCTAssertEqual(SupportRecorder092.sessionPosts().count, posts)
-        let newSession = try XCTUnwrap(SupportRecorder092.calls.last?.session)
-        XCTAssertNotEqual(newSession, oldSession)
+        let clearedSession = try XCTUnwrap(SupportRecorder092.calls.last?.session)
+        XCTAssertNotEqual(clearedSession, oldSession)
 
-        // Another account signs in: Support links again.
+        // Another account without reset: the cleared session is never handed over. It is
+        // revoked and a fresh session is minted for B.
         userStorage.setUserId("acct_B")
         XCTAssertFalse(userStorage.supportIdentityCleared)
         _ = try await api.conversations()
-        XCTAssertEqual(SupportRecorder092.sessionPosts().last?.body["appUserId"] as? String, "acct_B")
-        XCTAssertEqual(SupportRecorder092.sessionPosts().last?.session, newSession)
+        let forB = try XCTUnwrap(SupportRecorder092.sessionPosts().last)
+        XCTAssertNil(forB.session, "minted, not an upgrade of the cleared session")
+        XCTAssertEqual(forB.body["appUserId"] as? String, "acct_B")
+        XCTAssertEqual(forB.body["deviceId"] as? String, "install-1")
+        XCTAssertFalse(SupportRecorder092.calls.contains { $0.session == clearedSession && $0.body["appUserId"] as? String == "acct_B" })
+        XCTAssertNotEqual(SupportRecorder092.calls.last?.session, clearedSession)
+        await api.revokePending(using: "pk_test")
+        XCTAssertFalse(SupportRecorder092.deletes(clearedSession).isEmpty)
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: SupportAPI.clearedSessionKey))
         await api.reset()
     }
 
-    func testClearIdentityCarriesThePushRegistrationToTheNewSession() async throws {
+    func testPushTokenMovesOnlyAfterTheOldSessionIsRevoked() async throws {
         let userStorage = attributionStorage()
         userStorage.setUserId("acct_A")
         let api = supportAPI(userStorage)
@@ -229,14 +307,49 @@ final class SDK092Tests: XCTestCase {
         await api.configure(apiKey: "pk_test")
         try await api.registerPushToken("abcd", sandbox: true)
         let oldSession = try XCTUnwrap(SupportRecorder092.calls.last?.session)
+        XCTAssertEqual(SupportRecorder092.pushPosts().count, 1)
+
+        // The revocation fails (offline): the token stays on no new session yet.
+        SupportRecorder092.failDeletes = true
         await api.clearIdentity()
-        let push = try XCTUnwrap(SupportRecorder092.calls.last)
-        XCTAssertEqual(push.path, "/api/support/v1/push-token")
+        await api.revokePending(using: "pk_test")
+        XCTAssertEqual(SupportRecorder092.pushPosts().count, 1, "not registered on the new session before the old one is revoked")
+        // The app registers it again meanwhile: still deferred.
+        try await api.registerPushToken("abcd", sandbox: true)
+        XCTAssertEqual(SupportRecorder092.pushPosts().count, 1)
+        // Let the revocation pass that registration started finish (it fails too).
+        try await Task.sleep(nanoseconds: 300_000_000)
+
+        // The next revocation pass succeeds: the token moves to the new session.
+        SupportRecorder092.failDeletes = false
+        await api.revokePending(using: "pk_test")
+        XCTAssertGreaterThanOrEqual(SupportRecorder092.deletes(oldSession).count, 2)
+        let push = try XCTUnwrap(SupportRecorder092.pushPosts().last)
+        XCTAssertEqual(SupportRecorder092.pushPosts().count, 2)
         XCTAssertEqual(push.body["token"] as? String, "abcd")
         XCTAssertNotNil(push.session); XCTAssertNotEqual(push.session, oldSession)
+        let deleteIndex = try XCTUnwrap(SupportRecorder092.calls.lastIndex { $0.method == "DELETE" })
+        let pushIndex = try XCTUnwrap(SupportRecorder092.calls.lastIndex { $0.path.hasSuffix("/push-token") })
+        XCTAssertLessThan(deleteIndex, pushIndex)
         XCTAssertNil(SupportRecorder092.sessionPosts().last?.body["appUserId"])
         await api.reset()
         UserDefaults.standard.removeObject(forKey: "apprefer_support_push_token")
+    }
+
+    func testResetBeforeTheRevocationSucceedsNeverMovesThePushToken() async throws {
+        let userStorage = attributionStorage()
+        userStorage.setUserId("acct_A")
+        let api = supportAPI(userStorage)
+        await api.reset()
+        SupportRecorder092.clear()
+        await api.configure(apiKey: "pk_test")
+        try await api.registerPushToken("abcd", sandbox: true)
+        SupportRecorder092.failDeletes = true
+        await api.clearIdentity()
+        await api.reset() // the next account
+        SupportRecorder092.failDeletes = false
+        await api.revokePending(using: "pk_test")
+        XCTAssertEqual(SupportRecorder092.pushPosts().count, 1, "never moved to the next account")
     }
 
     func testResetEndsAnIdentityClear() {
@@ -245,5 +358,23 @@ final class SDK092Tests: XCTestCase {
         storage.supportIdentityCleared = true
         storage.clearUser()
         XCTAssertFalse(storage.supportIdentityCleared)
+    }
+}
+
+private final class Counter092: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _value = 0
+    var value: Int {
+        get { lock.lock(); defer { lock.unlock() }; return _value }
+        set { lock.lock(); _value = newValue; lock.unlock() }
+    }
+}
+
+private final class Gate092: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _open = true
+    var open: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _open }
+        set { lock.lock(); _open = newValue; lock.unlock() }
     }
 }

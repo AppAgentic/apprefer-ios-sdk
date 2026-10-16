@@ -175,6 +175,8 @@ struct BillingTestEnvironment {
         queue: PendingPurchaseQueue? = nil,
         apiKey: String? = "pk_test_123",
         appreferId: @escaping @Sendable () -> String? = { "device-abc" },
+        accountEpoch: @escaping @Sendable () -> Int = { 0 },
+        linkAllowed: @escaping @Sendable () -> Bool = { true },
         now: @escaping @Sendable () -> Date = { BillingFixtures.now }
     ) -> BillingEngine {
         BillingEngine(
@@ -190,6 +192,8 @@ struct BillingTestEnvironment {
             options: options,
             appUserId: appUserId,
             appreferId: appreferId,
+            accountEpoch: accountEpoch,
+            linkAllowed: linkAllowed,
             logger: AppReferLogger(debug: false, logLevel: 0),
             now: now
         )

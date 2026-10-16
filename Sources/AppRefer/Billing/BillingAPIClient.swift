@@ -116,7 +116,7 @@ struct BillingAPIClient: Sendable {
         /// `restore` is true only for Restore Purchases: it lets the server move a purchase
         /// that already belongs to another app user to this one.
         case purchase(appUserId: String, appreferId: String?, signedTransaction: String, attributes: [String: String], restore: Bool, presentedOfferingContext: PresentedOfferingContext? = nil, bucketId: String? = nil)
-        case identify(anonymousId: String, appUserId: String)
+        case identify(anonymousId: String, appUserId: String, link: Bool = true)
         case offerings(body: [String: String], known: [String: String]?)
     }
 
@@ -192,9 +192,9 @@ struct BillingAPIClient: Sendable {
             if let context { b["presentedOfferingContext"] = context.dictionary }
             if let bucketId { b["bucketId"] = bucketId }
             body = b
-        case let .identify(anonymousId, appUserId):
+        case let .identify(anonymousId, appUserId, link):
             path = "/api/billing/v1/identify"
-            body = ["anonymousId": anonymousId, "appUserId": appUserId]
+            body = ["anonymousId": anonymousId, "appUserId": appUserId, "link": link]
         }
 
         guard var components = URLComponents(string: baseURL + path), components.host != nil else {

@@ -370,6 +370,8 @@ public actor AppRefer {
         // Already on: a consent tool reporting "granted" on every launch changes nothing.
         if enabled, (shared?.storage ?? AppReferStorage()).isCollectionEnabled() { return }
         advanceCollection()
+        // Pause at once, before any await, so Billing and Support see the gate closed now.
+        if !enabled { (shared?.storage ?? AppReferStorage()).setCollectionEnabled(false) }
         if let sdk = shared { await sdk._setCollectionEnabled(enabled) }
         else {
             let storage = AppReferStorage()

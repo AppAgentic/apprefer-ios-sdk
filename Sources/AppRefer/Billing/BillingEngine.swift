@@ -65,8 +65,17 @@ actor BillingEngine {
     private let storeKit: BillingStoreKit
     private let options: Options
     /// The install device id, or nil while it must not be sent (collection off, after
-    /// reset until configure, never configured). Read per request.
+    /// reset until configure, never configured). Read per request; use `linkableDeviceId(for:)`.
     private let appreferId: @Sendable () -> String?
+    /// Advances on every `AppRefer.reset()`.
+    private let accountEpoch: @Sendable () -> Int
+    /// Whether identify may copy the anonymous customer's install link (the same gate).
+    private let linkAllowed: @Sendable () -> Bool
+    /// The account epoch when the current Billing user was set (configure, logIn, logOut).
+    /// A user set before the last reset belongs to the previous account.
+    private var identityEpoch: Int
+    /// The epoch `unlinkedUsers` belongs to; a reset forgets them.
+    private var unlinkedEpoch: Int
     private let logger: AppReferLogger
     private let onChange: @Sendable (AppReferCustomerInfo) -> Void
     private let now: @Sendable () -> Date
@@ -86,6 +95,19 @@ actor BillingEngine {
     /// or AppRefer records them.
     private var heldUpdates: [String: StoreKitUpdate] = [:]
     private var identifyFlush: Task<Void, Never>?
+    /// The install device id for a request made for `owner`: only when the gate is open,
+    /// `owner` is the current Billing user and that user was set after the last reset.
+    /// A purchase or queued entry of a previous account never gets it.
+    private func linkableDeviceId(for owner: String?) -> String? {
+        let epoch = accountEpoch()
+        if epoch != unlinkedEpoch {
+            unlinkedUsers.removeAll()
+            unlinkedEpoch = epoch
+        }
+        guard let owner, identityEpoch == epoch, owner == activeUser() else { return nil }
+        return appreferId()
+    }
+
     /// Attribution and device signals among the customer attributes.
     static let deviceAttributeKeys: Set<String> = ["$idfa", "$idfv", "$fbAnonId", "$attConsentStatus", "$deviceVersion", "$ip", "$gpsAdId"]
     /// While the install may not be linked, device signals are dropped, never sent later.
@@ -118,6 +140,8 @@ actor BillingEngine {
         options: Options,
         appUserId: String?,
         appreferId: @escaping @Sendable () -> String?,
+        accountEpoch: @escaping @Sendable () -> Int = { AppRefer.accountEpoch() },
+        linkAllowed: @escaping @Sendable () -> Bool = { AppRefer.installLinkAllowed() },
         logger: AppReferLogger,
         now: @escaping @Sendable () -> Date = { Date() },
         onChange: @escaping @Sendable (AppReferCustomerInfo) -> Void = { _ in }
@@ -130,6 +154,10 @@ actor BillingEngine {
         self.storeKit = storeKit
         self.options = options
         self.appreferId = appreferId
+        self.accountEpoch = accountEpoch
+        self.linkAllowed = linkAllowed
+        identityEpoch = accountEpoch()
+        unlinkedEpoch = identityEpoch
         self.logger = logger
         self.now = now
         self.onChange = onChange
@@ -235,7 +263,7 @@ actor BillingEngine {
         let open = Set(await storeKit.unfinishedTransactions().map(\.transactionId))
         let transactions = await storeKit.currentEntitlements()
         guard activeUser() == user else { return }
-        let deviceId = appreferId()
+        let deviceId = linkableDeviceId(for: user)
         var durable = true
         for transaction in transactions {
             guard activeUser() == user else { return }
@@ -298,7 +326,7 @@ actor BillingEngine {
     private func fetchFromServer(_ user: String, drain: Bool = true) async throws -> AppReferCustomerInfo {
         await flushPendingIdentifies()
         let attributes = storage.pendingAttributes
-        let deviceId = appreferId()
+        let deviceId = linkableDeviceId(for: user)
         let sent = Self.sendable(attributes, linked: deviceId != nil)
         // Registered without a device id (collection off, reset, before configure): link
         // the install once it's allowed again.
@@ -443,7 +471,7 @@ actor BillingEngine {
                 transactionId: update.transactionId,
                 productId: claimed?.productId ?? "",
                 appUserId: initiator ?? activeUser(),
-                appreferId: appreferId(),
+                appreferId: linkableDeviceId(for: initiator ?? activeUser()),
                 signedTransaction: claimed?.signedTransaction,
                 accountToken: claimed?.appAccountToken,
                 kind: claimed?.kind.rawValue,
@@ -494,7 +522,7 @@ actor BillingEngine {
         let owner = initiator ?? tokenOwner ?? intent?.appUserId ?? user
         // Attributes belong to whoever is signed in now.
         let attributes = owner == user ? storage.pendingAttributes : [:]
-        let deviceId = appreferId()
+        let deviceId = linkableDeviceId(for: owner)
         let sent = Self.sendable(attributes, linked: deviceId != nil)
         do {
             // Never a restore: purchases and Transaction.updates (renewals included) must
@@ -650,7 +678,7 @@ actor BillingEngine {
 
         guard let user = initiator, activeUser() != nil else { return await lockedFallback() }
         await flushPendingIdentifies()
-        let deviceId = appreferId()
+        let deviceId = linkableDeviceId(for: user)
         var last: BillingCustomerResponse?
         var paused = false
         for transaction in transactions {
@@ -738,10 +766,10 @@ actor BillingEngine {
         }
         for entry in queue.entries {
             do {
-                // A queued device id is sent only while linking is allowed now
-                // (collection on, configured since the last reset).
+                // A queued device id is sent only while linking is allowed now (collection
+                // on, configured since the last reset) and only for the current account.
                 let response = try await api.send(.purchase(
-                    appUserId: entry.appUserId, appreferId: appreferId() == nil ? nil : entry.appreferId,
+                    appUserId: entry.appUserId, appreferId: linkableDeviceId(for: entry.appUserId) == nil ? nil : entry.appreferId,
                     signedTransaction: entry.signedTransaction, attributes: [:],
                     restore: entry.restore == true,
                     presentedOfferingContext: entry.presentedOfferingContext,
@@ -844,6 +872,7 @@ actor BillingEngine {
             throw AppReferBillingError.invalidAppUserId
         }
         pendingIdentityChanges.append(.logIn(appUserId))
+        identityEpoch = accountEpoch()
         invalidateOfferings()
         let info = await customerInfo(policy: .fetchCurrent)
         Task { await self.migrationSync(forUser: appUserId) }
@@ -852,6 +881,7 @@ actor BillingEngine {
 
     func logOut() async -> AppReferCustomerInfo {
         pendingIdentityChanges.append(.logOut)
+        identityEpoch = accountEpoch()
         invalidateOfferings()
         return await customerInfo(policy: .fetchCurrent)
     }
@@ -878,7 +908,9 @@ actor BillingEngine {
     private func sendPendingIdentifies() async {
         for pending in storage.pendingIdentifies {
             do {
-                _ = try await api.send(.identify(anonymousId: pending.anonymousId, appUserId: pending.appUserId))
+                // link: false while the gate is closed, so the server never copies the
+                // anonymous customer's install link to the signed-in one.
+                _ = try await api.send(.identify(anonymousId: pending.anonymousId, appUserId: pending.appUserId, link: linkAllowed()))
                 storage.removePendingIdentify(pending)
             } catch let error as AppReferBillingError where error.isRetryable {
                 logger.warn("Billing: identify will be retried (\(error.localizedDescription))")
