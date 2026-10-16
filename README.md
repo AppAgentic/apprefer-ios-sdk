@@ -1,6 +1,6 @@
 # AppRefer iOS SDK
 
-## 0.9.0: account switching, independent Support and reliable events
+## 0.9.1: account switching, independent Support and reliable events
 
 Support can start independently of attribution. Its configuration does not configure
 attribution, collect attribution device signals, initialize product analytics, or
@@ -403,3 +403,13 @@ Unknown placements fall back to current; a configured null placement suppresses 
 Offerings use a five-minute memory and disk cache. Foreground refreshes stale data; login/logout invalidates it and refreshes an already-used catalogue. Network/server failures return the last cached response of any age after resolving store products again. No cache means the SDK billing error is thrown; catch it and use your existing paywall product ids. Offerings never gate configuration or purchases. Concurrent callers share one request.
 
 Google Play `subscription:basePlan` selects that base plan; a bare subscription selects the period matching the package type, otherwise the first base plan. The package exposes the selected offer token. Storefront country uses ISO alpha-2 when available; no device locale is substituted. The install bucket stays stable after login/logout.
+
+### Collection control (0.9.1)
+
+```swift
+await AppRefer.setCollectionEnabled(false)
+```
+
+Call this when collection consent is withdrawn. The choice persists across launches. Disabling cancels in-flight attribution, conversion-value, consent and product-event traffic, clears the durable event queue, and blocks activation/background retries. Configure returns cached attribution (or an unavailable/failed result if none exists) while disabled. Support and Billing continue independently. Call `setCollectionEnabled(true)` and then configure again to resume; enabling alone sends nothing. Reset does not change this choice.
+
+Product events include `app_user_id` from the identity set via `setUserId` when tracked. The identity is saved in the queued payload, so retries and relaunches retain the original account even after a user switch. Without an identity the field is omitted. Internal events whose names start with `_` retain their existing payloads.

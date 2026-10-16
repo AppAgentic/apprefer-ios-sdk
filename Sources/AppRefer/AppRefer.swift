@@ -79,6 +79,7 @@ public actor AppRefer {
     private var firstPartyClient: AppReferPosting
     private var consentSyncTask: Task<Attribution?, Never>?
     private let conversionUpdater: ConversionValueUpdating
+    private var conversionRecheckTask: Task<Void, Never>?
     private var conversionRefreshInFlight = false
     private var conversionRerunForced = false
     private var conversionRecheckScheduled = false
@@ -105,10 +106,10 @@ public actor AppRefer {
         self.storage = storage
         self.trackingStatus = trackingStatus
         self.trackingClient = trackingClient ?? AppReferHTTPClient(
-            primaryURL: AppReferConfig.trackingURL, fallbackURL: nil, apiKey: config.apiKey, logger: logger
+            primaryURL: AppReferConfig.trackingURL, fallbackURL: nil, apiKey: config.apiKey, logger: logger, collectionAllowed: { storage.isCollectionEnabled() }
         )
         self.firstPartyClient = firstPartyClient ?? AppReferHTTPClient(
-            primaryURL: AppReferConfig.backendURL, fallbackURL: nil, apiKey: config.apiKey, logger: logger
+            primaryURL: AppReferConfig.backendURL, fallbackURL: nil, apiKey: config.apiKey, logger: logger, collectionAllowed: { storage.isCollectionEnabled() }
         )
     }
 
@@ -315,6 +316,32 @@ public actor AppRefer {
         Task { await SupportAPI.shared.retryRevocations() }
     }
 
+    /// Persistently pause attribution and product analytics. Support and Billing remain available.
+    /// Enabling resumes collection on the next configure call.
+    public static func setCollectionEnabled(_ enabled: Bool) async {
+        if let sdk = getShared() { await sdk._setCollectionEnabled(enabled) }
+        else {
+            let storage = AppReferStorage()
+            storage.setCollectionEnabled(enabled)
+            if !enabled { storage.pendingEvents = nil }
+        }
+    }
+
+    func _setCollectionEnabled(_ enabled: Bool) async {
+        storage.setCollectionEnabled(enabled)
+        guard !enabled else { return }
+        generation += 1
+        configurationTask?.cancel(); configurationTask = nil
+        consentSyncTask?.cancel(); consentSyncTask = nil
+        consentRecheckRequested = false
+        conversionRerunForced = false
+        conversionRecheckTask?.cancel(); conversionRecheckTask = nil
+        conversionRecheckScheduled = false
+        await _clearPendingEvents()
+        await trackingClient.cancel()
+        await firstPartyClient.cancel()
+    }
+
     public static func clearPendingEvents() async {
         if let sdk = getShared() { await sdk._clearPendingEvents() }
         else { AppReferStorage().pendingEvents = nil }
@@ -345,8 +372,8 @@ public actor AppRefer {
         guard epoch == generation, expectedAccountEpoch == nil || expectedAccountEpoch == Self.accountEpoch() else { return }
         config = newConfig
         logger = AppReferLogger(debug: newConfig.debug, logLevel: newConfig.logLevel)
-        self.trackingClient = trackingClient ?? AppReferHTTPClient(primaryURL: AppReferConfig.trackingURL, apiKey: newConfig.apiKey, logger: logger)
-        self.firstPartyClient = firstPartyClient ?? AppReferHTTPClient(primaryURL: AppReferConfig.backendURL, apiKey: newConfig.apiKey, logger: logger)
+        self.trackingClient = trackingClient ?? AppReferHTTPClient(primaryURL: AppReferConfig.trackingURL, apiKey: newConfig.apiKey, logger: logger, collectionAllowed: { [storage] in storage.isCollectionEnabled() })
+        self.firstPartyClient = firstPartyClient ?? AppReferHTTPClient(primaryURL: AppReferConfig.backendURL, apiKey: newConfig.apiKey, logger: logger, collectionAllowed: { [storage] in storage.isCollectionEnabled() })
         scheduleRetry()
     }
 
@@ -397,6 +424,8 @@ public actor AppRefer {
     // MARK: - Internal Implementation
 
     func _configure(expectedAccountEpoch: Int? = nil) async -> Attribution? {
+        storage.resumeCollection()
+        guard storage.isCollectionEnabled() else { return storage.getCachedAttribution() }
         if let task = configurationTask { return await task.value }
         let epoch = generation
         let task = Task { await self.runConfiguration(expectedAccountEpoch: expectedAccountEpoch) }
@@ -418,7 +447,7 @@ public actor AppRefer {
         _ = storage.getFirstRunDate()
 
         // Check kill switch from local cache
-        if !storage.isSdkEnabled() {
+        if !(storage.isSdkEnabled() && storage.isCollectionEnabled()) {
             logger.info("SDK disabled by kill switch")
             return storage.getCachedAttribution()
         }
@@ -535,6 +564,7 @@ public actor AppRefer {
     }
 
     func syncTrackingConsent() async -> Attribution? {
+        guard storage.isCollectionEnabled() else { return nil }
         if let running = consentSyncTask {
             // The running sync checks again before it ends, so a newer answer isn't lost;
             // wait for it so the caller sees the attribution it produced.
@@ -561,7 +591,7 @@ public actor AppRefer {
     }
 
     private func reportTrackingConsentIfChanged() async -> Attribution? {
-        guard storage.isSdkEnabled(), storage.isMatchRequestAttempted() else { return nil }
+        guard (storage.isSdkEnabled() && storage.isCollectionEnabled()), storage.isMatchRequestAttempted() else { return nil }
         let consent = trackingStatus.current()
         let previouslyAccepted = storage.reportedTrackingConsent()
         let cached = storage.getCachedAttribution()
@@ -626,7 +656,7 @@ public actor AppRefer {
     /// higher one. Always the first-party host: the value is computed from first-party
     /// data and only reaches ad networks through Apple's anonymous postbacks.
     func refreshConversionValue(force: Bool, allowRecheck: Bool = true) async {
-        guard storage.isSdkEnabled() else { return }
+        guard (storage.isSdkEnabled() && storage.isCollectionEnabled()) else { return }
         if let firstRun = storage.firstRunDate(), Date().timeIntervalSince(firstRun) > Self.conversionWindow { return }
         if conversionRefreshInFlight {
             // A purchase may have landed after the running check read its value: run again after it.
@@ -640,10 +670,11 @@ public actor AppRefer {
             let raised = await refreshConversionValueOnce(force: forced)
             // A purchase made outside AppRefer Billing reaches AppRefer through its webhook a moment
             // later: if a forced check found nothing new, look once more after 90 seconds.
-            if forced, !raised, allowRecheck, !conversionRecheckScheduled {
+            if storage.isCollectionEnabled(), forced, !raised, allowRecheck, !conversionRecheckScheduled {
                 conversionRecheckScheduled = true
-                Task {
-                    try? await Task.sleep(nanoseconds: 90 * 1_000_000_000)
+                conversionRecheckTask = Task {
+                    do { try await Task.sleep(nanoseconds: 90 * 1_000_000_000) } catch { return }
+                    guard !Task.isCancelled else { return }
                     await self.finishScheduledRecheck()
                 }
             }
@@ -660,12 +691,15 @@ public actor AppRefer {
 
     /// One check; true when the value went up.
     private func refreshConversionValueOnce(force: Bool) async -> Bool {
+        let epoch = generation
+        guard storage.isCollectionEnabled() else { return false }
         var current = storage.conversionValue()
         if current == nil {
             await conversionUpdater.update(fine: 0, coarse: .low)
             storage.setConversionValue(fine: 0, coarse: AppReferCoarseValue.low.rawValue)
             current = (0, AppReferCoarseValue.low.rawValue)
         }
+        guard epoch == generation, storage.isCollectionEnabled() else { return false }
         if !force, let checked = storage.conversionCheckedAt(), Date().timeIntervalSince(checked) < Self.conversionRefreshInterval { return false }
         guard let deviceId = storage.deviceId() else { return false }
         var body: [String: Any] = ["device_id": deviceId]
@@ -676,6 +710,7 @@ public actor AppRefer {
         guard let response = await firstPartyClient.post("/api/track/conversion-value", body: body),
               let fine = response["fine"] as? Int,
               let coarse = (response["coarse"] as? String).flatMap(AppReferCoarseValue.init(rawValue:)) else { return false }
+        guard epoch == generation, storage.isCollectionEnabled() else { return false }
         storage.setConversionCheckedAt(Date())
         // Compare with what is stored now, not before the request.
         current = storage.conversionValue() ?? current
@@ -702,9 +737,10 @@ public actor AppRefer {
     func _trackEvent(
         _ eventName: String, properties: [String: Any]?, revenue: Double?, currency: String?
     ) async -> AppReferEventResult {
-        guard storage.isSdkEnabled(), let deviceId = storage.deviceId() else { return .dropped }
+        guard (storage.isSdkEnabled() && storage.isCollectionEnabled()), let deviceId = storage.deviceId() else { return .dropped }
         let id = UUID().uuidString
         var body: [String: Any] = ["device_id": deviceId, "event_name": eventName, "eventId": id]
+        if !eventName.hasPrefix("_"), let userId = storage.getUserId() { body["app_user_id"] = userId }
         if let properties { body["properties"] = properties }
         if let revenue { body["revenue"] = revenue }
         if let currency { body["currency"] = currency }
@@ -753,8 +789,8 @@ public actor AppRefer {
     /// Only the queue retries events; the transport performs one attempt.
     @discardableResult
     func flushPendingEvents(only eventId: String? = nil) async -> [String: Int] {
-        guard !draining, storage.isSdkEnabled() else {
-            if !storage.isSdkEnabled() { storage.pendingEvents = nil }
+        guard !draining, (storage.isSdkEnabled() && storage.isCollectionEnabled()) else {
+            if !(storage.isSdkEnabled() && storage.isCollectionEnabled()) { storage.pendingEvents = nil }
             return [:]
         }
         draining = true
@@ -765,7 +801,7 @@ public actor AppRefer {
         var results: [String: Int] = [:]
         guard let pending = loadEvents(), saveEvents(pending) else { return results }
         for event in pending where event.nextAttempt <= Date() && (eventId == nil || event.id == eventId) {
-            guard epoch == eventGeneration, !Task.isCancelled, storage.isSdkEnabled() else { break }
+            guard epoch == eventGeneration, !Task.isCancelled, (storage.isSdkEnabled() && storage.isCollectionEnabled()) else { break }
             guard let body = try? JSONSerialization.jsonObject(with: event.body) as? [String: Any] else { continue }
             let response = await client(for: trackingStatus.current()).eventResponse(body)
             let status = response.status
@@ -790,6 +826,7 @@ public actor AppRefer {
 
     private func scheduleRetry() {
         retryTask?.cancel()
+        guard storage.isCollectionEnabled() else { retryTask = nil; return }
         guard let next = loadEvents()?.map(\.nextAttempt).min() else { retryTask = nil; return }
         let delay = min(3600, max(0.1, next.timeIntervalSinceNow))
         retryTask = Task { [weak self] in
@@ -807,7 +844,7 @@ public actor AppRefer {
         lastName: String?,
         dateOfBirth: String?
     ) async {
-        guard storage.isSdkEnabled() else { return }
+        guard (storage.isSdkEnabled() && storage.isCollectionEnabled()) else { return }
         // Hashed PII for Meta's matching is only for advertising: never without ATT.
         guard trackingStatus.current() == .granted else {
             logger.info("Advanced matching skipped: tracking not authorized")
@@ -842,7 +879,7 @@ public actor AppRefer {
         logger.info("User ID set: \(userId)")
 
         // Sync userId to server so webhook userId fallback can find this attribution
-        guard storage.isSdkEnabled(), let deviceId = storage.deviceId() else { return }
+        guard (storage.isSdkEnabled() && storage.isCollectionEnabled()), let deviceId = storage.deviceId() else { return }
         let body: [String: Any] = [
             "device_id": deviceId,
             "event_name": "_set_user_id",

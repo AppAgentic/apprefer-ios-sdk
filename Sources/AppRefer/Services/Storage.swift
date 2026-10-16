@@ -44,6 +44,22 @@ final class AppReferStorage: @unchecked Sendable {
                 .appendingPathComponent("AppRefer/product-events.json") : nil)
     }
 
+    private let collectionLock = NSLock()
+    private var collectionPaused = false
+    func isCollectionEnabled() -> Bool {
+        collectionLock.lock(); defer { collectionLock.unlock() }
+        return !collectionPaused && (defaults.object(forKey: "apprefer_collection_enabled") as? Bool != false)
+    }
+    func setCollectionEnabled(_ enabled: Bool) {
+        collectionLock.lock(); defer { collectionLock.unlock() }
+        collectionPaused = true // enabling takes effect only on configure
+        defaults.set(enabled, forKey: "apprefer_collection_enabled")
+    }
+    func resumeCollection() {
+        collectionLock.lock(); defer { collectionLock.unlock() }
+        collectionPaused = false
+    }
+
     func clearUser() { defaults.removeObject(forKey: Self.keyUserId) }
     var organicConfirmed: Bool {
         get { defaults.bool(forKey: "apprefer_organic_confirmed") }
