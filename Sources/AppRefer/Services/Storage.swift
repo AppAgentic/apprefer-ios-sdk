@@ -85,7 +85,15 @@ final class AppReferStorage: @unchecked Sendable {
     static let keySupportIdentityCleared = "apprefer_support_identity_cleared"
     var supportIdentityCleared: Bool {
         get {
-            if case .found = keychain.load(key: Self.keySupportIdentityCleared) { return true }
+            switch keychain.load(key: Self.keySupportIdentityCleared) {
+            case .found: return true
+            // No Keychain at all (macOS without the entitlement): UserDefaults is the store.
+            case .failed(let status) where status == errSecMissingEntitlement:
+                return defaults.bool(forKey: Self.keySupportIdentityCleared)
+            // Locked (before first unlock) or failing: fail closed, treat as cleared.
+            case .unavailable, .failed: return true
+            case .notFound: break
+            }
             guard defaults.bool(forKey: Self.keySupportIdentityCleared) else { return false }
             if keychain.save(key: Self.keySupportIdentityCleared, value: "1") {
                 defaults.removeObject(forKey: Self.keySupportIdentityCleared)

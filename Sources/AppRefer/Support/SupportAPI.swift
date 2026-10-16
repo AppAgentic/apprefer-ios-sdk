@@ -222,9 +222,16 @@ actor SupportAPI {
     }
 
     /// Whether the stored session was minted while the identity was cleared. Read from the
-    /// Keychain; a 0.9.2 UserDefaults copy is moved there (and kept if the move fails).
-    static func sessionMintedWhileCleared() -> Bool {
-        if case .found = KeychainHelper.load(key: clearedSessionKey) { return true }
+    /// Keychain; a 0.9.2 UserDefaults copy is moved there (and kept if the move fails). A
+    /// Keychain that is locked or failing reads as cleared (fail closed).
+    static func sessionMintedWhileCleared(_ read: KeychainReadResult = KeychainHelper.load(key: clearedSessionKey)) -> Bool {
+        switch read {
+        case .found: return true
+        case .failed(let status) where status == errSecMissingEntitlement:
+            return UserDefaults.standard.bool(forKey: clearedSessionKey)
+        case .unavailable, .failed: return true
+        case .notFound: break
+        }
         guard UserDefaults.standard.bool(forKey: clearedSessionKey) else { return false }
         if KeychainHelper.save(key: clearedSessionKey, value: "1") {
             UserDefaults.standard.removeObject(forKey: clearedSessionKey)

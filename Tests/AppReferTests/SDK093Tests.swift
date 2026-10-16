@@ -355,4 +355,95 @@ final class SDK093Tests: XCTestCase {
         XCTAssertNil(storage.resetUser)
         XCTAssertFalse(storage.hasAnonymousId, "never mints an id")
     }
+
+    // MARK: - Round 2 A: never mark the anonymous id logOut() just minted; no late writes
+
+    func testLogOutThenResetDoesNotMarkTheFreshAnonymousId() async throws {
+        let storage = env.storage()
+        storage.loggedInAppUserId = "user_a"
+        let transport = MockBillingTransport { request in
+            let user = request.jsonBody?["appUserId"] as? String ?? "x"
+            return (Data(BillingFixtures.customerJSON(appUserId: user).utf8), 200)
+        }
+        let engine = env.engine(transport: transport, storage: storage)
+        engine.identityChanges.advance() // AppReferBilling.logOut()
+        _ = await engine.logOut()
+        let fresh = try XCTUnwrap(storage.storedCurrentAppUserId)
+        XCTAssertTrue(BillingStorage.isAnonymous(fresh))
+        await engine.recordAccountReset(expectedIdentityChanges: engine.identityChanges.read())
+        XCTAssertNil(storage.resetUser, "the next account's fresh anonymous id is not the previous account")
+        _ = await engine.customerInfo(policy: .fetchCurrent)
+        XCTAssertEqual(billingBodies(transport, "/api/billing/v1/customers").last?["appreferId"] as? String, "device-abc")
+
+        // After a logIn, a later reset marks that user as before.
+        _ = try await engine.logIn("user_c")
+        await engine.recordAccountReset(expectedIdentityChanges: engine.identityChanges.read())
+        XCTAssertEqual(storage.resetUser, "user_c")
+    }
+
+    func testResetMarkerWriteThatLandsAfterALogInIsSkipped() async throws {
+        let storage = env.storage()
+        storage.loggedInAppUserId = "user_a"
+        let engine = env.engine(transport: MockBillingTransport.ok(BillingFixtures.customerJSON(appUserId: "user_b")), storage: storage)
+        // reset() starts (snapshot), the app calls logIn(user_b) without awaiting reset().
+        let snapshot = engine.identityChanges.read()
+        engine.identityChanges.advance()
+        _ = try await engine.logIn("user_b")
+        await engine.recordAccountReset(expectedIdentityChanges: snapshot)
+        XCTAssertNil(storage.resetUser, "the late write must not mark the next account")
+    }
+
+    func testLogInBeforeResetIsStillMarked() async throws {
+        let storage = env.storage()
+        let engine = env.engine(transport: MockBillingTransport.ok(BillingFixtures.customerJSON(appUserId: "user_a")), storage: storage)
+        engine.identityChanges.advance()
+        _ = try await engine.logIn("user_a")
+        let snapshot = engine.identityChanges.read() // reset() called after logIn
+        await engine.recordAccountReset(expectedIdentityChanges: snapshot)
+        XCTAssertEqual(storage.resetUser, "user_a")
+    }
+
+    // MARK: - Round 2 B: the Billing marker lives with the Keychain identity; fail closed
+
+    func testBillingResetMarkerIsKeptInTheSecureStoreAndSurvivesAReinstall() throws {
+        let storage = env.storage()
+        let anonymous = try XCTUnwrap(storage.anonymousId())
+        storage.recordAccountReset()
+        XCTAssertEqual(env.secure.read("apprefer_billing_reset_user").value, anonymous)
+        XCTAssertNil(env.defaults.object(forKey: "apprefer_billing_reset_user"))
+
+        // Reinstall: UserDefaults gone, Keychain (anonymous id, marker) kept.
+        let reinstalled = BillingStorage(secure: env.secure, defaults: UserDefaults(suiteName: UUID().uuidString)!, directory: env.directory)
+        XCTAssertEqual(reinstalled.storedCurrentAppUserId, anonymous)
+        XCTAssertTrue(reinstalled.resetMarkerHolds(for: anonymous))
+    }
+
+    func testBillingResetMarkerMovesFromUserDefaultsAndFailsClosed() {
+        env.defaults.set("user_a", forKey: "apprefer_billing_reset_user")
+        let storage = env.storage()
+        XCTAssertEqual(storage.resetUser, "user_a")
+        XCTAssertEqual(env.secure.read("apprefer_billing_reset_user").value, "user_a")
+        XCTAssertNil(env.defaults.object(forKey: "apprefer_billing_reset_user"))
+
+        // Keychain locked: the marker can't be ruled out, so the gate stays closed.
+        env.secure.isLocked = true
+        XCTAssertTrue(storage.resetMarkerHolds(for: "user_b"))
+        env.secure.isLocked = false
+        XCTAssertFalse(storage.resetMarkerHolds(for: "user_b"))
+        XCTAssertNil(storage.resetUser)
+    }
+
+    func testSupportClearedFlagsFailClosedWhenTheKeychainCantBeRead() {
+        let keychain = FakeDeviceIdKeychain()
+        let storage = attributionStorage(keychain: keychain)
+        XCTAssertFalse(storage.supportIdentityCleared)
+        keychain.locked = true
+        XCTAssertTrue(storage.supportIdentityCleared, "locked reads as cleared")
+
+        XCTAssertTrue(SupportAPI.sessionMintedWhileCleared(.unavailable(errSecInteractionNotAllowed)))
+        XCTAssertTrue(SupportAPI.sessionMintedWhileCleared(.failed(errSecIO)))
+        UserDefaults.standard.removeObject(forKey: SupportAPI.clearedSessionKey)
+        XCTAssertFalse(SupportAPI.sessionMintedWhileCleared(.failed(errSecMissingEntitlement)), "no Keychain at all: UserDefaults is the store")
+        XCTAssertFalse(SupportAPI.sessionMintedWhileCleared(.notFound))
+    }
 }

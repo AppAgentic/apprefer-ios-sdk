@@ -183,9 +183,25 @@ public enum AppReferBilling {
     /// Called by `AppRefer.reset()`: the current Billing user (if Billing ever had one) is
     /// remembered as the previous account, so it gets no install device id, device
     /// attributes or re-link, even after a relaunch, until logIn/logOut or a different user.
-    static func recordAccountReset() async {
-        if let engine { await engine.recordAccountReset() }
-        else { BillingStorage.live(createDirectory: false).recordAccountReset() }
+    static func recordAccountReset(_ snapshot: IdentitySnapshot) async {
+        if let engine {
+            // Configured while reset() ran: that user is the next account's.
+            guard engine === snapshot.engine else { return }
+            await engine.recordAccountReset(expectedIdentityChanges: snapshot.changes)
+        } else {
+            BillingStorage.live(createDirectory: false).recordAccountReset()
+        }
+    }
+
+    /// Taken synchronously when reset() starts: a logIn/logOut called after it means the
+    /// marker write would land on the next account, so it is skipped.
+    struct IdentitySnapshot: @unchecked Sendable {
+        let engine: BillingEngine?
+        let changes: Int
+    }
+    static func identitySnapshot() -> IdentitySnapshot {
+        let engine = self.engine
+        return IdentitySnapshot(engine: engine, changes: engine?.identityChanges.read() ?? 0)
     }
 
     private static func requireEngine() throws -> BillingEngine {
@@ -213,13 +229,17 @@ public enum AppReferBilling {
     /// Switches to a signed-in user. Purchases made while anonymous move to them.
     @discardableResult
     public static func logIn(_ appUserId: String) async throws -> AppReferCustomerInfo {
-        try await requireEngine().logIn(appUserId)
+        let engine = try requireEngine()
+        engine.identityChanges.advance() // before any await: a reset() started earlier sees it
+        return try await engine.logIn(appUserId)
     }
 
     /// Signs out and starts a fresh anonymous id.
     @discardableResult
     public static func logOut() async throws -> AppReferCustomerInfo {
-        try await requireEngine().logOut()
+        let engine = try requireEngine()
+        engine.identityChanges.advance()
+        return try await engine.logOut()
     }
 
     /// Customer attributes, sent with the next AppRefer call. Supported keys:

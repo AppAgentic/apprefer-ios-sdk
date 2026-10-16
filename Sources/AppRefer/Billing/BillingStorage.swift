@@ -209,33 +209,61 @@ final class BillingStorage {
 
     // MARK: - Account reset marker (survives relaunch)
 
+    enum StoredResetUser: Equatable {
+        case none
+        case user(String)
+        /// The secure store couldn't be read (locked or failing): a marker may exist.
+        case unknown
+    }
+
+    /// The reset marker, kept in the secure store (Keychain) with the anonymous id it guards,
+    /// so a reinstall that keeps the Keychain identity keeps the marker too. A UserDefaults
+    /// copy (written by pre-release 0.9.3 builds) is moved there on first read, and kept if
+    /// the move fails.
+    var storedResetUser: StoredResetUser {
+        switch secure.read(Key.resetUser) {
+        case .found(let marker): return .user(marker)
+        case .unavailable, .failed: return .unknown
+        case .notFound:
+            guard let legacy = defaults.string(forKey: Key.resetUser) else { return .none }
+            if secure.set(legacy, forKey: Key.resetUser) { defaults.removeObject(forKey: Key.resetUser) }
+            return .user(legacy)
+        }
+    }
+
     /// The Billing user that was current when `AppRefer.reset()` last ran. While it is still
     /// the current user, that user belongs to the previous account: no install device id,
     /// device attributes or re-link, and identify sends `link: false`. Cleared by an explicit
     /// logIn/logOut and once the Billing user changes to a different id.
     var resetUser: String? {
-        get { defaults.string(forKey: Key.resetUser) }
+        get { if case .user(let marker) = storedResetUser { return marker }; return nil }
         set {
-            if let newValue { defaults.set(newValue, forKey: Key.resetUser) }
-            else { defaults.removeObject(forKey: Key.resetUser) }
+            if secure.set(newValue, forKey: Key.resetUser) || newValue == nil { defaults.removeObject(forKey: Key.resetUser) }
+            else { defaults.set(newValue, forKey: Key.resetUser) }
         }
     }
 
-    /// Called by reset(): remembers the current Billing user (anonymous or not). Nothing is
+    /// Called by reset(): remembers the current Billing user (anonymous or not), unless it is
+    /// `skipping` (an anonymous id logOut() just minted for the next account). Nothing is
     /// stored when Billing never had a user.
-    func recordAccountReset() {
-        guard let current = storedCurrentAppUserId else { return }
+    func recordAccountReset(current explicit: String? = nil, skipping fresh: String? = nil) {
+        guard let current = explicit ?? storedCurrentAppUserId, current != fresh else { return }
         resetUser = current
     }
 
-    /// True while the reset marker names the current Billing user `user` (or the user can't
-    /// be read). A marker for a different user is cleared: the Billing user has changed.
+    /// True while the reset marker names the current Billing user `user`, or can't be ruled
+    /// out (user or marker unreadable: fail closed). A marker for a different user is
+    /// cleared: the Billing user has changed.
     func resetMarkerHolds(for user: String?) -> Bool {
-        guard let marker = resetUser else { return false }
-        guard let user else { return true }
-        if marker == user { return true }
-        resetUser = nil
-        return false
+        switch storedResetUser {
+        case .none: return false
+        case .unknown: return true
+        case .user(let marker):
+            guard let user else { return true }
+            if marker == user { return true }
+            resetUser = nil
+            return false
+        }
     }
 
     /// Nil only while protected data is unavailable.

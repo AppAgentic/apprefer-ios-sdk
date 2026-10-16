@@ -3,6 +3,14 @@ import Foundation
 /// Core of AppReferBilling: identity, server sync, transaction processing, retry queue
 /// and the outage fallback. StoreKit purchase UI lives in `AppReferBilling`; everything
 /// here goes through `BillingStoreKit` and `BillingAPIClient` so it can be tested.
+/// Lock-protected counter of Billing identity calls (logIn/logOut).
+final class BillingIdentityChanges: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+    func read() -> Int { lock.lock(); defer { lock.unlock() }; return value }
+    func advance() { lock.lock(); defer { lock.unlock() }; value += 1 }
+}
+
 actor BillingEngine {
     struct Options: Sendable {
         var productEntitlements: [String: [String]] = [:]
@@ -111,10 +119,26 @@ actor BillingEngine {
     }
 
     /// Called by `AppRefer.reset()`: persists the current Billing user as the previous
-    /// account, so the gate stays closed for it after a relaunch.
-    func recordAccountReset() {
-        storage.recordAccountReset()
+    /// account, so the gate stays closed for it after a relaunch. Skipped when a logIn/logOut
+    /// was called after `reset()` started (`expectedIdentityChanges`, a snapshot taken then):
+    /// the write would land on the next account. An anonymous id that logOut() minted in this
+    /// process (logOut before reset) is never marked either.
+    func recordAccountReset(expectedIdentityChanges: Int? = nil) {
+        if let expected = expectedIdentityChanges, expected != identityChanges.read() { return }
+        var explicit: String?
+        switch pendingIdentityChanges.last {
+        case .logOut?: return // will mint a fresh anonymous id for the next account
+        case .logIn(let id)?: explicit = id
+        default: break
+        }
+        storage.recordAccountReset(current: explicit, skipping: anonymousMintedByLogOut)
     }
+
+    /// Counts logIn/logOut calls (bumped synchronously by `AppReferBilling`, before any
+    /// await), so reset() can tell whether one came after it started.
+    nonisolated let identityChanges = BillingIdentityChanges()
+    /// The anonymous id the last logOut() minted in this process; cleared by logIn.
+    private var anonymousMintedByLogOut: String?
 
     /// Attribution and device signals among the customer attributes.
     static let deviceAttributeKeys: Set<String> = ["$idfa", "$idfv", "$fbAnonId", "$attConsentStatus", "$deviceVersion", "$ip", "$gpsAdId"]
@@ -227,7 +251,8 @@ actor BillingEngine {
         case .logOut:
             // The new anonymous id must be saved before it is used. Pending identifies
             // stay: they still have to reach the server.
-            guard storage.resetAnonymousId() != nil else { return false }
+            guard let fresh = storage.resetAnonymousId() else { return false }
+            anonymousMintedByLogOut = fresh
             storage.loggedInAppUserId = nil
             lastServerFetch = nil
             return true
@@ -883,6 +908,7 @@ actor BillingEngine {
         }
         // The app is saying who the user is now, even when it is the same id.
         storage.resetUser = nil
+        anonymousMintedByLogOut = nil
         pendingIdentityChanges.append(.logIn(appUserId))
         identityEpoch = accountEpoch()
         invalidateOfferings()

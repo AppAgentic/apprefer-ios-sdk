@@ -7,8 +7,10 @@ user that was current at that moment. If the app relaunches and Billing still se
 that user (no `AppReferBilling.logIn`/`logOut` yet), its requests still carry no
 install device id or device attributes, it is never re-linked, and `/identify` sends
 `link: false`. Any explicit `logIn` (even with the same id) or `logOut`, or a
-different Billing user, ends this. Calling `logIn`/`logOut` after `reset()` is still
-the recommended flow.
+different Billing user, ends this. An anonymous id that `logOut()` has just created
+for the next account is never marked, even if `logOut()` runs before `reset()`.
+Calling `logIn`/`logOut` after `reset()` is still the recommended flow. The marker
+lives in the Keychain with Billing's anonymous id.
 
 **Support.** A revocation queued while another revocation pass is running (for
 example by `clearIdentity()`) is processed straight after it, in the same app
