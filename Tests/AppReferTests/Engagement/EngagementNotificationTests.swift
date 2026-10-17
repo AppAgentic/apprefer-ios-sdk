@@ -10,18 +10,23 @@ private actor FakeSystem: EngagementNotificationSystem {
     private var gate: CheckedContinuation<Void, Never>?
     var holdNextAdd = false
     private(set) var addStarted = false
+    /// A release that arrives before the add parks is kept, so the add never waits forever.
+    private var released = false
     func scheduleSnooze(identifier: String, title: String, subtitle: String?, body: String, userInfo: [String: Any],
                         category: String?, thread: String?, after seconds: TimeInterval) async -> Bool {
         snoozes.append((identifier, category, seconds, userInfo))
         if holdNextAdd {
             holdNextAdd = false
             addStarted = true
-            await withCheckedContinuation { gate = $0 }
+            if !released { await withCheckedContinuation { gate = $0 } }
         }
         scheduled.insert(identifier)
         return true
     }
-    func releaseAdd() { gate?.resume(); gate = nil }
+    func releaseAdd() {
+        released = true
+        gate?.resume(); gate = nil
+    }
     func hold() { holdNextAdd = true }
     func removeSnoozes(identifiers: [String]?) async {
         scheduled = scheduled.filter { !($0.hasPrefix(snoozePrefix) && (identifiers?.contains($0) ?? true)) }
@@ -65,6 +70,16 @@ final class EngagementNotificationTests: XCTestCase {
         await layer.handleResponse(userInfo: userInfo ?? info(), actionIdentifier: action, categoryIdentifier: category)
     }
     private func settle() async { for _ in 0..<5 { await Task.yield() }; try? await Task.sleep(nanoseconds: 20_000_000) }
+    /// Waits (at most five seconds) for the fake system's add to start; a tap that never reaches
+    /// it fails the test instead of spinning forever.
+    private func waitForAddToStart(file: StaticString = #filePath, line: UInt = #line) async -> Bool {
+        let deadline = Date().addingTimeInterval(5)
+        while !(await system.addStarted) {
+            if Date() > deadline { XCTFail("the snooze add never started", file: file, line: line); return false }
+            try? await Task.sleep(nanoseconds: 1_000_000)
+        }
+        return true
+    }
 
     func testSupportAndForeignNotificationsAreLeftAlone() async {
         let support: [AnyHashable: Any] = ["apprefer": ["type": "support_reply", "conversationId": "cv_1"]]
@@ -185,7 +200,7 @@ final class EngagementNotificationTests: XCTestCase {
         await system.hold()
         let exp = (Date().timeIntervalSince1970 + 3 * 3600) * 1000
         let tap = Task { await self.respond("apprefer.action.1", self.info(["exp": exp])) }
-        while !(await system.addStarted) { await Task.yield() }
+        guard await waitForAddToStart() else { await system.releaseAdd(); _ = await tap.value; return }
         // The removal runs while the system add is still in flight: it finds nothing yet.
         await layer.identityInvalidated()
         var held = await system.held()
@@ -200,7 +215,7 @@ final class EngagementNotificationTests: XCTestCase {
         let exp = (Date().timeIntervalSince1970 + 3 * 3600) * 1000
         await system.hold()
         let tap = Task { await self.respond("apprefer.action.1", self.info(["exp": exp])) }
-        while !(await system.addStarted) { await Task.yield() }
+        guard await waitForAddToStart() else { await system.releaseAdd(); _ = await tap.value; return }
         // The snapshot moved (e.g. a backend bind learned by the client) before the observer hop ran.
         box.set(EngagementSnapshot(slot: "s", installId: iid, accountEpoch: 3, serial: 2, header: "h", trackedEvents: nil))
         await system.releaseAdd()

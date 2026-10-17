@@ -325,6 +325,75 @@ final class EngagementClientTests: XCTestCase {
         XCTAssertFalse(state.pendingLogout, "the saved logout is settled, not retried forever")
     }
 
+    // MARK: Pending logout target (one atomic value, never inferred later)
+
+    private var slotKey: String { EngagementClient.slot(for: key) }
+
+    func testAnOfflineLogoutIsSavedAsOneValueForItsInstall() async throws {
+        let c = client()
+        let started = await c.start(apiKey: key, explicit: true, options: .init())
+        let id = try XCTUnwrap(installId(started))
+        try await c.identify(assertion: "ok:user-a")
+        server.offline = true
+        await c.logout()
+        XCTAssertEqual(defaults.string(forKey: "apprefer_engagement_pending_logout_target_\(slotKey)"), "\(id):1")
+        XCTAssertNil(defaults.object(forKey: "apprefer_engagement_pending_logout_\(slotKey)"), "no separate flag that a crash could strand")
+        XCTAssertNil(defaults.object(forKey: "apprefer_engagement_pending_logout_epoch_\(slotKey)"))
+        server.offline = false
+        _ = await client().start(apiKey: key, explicit: true, options: .init())
+        XCTAssertEqual(server.requests("POST", "/api/engagement/v1/installs/me/logout").last?.body["expectedEpoch"] as? Int, 1)
+        XCTAssertNil(server.install(id)?.account)
+        XCTAssertNil(defaults.object(forKey: "apprefer_engagement_pending_logout_target_\(slotKey)"))
+    }
+
+    func testAnInterruptedTwoValueLogoutSignsOutOnlyThePersistedEpoch() async throws {
+        let c = client()
+        let started = await c.start(apiKey: key, explicit: true, options: .init())
+        let id = try XCTUnwrap(installId(started))
+        try await c.identify(assertion: "ok:user-a") // epoch 1, persisted with the install id
+        // An earlier build crashed between its two writes: the flag without its epoch.
+        defaults.set(true, forKey: "apprefer_engagement_pending_logout_\(slotKey)")
+        server.backendBind(id, to: "user-b") // epoch 2 while the app wasn't running
+        let restarted = client()
+        _ = await restarted.start(apiKey: key, explicit: true, options: .init())
+        let logouts = server.requests("POST", "/api/engagement/v1/installs/me/logout")
+        XCTAssertEqual(logouts.map { $0.body["expectedEpoch"] as? Int }, [1], "aimed at the persisted epoch, never the fresh one")
+        XCTAssertEqual(server.install(id)?.account, "user-b", "refused (409): B stays bound")
+        XCTAssertEqual(restarted.snapshot.get()?.accountEpoch, 2)
+        let state = await restarted.stateForTesting()
+        XCTAssertFalse(state.pendingLogout)
+        XCTAssertNil(defaults.object(forKey: "apprefer_engagement_pending_logout_\(slotKey)"))
+    }
+
+    func testARetainedCredentialWithoutItsEpochNeverDetachesTheServersIdentity() async throws {
+        let first = client()
+        let started = await first.start(apiKey: key, explicit: true, options: .init())
+        let id = try XCTUnwrap(installId(started))
+        try await first.identify(assertion: "ok:user-a")
+        // Reinstall: the Keychain credential survives, UserDefaults (the epoch) does not.
+        defaults = UserDefaults(suiteName: "eng-\(UUID().uuidString)")!
+        server.backendBind(id, to: "user-b")
+        let reinstalled = client()
+        await reinstalled.logout() // reset() before start
+        _ = await reinstalled.start(apiKey: key, explicit: true, options: .init())
+        XCTAssertTrue(server.requests("POST", "/api/engagement/v1/installs/me/logout").isEmpty, "no target known: dropped")
+        XCTAssertEqual(server.install(id)?.account, "user-b")
+        XCTAssertEqual(reinstalled.snapshot.get()?.accountEpoch, 2)
+        XCTAssertFalse(defaults.bool(forKey: "apprefer_engagement_pending_logout_any"))
+        // Started but never verified (offline), then a logout: nothing saved, nothing sent later.
+        defaults = UserDefaults(suiteName: "eng-\(UUID().uuidString)")!
+        server.offline = true
+        let offline = client()
+        let pending = await offline.start(apiKey: key, explicit: true, options: .init())
+        XCTAssertEqual(pending, .pending)
+        await offline.logout()
+        server.offline = false
+        server.backendBind(id, to: "user-c")
+        _ = await client().start(apiKey: key, explicit: true, options: .init())
+        XCTAssertTrue(server.requests("POST", "/api/engagement/v1/installs/me/logout").isEmpty)
+        XCTAssertEqual(server.install(id)?.account, "user-c")
+    }
+
     func testASignInStartedUnderAnOldIdentityDoesNotReplaceTheNewOne() async throws {
         let c = client()
         let idStatus = await c.start(apiKey: key, explicit: true, options: .init())

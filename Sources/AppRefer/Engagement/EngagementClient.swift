@@ -139,14 +139,23 @@ actor EngagementClient {
         get { defaults.integer(forKey: key("serial")) }
         set { defaults.set(newValue, forKey: key("serial")); identityObserver.fire() }
     }
-    private var pendingLogout: Bool {
-        get { defaults.bool(forKey: key("pending_logout")) }
-        set { defaults.set(newValue, forKey: key("pending_logout")); if !newValue { pendingLogoutEpoch = nil } }
-    }
-    /// The epoch the saved logout was made under (nil: not known when it was made).
+    /// An unsent logout: the epoch it signs out of, saved as one value `"<installId>:<epoch>"`
+    /// in a single write, so a crash can never leave a logout without its target. It only
+    /// applies to the install it was made for. A logout whose epoch was not known is never
+    /// saved: it could only be aimed at whatever the server holds later, which may be a newer
+    /// identity (see `adoptUnaimedLogout`).
     private var pendingLogoutEpoch: Int? {
-        get { defaults.object(forKey: key("pending_logout_epoch")) as? Int }
-        set { defaults.set(newValue, forKey: key("pending_logout_epoch")) }
+        guard let credential, let saved = defaults.string(forKey: key("pending_logout_target")) else { return nil }
+        let parts = saved.split(separator: ":")
+        return parts.count == 2 && parts[0] == Substring(credential.installId) ? Int(parts[1]) : nil
+    }
+    private var pendingLogout: Bool { pendingLogoutEpoch != nil }
+    private func savePendingLogout(_ epoch: Int) {
+        guard let credential else { return }
+        defaults.set("\(credential.installId):\(epoch)", forKey: key("pending_logout_target"))
+    }
+    private func clearPendingLogout() {
+        defaults.removeObject(forKey: key("pending_logout_target"))
     }
     private var disabledUntil: Date? {
         get { defaults.object(forKey: key("disabled_until")) as? Date }
@@ -240,30 +249,13 @@ actor EngagementClient {
             guard await register(apiKey: apiKey, gen: gen) else { publish(); return status }
         }
         guard gen == generation, let credential else { return status }
-        if defaults.bool(forKey: Self.pendingLogoutAnyKey) {
-            defaults.removeObject(forKey: Self.pendingLogoutAnyKey)
-            // Made before this slot started in that process: it applies to the identity this
-            // slot last knew (persisted), never to one the server moved to afterwards.
-            let epoch = knownEpoch
-            pendingLogout = true
-            pendingLogoutEpoch = epoch
-            serial += 1
-        }
-        if pendingLogout {
-            var expected = pendingLogoutEpoch
-            if expected == nil {
-                // Nothing was known about this install's identity when the logout was saved
-                // (it had never been verified here): log out whatever it is now.
-                let (code, body, _) = await send("GET", "/api/engagement/v1/installs/me", body: nil, apiKey: apiKey, credential: credential)
-                guard gen == generation else { return status }
-                expected = code == 200 ? (body?["install"] as? [String: Any])?["accountEpoch"] as? Int : nil
-                if expected == nil { if !handleFailure(code, body) { status = .pending }; publish(); return status }
-            }
-            let (code, body, _) = await send("POST", "/api/engagement/v1/installs/me/logout", body: ["expectedEpoch": expected!], apiKey: apiKey, credential: credential)
+        adoptUnaimedLogout()
+        if let expected = pendingLogoutEpoch {
+            let (code, body, _) = await send("POST", "/api/engagement/v1/installs/me/logout", body: ["expectedEpoch": expected], apiKey: apiKey, credential: credential)
             guard gen == generation else { return status }
             // 409: the install already left that identity (another sign-in or a backend
             // change): the logout's purpose is met and it must not detach the newer one.
-            if code == 200 || code == 409 { pendingLogout = false; if code == 200 { accountEpoch = body?["accountEpoch"] as? Int } }
+            if code == 200 || code == 409 { clearPendingLogout(); if code == 200 { accountEpoch = body?["accountEpoch"] as? Int } }
             else if handleFailure(code, body) { return status }
             else { status = .pending; publish(); return status }
         }
@@ -287,6 +279,26 @@ actor EngagementClient {
         await syncDevice(force: false)
         await flushReceipts()
         return status
+    }
+
+    /// Gives a logout that was saved without its target one: a logout made before this slot
+    /// started in that process (`pendingLogoutAnyKey`), or the two separate values an earlier
+    /// 0.11.0 development build wrote (a crash between them left the flag without its epoch).
+    /// It signs out of the identity this install last knew, persisted with its install id.
+    /// When none is known (a reinstall keeps the Keychain credential but not these defaults,
+    /// or the epoch was never learnt here) the logout is dropped, never aimed at the server's
+    /// current identity, which a backend bind may already have replaced: an unsent logout can
+    /// never detach a newer identity. The app backend's org-key detach stays authoritative.
+    private func adoptUnaimedLogout() {
+        let legacy = defaults.bool(forKey: key("pending_logout"))
+        guard legacy || defaults.bool(forKey: Self.pendingLogoutAnyKey) else { return }
+        let legacyEpoch = legacy ? defaults.object(forKey: key("pending_logout_epoch")) as? Int : nil
+        if pendingLogoutEpoch == nil, let target = legacyEpoch ?? knownEpoch { savePendingLogout(target) }
+        serial += 1
+        // Removed only after the target is saved: a crash in between adopts it again.
+        defaults.removeObject(forKey: key("pending_logout"))
+        defaults.removeObject(forKey: key("pending_logout_epoch"))
+        defaults.removeObject(forKey: Self.pendingLogoutAnyKey)
     }
 
     private enum Loaded { case found(Credential), missing, unavailable }
@@ -316,6 +328,7 @@ actor EngagementClient {
     private func forgetCredential() {
         keychain.delete(key: credentialKey())
         defaults.removeObject(forKey: key("epoch"))
+        clearPendingLogout()
         credential = nil
         accountEpoch = nil
         lastSync = nil
@@ -465,7 +478,7 @@ actor EngagementClient {
         guard gen == generation else { return .failure(.identityChanged) }
         if code == 200, let epoch = body?["accountEpoch"] as? Int {
             // A sign-in that succeeds also supersedes an unsent logout.
-            pendingLogout = false
+            clearPendingLogout()
             accountEpoch = epoch
             lastSync = nil
             publish()
@@ -503,23 +516,24 @@ actor EngagementClient {
             generation += 1
             return
         }
-        // Saved with the identity it signs out of; a newer pending logout keeps the older epoch
-        // only if nothing newer was confirmed in between.
+        // Saved with the identity it signs out of, in one write; an older unsent logout keeps
+        // its own epoch. With no epoch known for this install nothing is saved or sent: the
+        // only other target would be whatever the server holds by then (see adoptUnaimedLogout).
         let expected = knownEpoch
         beginIdentityChange()
-        if !pendingLogout || pendingLogoutEpoch == nil { pendingLogout = true; pendingLogoutEpoch = expected }
+        if !pendingLogout, let expected { savePendingLogout(expected) }
         guard case .active = status, let apiKey, let credential, let epoch = pendingLogoutEpoch else { return }
         let gen = generation
         let (code, body, _) = await send("POST", "/api/engagement/v1/installs/me/logout", body: ["expectedEpoch": epoch], apiKey: apiKey, credential: credential)
         guard gen == generation else { return }
         if code == 200 {
-            pendingLogout = false
+            clearPendingLogout()
             accountEpoch = body?["accountEpoch"] as? Int
             lastSync = nil
             publish()
         } else if code == 409 {
             // Already signed out of that identity on the server (a newer one is there): done.
-            pendingLogout = false
+            clearPendingLogout()
             _ = await reverify(gen: gen)
         } else {
             handleFailure(code, body)
@@ -554,7 +568,7 @@ actor EngagementClient {
         keychain.delete(key: credentialKey())
         self.credential = nil
         accountEpoch = nil
-        pendingLogout = false
+        clearPendingLogout()
         lastSync = nil
         return true
     }
