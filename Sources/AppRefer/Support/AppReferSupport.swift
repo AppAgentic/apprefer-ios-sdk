@@ -51,6 +51,15 @@ public final class AppReferSupport {
     public var topics: [AppReferSupportTopic] = AppReferSupportTopic.defaults
     /// The icon on the home screen. Defaults to the app icon.
     public var appIcon: UIImage?
+    /// Forces the APNs environment reply tokens are registered for. nil (the default) reads
+    /// it from the app's signing: sandbox for development-signed builds (Debug or Release)
+    /// and the Simulator, production for App Store, TestFlight, Ad Hoc and Enterprise builds.
+    public var pushEnvironment: AppReferPushEnvironment? {
+        get { PushEnvironmentSetting.shared.override }
+        set { PushEnvironmentSetting.shared.override = newValue }
+    }
+    /// The environment `registerDeviceToken` and `status().pushReady` use.
+    public var effectivePushEnvironment: AppReferPushEnvironment { PushEnvironmentSetting.shared.effective }
 
     private weak var presented: UIViewController?
 
@@ -155,9 +164,10 @@ public final class AppReferSupport {
     }
 
     /// Pass the APNs device token from `application(_:didRegisterForRemoteNotificationsWithDeviceToken:)`.
+    /// The token is registered for `effectivePushEnvironment`.
     public func registerDeviceToken(_ deviceToken: Data) {
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
-        let sandbox = SupportAPI.pushSandbox
+        let sandbox = effectivePushEnvironment == .sandbox
         let epoch = SupportAPI.shared.actionGeneration
         Task { try? await SupportAPI.shared.registerPushToken(hex, sandbox: sandbox, generation: epoch) }
     }
