@@ -446,12 +446,13 @@ extension SDK090Tests {
         if case .attributed = await sdk.attributionResult() {} else { XCTFail("Both see attribution") }
     }
     func testLocalSupportResetSavesRevocationBeforeNetworkAndRetriesAcrossRestart() async throws {
-        KeychainHelper.delete(key: "apprefer_support_revocations")
-        KeychainHelper.delete(key: "apprefer_support_session")
+        // An in-memory Keychain: a hostless iOS-simulator test bundle has no Keychain
+        // entitlement (errSecMissingEntitlement), so the live one can't store anything there.
+        let keychain = FakeDeviceIdKeychain()
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [Support090Protocol.self]
         let session = URLSession(configuration: config)
-        let api = SupportAPI(baseURL: "https://support.test", session: session)
+        let api = SupportAPI(baseURL: "https://support.test", session: session, tokenKeychain: keychain)
         var status = 503
         var deletes: [String] = []
         Support090Protocol.handler = { req in
@@ -464,15 +465,14 @@ extension SDK090Tests {
         try await api.registerPushToken("push-A", sandbox: true)
         await api.reset()
         XCTAssertTrue(deletes.isEmpty, "Local reset must return without network")
-        XCTAssertNil(KeychainHelper.load(key: "apprefer_support_session").value)
+        XCTAssertNil(keychain.value("apprefer_support_session"))
         await api.revokePending(using: "pk_retry")
-        XCTAssertNotNil(KeychainHelper.load(key: "apprefer_support_revocations").value)
-        let saved = KeychainHelper.load(key: "apprefer_support_revocations").value!
+        let saved = try XCTUnwrap(keychain.value("apprefer_support_revocations"))
         XCTAssertTrue(saved.contains("push-A")); XCTAssertTrue(saved.contains("A"))
         status = 200
-        let restarted = SupportAPI(baseURL: "https://support.test", session: session)
+        let restarted = SupportAPI(baseURL: "https://support.test", session: session, tokenKeychain: keychain)
         await restarted.revokePending(using: "pk_retry")
-        XCTAssertEqual(KeychainHelper.load(key: "apprefer_support_revocations").value, "[]")
+        XCTAssertEqual(keychain.value("apprefer_support_revocations"), "[]")
         XCTAssertEqual(deletes, ["/api/support/v1/session", "/api/support/v1/session"])
         Support090Protocol.handler = nil
     }
@@ -535,12 +535,13 @@ extension SDK090Tests {
         configuration.protocolClasses = [Support090Protocol.self]
         let session = URLSession(configuration: configuration)
         for status in [200, 204, 299, 401, 403, 404] {
-            KeychainHelper.delete(key: "apprefer_support_session")
-            let api = SupportAPI(baseURL: "https://support.test", session: session)
+            // In-memory Keychain: works in a hostless iOS-simulator test bundle too.
+            let keychain = FakeDeviceIdKeychain()
+            let api = SupportAPI(baseURL: "https://support.test", session: session, tokenKeychain: keychain)
             await api.configure(apiKey: "pk_test")
             await api.revokePending(using: "pk_test")
             let raw = "[{\"token\":\"old\",\"key\":\"pk_old\",\"push\":\"push-old\"}]"
-            XCTAssertTrue(KeychainHelper.save(key: "apprefer_support_revocations", value: raw))
+            XCTAssertTrue(keychain.save(key: "apprefer_support_revocations", value: raw))
             var deletes = 0
             Support090Protocol.handler = { request in
                 if request.httpMethod == "DELETE" {
@@ -554,28 +555,26 @@ extension SDK090Tests {
             // A saved record must not trigger any request from chat polling.
             for _ in 0..<3 { _ = try await api.conversations() }
             XCTAssertEqual(deletes, 0)
-            XCTAssertEqual(KeychainHelper.load(key: "apprefer_support_revocations").value, raw)
+            XCTAssertEqual(keychain.value("apprefer_support_revocations"), raw)
             await api.revokePending(using: "pk_test")
             XCTAssertEqual(deletes, 1)
-            XCTAssertEqual(KeychainHelper.load(key: "apprefer_support_revocations").value, "[]")
+            XCTAssertEqual(keychain.value("apprefer_support_revocations"), "[]")
         }
         Support090Protocol.handler = nil
-        KeychainHelper.delete(key: "apprefer_support_session")
-        KeychainHelper.delete(key: "apprefer_support_revocations")
     }
 
     func testRevocationAgeAndAttemptCapsDropWithoutNetwork() async throws {
-        KeychainHelper.delete(key: "apprefer_support_revocations")
+        let keychain = FakeDeviceIdKeychain() // in-memory: also works in a hostless simulator bundle
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [Support090Protocol.self]
-        let api = SupportAPI(baseURL: "https://support.test", session: URLSession(configuration: configuration))
+        let api = SupportAPI(baseURL: "https://support.test", session: URLSession(configuration: configuration), tokenKeychain: keychain)
         let records: [[String: Any]] = [
             ["token": "old", "createdAt": Date().timeIntervalSince1970 - 401 * 86400],
             ["token": "capped", "attempts": 20],
             ["token": "last-attempt", "attempts": 19],
         ]
         let data = try JSONSerialization.data(withJSONObject: records)
-        XCTAssertTrue(KeychainHelper.save(key: "apprefer_support_revocations", value: String(decoding: data, as: UTF8.self)))
+        XCTAssertTrue(keychain.save(key: "apprefer_support_revocations", value: String(decoding: data, as: UTF8.self)))
         var deletes = 0
         Support090Protocol.handler = { req in
             deletes += 1
@@ -584,11 +583,10 @@ extension SDK090Tests {
         }
         await api.revokePending(using: "pk_test")
         XCTAssertEqual(deletes, 1)
-        XCTAssertEqual(KeychainHelper.load(key: "apprefer_support_revocations").value, "[]")
+        XCTAssertEqual(keychain.value("apprefer_support_revocations"), "[]")
         await api.revokePending(using: "pk_test")
         XCTAssertEqual(deletes, 1)
         Support090Protocol.handler = nil
-        KeychainHelper.delete(key: "apprefer_support_revocations")
     }
 }
 

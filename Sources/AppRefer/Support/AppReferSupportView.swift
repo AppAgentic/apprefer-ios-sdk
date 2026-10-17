@@ -2,19 +2,32 @@
 import SwiftUI
 import PhotosUI
 
-/// The whole help chat: home and conversations. Use `AppRefer.support.open()`
+/// The whole help chat: home, help centre and conversations. Use `AppRefer.support.open()`
 /// to present it, or embed this view yourself.
 public struct AppReferSupportView: View {
+    /// The screen the chat opens on. Back always leads to the help home.
+    public enum Destination: Hashable, Sendable {
+        case home
+        /// Every help article, with search.
+        case helpCentre
+        /// One help article by slug (any translation's slug works).
+        case article(String)
+        case conversation(String)
+    }
+
     @ObservedObject private var account = SupportAccountState.shared
-    private let conversationId: String?
+    private let destination: Destination
     private let draft: String?
     private let initialGeneration: Int
-    public init(conversationId: String? = nil) { self.conversationId = conversationId; self.draft = nil; initialGeneration = SupportAccountState.shared.generation }
-    public init(composing draft: String) { self.conversationId = nil; self.draft = draft; initialGeneration = SupportAccountState.shared.generation }
+    public init(conversationId: String? = nil) { self.init(opening: conversationId.map(Destination.conversation) ?? .home) }
+    public init(opening destination: Destination) { self.destination = destination; self.draft = nil; initialGeneration = SupportAccountState.shared.generation }
+    public init(composing draft: String) { self.destination = .home; self.draft = draft; initialGeneration = SupportAccountState.shared.generation }
     public var body: some View {
-        SupportAccountView(conversationId: account.generation == initialGeneration ? conversationId : nil,
+        SupportAccountView(destination: account.generation == initialGeneration ? destination : .home,
                            draft: account.generation == initialGeneration ? draft : nil)
             .id(account.generation)
+            .environment(\.layoutDirection, SupportStrings.isRightToLeft ? .rightToLeft : .leftToRight)
+            .environment(\.locale, SupportStrings.locale)
     }
 }
 
@@ -22,11 +35,11 @@ struct SupportAccountView: View {
     @StateObject private var home = SupportHomeModel()
     @State private var path: [SupportRoute] = []
     @Environment(\.dismiss) private var dismiss
-    private let initialConversation: String?
+    private let destination: AppReferSupportView.Destination
     private let initialDraft: String?
 
-    init(conversationId: String?, draft: String?) {
-        self.initialConversation = conversationId
+    init(destination: AppReferSupportView.Destination, draft: String?) {
+        self.destination = destination
         self.initialDraft = draft
     }
 
@@ -40,6 +53,10 @@ struct SupportAccountView: View {
                     switch route {
                     case let .thread(id, subject):
                         SupportThreadScreen(id: id, subject: subject, palette: palette, back: pop)
+                    case let .help(search):
+                        SupportHelpScreen(palette: palette, focusSearch: search, back: pop, open: push, messageUs: messageUs)
+                    case let .article(slug, title):
+                        SupportArticleScreen(slug: slug, title: title, palette: palette, back: pop, messageUs: messageUs)
                     }
                 }
                 .background(SupportColors.background.ignoresSafeArea())
@@ -49,8 +66,20 @@ struct SupportAccountView: View {
         }
         .tint(palette.accent)
         .task {
-            if let initialConversation, path.isEmpty { path = [.thread(id: initialConversation, subject: "")] }
+            guard path.isEmpty else { return }
+            switch destination {
+            case .home: break
+            case .helpCentre: path = [.help(search: false)]
+            case let .article(slug): path = [.article(slug: slug, title: "")]
+            case let .conversation(id): path = [.thread(id: id, subject: "")]
+            }
         }
+    }
+
+    /// Back to the home's message bar; from an article its title becomes the subject.
+    private func messageUs(_ subject: String?) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) { path.removeAll() }
+        home.compose = SupportComposeRequest(subject: subject)
     }
 
     private func push(_ route: SupportRoute) {
@@ -102,6 +131,9 @@ struct SupportHomeScreen: View {
                     hero
                     VStack(alignment: .leading, spacing: 24) {
                         if let current = model.current { continueCard(current) }
+                        if !model.articles.isEmpty {
+                            SupportHelpSection(articles: model.articles, palette: palette, prominent: model.current == nil, open: push)
+                        }
                         if !support.topics.isEmpty { quickHelp }
                         if !model.others.isEmpty { pastConversations }
                         if !model.loaded && model.conversations.isEmpty {
@@ -124,13 +156,25 @@ struct SupportHomeScreen: View {
                 if let topic { topicChip(topic) }
                 SupportComposerBar(
                     text: $text, images: $images, focus: $focused,
-                    placeholder: topic?.prompt ?? personas.persona.map { "Message \($0.name)…" } ?? "Ask us anything…", leadingSymbol: "camera.fill",
+                    placeholder: topic?.prompt ?? personas.persona.map { SupportStrings.text("support.composer.placeholder.persona", ["name": $0.name]) } ?? SupportStrings.text("support.composer.placeholder.home"), leadingSymbol: "camera.fill",
                     palette: palette, sending: sending, pick: { picking = true }, send: { SupportAccountState.shared.run { await start(generation: $0) } }
                 )
             }
         }
         .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0.prefix(max(0, 4 - images.count))) } }
         .onAppear { if startsFocused { focused = true } }
+        .onChange(of: model.compose) { request in
+            guard let request else { return }
+            model.compose = nil
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                topic = request.subject.map {
+                    AppReferSupportTopic(title: $0, subtitle: "", systemImage: "doc.text.fill", tint: palette.accent,
+                                         prompt: SupportStrings.text("support.help.prompt"))
+                }
+            }
+            // After the help screens slide away.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { focused = true }
+        }
         .task { await model.refresh() }
         .task {
             // Keep the list fresh while the help screen is open; nothing runs once it closes.
@@ -152,7 +196,7 @@ struct SupportHomeScreen: View {
                     Image(systemName: "xmark").font(.system(size: 16, weight: .bold)).foregroundStyle(palette.onAccent).frame(width: 40, height: 40)
                 }
                 .supportGlass(tint: palette.onAccent.opacity(0.12))
-                .accessibilityLabel("Close")
+                .accessibilityLabel(SupportStrings.text("support.a11y.close"))
             }
             Text(support.resolvedTitle)
                 .font(.system(size: 15, weight: .semibold)).foregroundStyle(palette.onAccent.opacity(0.85))
@@ -161,7 +205,7 @@ struct SupportHomeScreen: View {
                 .font(.system(size: 38, weight: .heavy)).tracking(-1).foregroundStyle(palette.onAccent)
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .padding(.top, 2)
-            Text("How can we help today?")
+            Text(SupportStrings.text("support.home.subtitle"))
                 .font(.system(size: 19, weight: .medium)).foregroundStyle(palette.onAccent.opacity(0.92))
                 .padding(.top, 2)
             presence.padding(.top, 18)
@@ -182,8 +226,8 @@ struct SupportHomeScreen: View {
     }
 
     private var greeting: String {
-        if let first = SupportText.firstName(model.name) { return "Hi \(first) 👋" }
-        return "Hi there 👋"
+        if let first = SupportText.firstName(model.name) { return SupportStrings.text("support.home.greeting.named", ["name": first]) }
+        return SupportStrings.text("support.home.greeting")
     }
 
     @ViewBuilder private var appIcon: some View {
@@ -207,15 +251,16 @@ struct SupportHomeScreen: View {
     private var presence: some View {
         let persona = personas.persona
         let names = Array(support.teamNames.prefix(persona == nil ? 3 : 2))
+        let time = support.replyTime
         let line: String = {
             if let persona {
-                guard let first = names.first else { return "\(persona.name) replies instantly · the team in \(support.replyTime)" }
-                return "\(persona.name) replies instantly · \(first) and the team in \(support.replyTime)"
+                guard let first = names.first else { return SupportStrings.text("support.presence.persona", ["persona": persona.name, "time": time]) }
+                return SupportStrings.text("support.presence.personaWithTeam", ["persona": persona.name, "name": first, "time": time])
             }
-            guard let first = names.first else { return "We usually reply in \(support.replyTime)" }
+            guard let first = names.first else { return SupportStrings.text("support.presence.team", ["time": time]) }
             return names.count == 1 && support.teamNames.count == 1
-                ? "\(first) · usually replies in \(support.replyTime)"
-                : "\(first) and the team · usually \(support.replyTime)"
+                ? SupportStrings.text("support.presence.one", ["name": first, "time": time])
+                : SupportStrings.text("support.presence.many", ["name": first, "time": time])
         }()
         return HStack(spacing: 10) {
             HStack(spacing: -8) {
@@ -257,7 +302,7 @@ struct SupportHomeScreen: View {
     private func continueCard(_ c: AppReferSupportConversation) -> some View {
         Button { push(.thread(id: c.id, subject: c.subject)) } label: {
             VStack(alignment: .leading, spacing: 12) {
-                SupportSectionLabel(text: "Continue")
+                SupportSectionLabel(text: SupportStrings.text("support.home.continue"))
                 HStack(spacing: 12) {
                     if c.lastFrom == "bot", let persona = personas.persona {
                         SupportAvatar(name: persona.name, size: 46, colors: [palette.warm, palette.hot], image: persona.avatar)
@@ -266,14 +311,14 @@ struct SupportHomeScreen: View {
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(c.subject).font(.system(size: 16, weight: .semibold)).foregroundStyle(.primary).lineLimit(1)
-                        Text(c.lastFrom == "customer" ? "You: \(c.preview)" : c.preview)
+                        Text(c.lastFrom == "customer" ? SupportStrings.text("support.home.youPrefix", ["text": c.preview]) : c.preview)
                             .font(.system(size: 14)).foregroundStyle(SupportColors.muted).lineLimit(1)
                     }
                     Spacer(minLength: 6)
                     if c.unread > 0 {
                         Text("\(c.unread)").font(.system(size: 12, weight: .bold)).foregroundStyle(palette.onAccent)
                             .padding(.horizontal, 8).padding(.vertical, 3).background(palette.accent, in: Capsule())
-                            .accessibilityLabel("\(c.unread) unread")
+                            .accessibilityLabel(SupportStrings.plural("support.a11y.unread", count: c.unread))
                     } else {
                         Text(SupportText.time(SupportDates.parse(c.lastMessageAt))).font(.caption).foregroundStyle(SupportColors.muted)
                     }
@@ -286,11 +331,13 @@ struct SupportHomeScreen: View {
             .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         }
         .buttonStyle(SupportPressStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(SupportStrings.text("support.a11y.continueConversation", ["subject": c.subject]))
     }
 
     private var quickHelp: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if model.current != nil { SupportSectionLabel(text: "Quick help").padding(.leading, 6) }
+            if model.current != nil || !model.articles.isEmpty { SupportSectionLabel(text: SupportStrings.text("support.home.quickHelp")).padding(.leading, 6) }
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                 ForEach(support.topics) { t in
                     Button { pick(t) } label: { tile(t) }.buttonStyle(SupportPressStyle())
@@ -318,7 +365,7 @@ struct SupportHomeScreen: View {
 
     private var pastConversations: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SupportSectionLabel(text: "Your conversations").padding(.leading, 6)
+            SupportSectionLabel(text: SupportStrings.text("support.home.conversations")).padding(.leading, 6)
             VStack(spacing: 0) {
                 ForEach(model.others) { c in
                     Button { push(.thread(id: c.id, subject: c.subject)) } label: { row(c) }.buttonStyle(.plain)
@@ -343,7 +390,7 @@ struct SupportHomeScreen: View {
             if c.unread > 0 {
                 Text("\(c.unread)").font(.caption.weight(.bold)).foregroundStyle(palette.onAccent)
                     .padding(.horizontal, 7).padding(.vertical, 3).background(palette.accent, in: Capsule())
-                    .accessibilityLabel("\(c.unread) unread")
+                    .accessibilityLabel(SupportStrings.plural("support.a11y.unread", count: c.unread))
             } else {
                 Text(SupportText.time(SupportDates.parse(c.lastMessageAt))).font(.caption).foregroundStyle(SupportColors.muted)
             }
@@ -361,7 +408,7 @@ struct SupportHomeScreen: View {
             Button { withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { topic = nil } } label: {
                 Image(systemName: "xmark").font(.system(size: 10, weight: .heavy)).padding(4)
             }
-            .accessibilityLabel("Remove topic")
+            .accessibilityLabel(SupportStrings.text("support.a11y.removeTopic"))
         }
         .foregroundStyle(t.tint)
         .padding(.leading, 12).padding(.trailing, 6).padding(.vertical, 6)
@@ -397,8 +444,9 @@ struct SupportHomeScreen: View {
             clientMessageId = UUID().uuidString
             push(.thread(id: t.conversation.id, subject: t.conversation.subject))
             await model.refresh()
+        } catch is CancellationError {
         } catch {
-            self.error = error.localizedDescription
+            self.error = SupportStrings.errorText(error)
         }
     }
 }
@@ -419,7 +467,7 @@ struct SupportHeroBackground: View {
 struct SupportSectionLabel: View {
     let text: String
     var body: some View {
-        Text(text.uppercased()).font(.system(size: 12, weight: .bold)).tracking(0.6).foregroundStyle(SupportColors.muted)
+        Text(text.uppercased(with: SupportStrings.locale)).font(.system(size: 12, weight: .bold)).tracking(0.6).foregroundStyle(SupportColors.muted)
     }
 }
 
@@ -469,7 +517,7 @@ struct SupportComposerBar: View {
                 }
                 .disabled(images.count >= 4 || sending)
                 .opacity(images.count >= 4 ? 0.4 : 1)
-                .accessibilityLabel("Add screenshot")
+                .accessibilityLabel(SupportStrings.text("support.a11y.addScreenshot"))
                 SupportMessageField(text: $text, placeholder: placeholder, focus: focus)
                     .font(.system(size: 17))
                     .padding(.vertical, 11)
@@ -483,7 +531,7 @@ struct SupportComposerBar: View {
                     .frame(width: 44, height: 44)
                 }
                 .disabled(!canSend)
-                .accessibilityLabel("Send")
+                .accessibilityLabel(SupportStrings.text("support.a11y.send"))
             }
             .padding(.leading, 6).padding(.trailing, 7).padding(.vertical, 7)
             .supportGlass(cornerRadius: 29, tint: SupportColors.card.opacity(0.55))
@@ -513,11 +561,13 @@ struct SupportAttachmentStrip: View {
     @Binding var images: [UIImage]
     let palette: SupportPalette
     let add: () -> Void
+    @Environment(\.layoutDirection) private var layoutDirection
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ForEach(Array(images.enumerated()), id: \.offset) { i, image in
+                    let outward: CGFloat = layoutDirection == .rightToLeft ? -6 : 6
                     Image(uiImage: image).resizable().scaledToFill().frame(width: 62, height: 88)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(.white, lineWidth: 3))
@@ -526,7 +576,7 @@ struct SupportAttachmentStrip: View {
                             Button { images.remove(at: i) } label: {
                                 Image(systemName: "xmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.6))
                             }
-                            .offset(x: 6, y: -6).accessibilityLabel("Remove screenshot")
+                            .offset(x: outward, y: -6).accessibilityLabel(SupportStrings.text("support.a11y.removeScreenshot"))
                         }
                 }
                 if images.count < 4 {
@@ -535,7 +585,7 @@ struct SupportAttachmentStrip: View {
                             .frame(width: 62, height: 88)
                             .background(SupportColors.card.opacity(0.9), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
-                    .accessibilityLabel("Add another screenshot")
+                    .accessibilityLabel(SupportStrings.text("support.a11y.addAnotherScreenshot"))
                 }
             }
             .padding(.vertical, 8).padding(.trailing, 8)
@@ -555,6 +605,7 @@ struct SupportThreadScreen: View {
     @State private var images: [UIImage] = []
     @State private var picking = false
     @State private var viewing: SupportViewedImage?
+    @State private var notice: SupportReplyNotice = .push
     @FocusState private var focused: Bool
 
     init(id: String, subject: String, palette: SupportPalette, back: @escaping () -> Void) {
@@ -588,7 +639,7 @@ struct SupportThreadScreen: View {
                             SupportPendingBubble(pending: p, palette: palette) { SupportAccountState.shared.run { await model.retry(p, generation: $0) } }.padding(.top, 6)
                         }
                         if model.loaded, model.pending.isEmpty, let last = model.messages.last, last.isFromCustomer {
-                            Text("Sent \(SupportText.clock(last.date)) · we'll notify you when the team replies")
+                            Text(notice.text(last.date))
                                 .font(.system(size: 11.5, weight: .medium)).foregroundStyle(SupportColors.muted)
                                 .frame(maxWidth: .infinity, alignment: .trailing).padding(.top, 5).padding(.trailing, 4)
                         }
@@ -608,7 +659,7 @@ struct SupportThreadScreen: View {
                 if showsQuickReplies { quickReplies }
                 SupportComposerBar(
                     text: $text, images: $images, focus: $focused,
-                    placeholder: "Message", leadingSymbol: "plus", palette: palette,
+                    placeholder: SupportStrings.text("support.composer.placeholder.thread"), leadingSymbol: "plus", palette: palette,
                     pick: { picking = true }, send: sendTyped
                 )
             }
@@ -616,6 +667,8 @@ struct SupportThreadScreen: View {
         .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0.prefix(max(0, 4 - images.count))) } }
         .supportImageViewer($viewing)
         .task { await model.load() }
+        // How the reply will reach them: notification, email or only here.
+        .task { notice = await SupportReplyNotice.current() }
         .task {
             // Replies arrive by polling only while this screen is open and the app is
             // active (and by push otherwise). The app's state, not scenePhase: this view
@@ -630,10 +683,10 @@ struct SupportThreadScreen: View {
     private var header: some View {
         HStack(spacing: 10) {
             Button(action: back) {
-                Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold)).foregroundStyle(.primary)
+                Image(systemName: "chevron.backward").font(.system(size: 17, weight: .semibold)).foregroundStyle(.primary)
                     .frame(width: 42, height: 42).background(Color.primary.opacity(0.05), in: Circle())
             }
-            .accessibilityLabel("Back")
+            .accessibilityLabel(SupportStrings.text("support.a11y.back"))
             if agent == nil, let persona = personas.persona {
                 // Nobody on the team has joined yet: the AI assistant is who's answering.
                 SupportAvatar(name: persona.name, size: 42, colors: [palette.warm, palette.hot], image: persona.avatar)
@@ -642,14 +695,14 @@ struct SupportThreadScreen: View {
                         Text(persona.name).font(.system(size: 16, weight: .bold)).lineLimit(1)
                         SupportAITag(palette: palette)
                     }
-                    Text("\(support.appName) team · replies instantly")
+                    Text(SupportStrings.text("support.thread.personaSubtitle", ["app": support.appName]))
                         .font(.system(size: 12.5)).foregroundStyle(SupportColors.muted).lineLimit(1)
                 }
             } else {
                 SupportAvatar(name: agent, size: 42, colors: [palette.warm, palette.hot], symbol: agent == nil ? "bubble.left.and.bubble.right.fill" : nil)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(agent ?? "\(support.appName) team").font(.system(size: 16, weight: .bold)).lineLimit(1)
-                    Text("Usually replies in \(support.replyTime)")
+                    Text(agent ?? SupportStrings.text("support.thread.team", ["app": support.appName])).font(.system(size: 16, weight: .bold)).lineLimit(1)
+                    Text(SupportStrings.text("support.thread.replyTime", ["time": support.replyTime]))
                         .font(.system(size: 12.5)).foregroundStyle(SupportColors.muted).lineLimit(1)
                 }
             }
@@ -690,8 +743,9 @@ struct SupportThreadScreen: View {
     private var quickReplies: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip("👍 Thanks, that's sorted") { SupportAccountState.shared.run { await model.send(text: "👍 Thanks, that's sorted", images: [], generation: $0) } }
-                chip("I have another question") { focused = true }
+                let thanks = SupportStrings.text("support.thread.quickReply.thanks")
+                chip(thanks) { SupportAccountState.shared.run { await model.send(text: thanks, images: [], generation: $0) } }
+                chip(SupportStrings.text("support.thread.quickReply.another")) { focused = true }
             }
             .padding(.horizontal, 14)
         }
@@ -748,7 +802,7 @@ struct SupportThumbnail: View {
                 .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(.white, lineWidth: 3))
                 .shadow(color: .black.opacity(0.12), radius: 6, y: 4)
             }
-            .accessibilityLabel(attachment.name ?? "Screenshot")
+            .accessibilityLabel(attachment.name ?? SupportStrings.text("support.a11y.screenshot"))
         }
     }
 }
@@ -775,6 +829,7 @@ struct SupportCustomerBubble: View {
     let palette: SupportPalette
     let tail: Bool
     let view: (SupportViewedImage) -> Void
+    @Environment(\.layoutDirection) private var layoutDirection
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
@@ -787,7 +842,7 @@ struct SupportCustomerBubble: View {
                     .font(.system(size: 16)).lineSpacing(2)
                     .foregroundStyle(palette.onAccent)
                     .padding(.horizontal, 15).padding(.vertical, 11)
-                    .background(palette.bubble, in: SupportBubbleShape(bottomTrailing: tail ? 6 : 22))
+                    .background(palette.bubble, in: SupportBubbleShape(bottomTrailing: tail ? 6 : 22, rightToLeft: layoutDirection == .rightToLeft))
                     .textSelection(.enabled)
             }
         }
@@ -801,6 +856,7 @@ struct SupportTeamBubble: View {
     let palette: SupportPalette
     let avatar: Bool
     let view: (SupportViewedImage) -> Void
+    @Environment(\.layoutDirection) private var layoutDirection
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -819,7 +875,7 @@ struct SupportTeamBubble: View {
                         .font(.system(size: 16)).lineSpacing(2)
                         .foregroundStyle(.primary)
                         .padding(.horizontal, 15).padding(.vertical, 11)
-                        .background(SupportColors.card, in: SupportBubbleShape(bottomLeading: avatar ? 6 : 22))
+                        .background(SupportColors.card, in: SupportBubbleShape(bottomLeading: avatar ? 6 : 22, rightToLeft: layoutDirection == .rightToLeft))
                         .shadow(color: SupportColors.shadow.opacity(0.06), radius: 8, y: 2)
                         .textSelection(.enabled)
                 }
@@ -835,7 +891,7 @@ struct SupportBotCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("✦ Instant answer".uppercased()).font(.system(size: 11.5, weight: .bold)).tracking(0.4).foregroundStyle(palette.accent)
+            Text("✦ " + SupportStrings.text("support.thread.instantAnswer").uppercased(with: SupportStrings.locale)).font(.system(size: 11.5, weight: .bold)).tracking(0.4).foregroundStyle(palette.accent)
             Text(message.text).font(.system(size: 15.5)).lineSpacing(2).foregroundStyle(.primary).textSelection(.enabled)
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
@@ -853,6 +909,7 @@ struct SupportPersonaBubble: View {
     let image: URL?
     let palette: SupportPalette
     let avatar: Bool
+    @Environment(\.layoutDirection) private var layoutDirection
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -869,7 +926,7 @@ struct SupportPersonaBubble: View {
                 Text(message.text).font(.system(size: 16)).lineSpacing(2).foregroundStyle(.primary).textSelection(.enabled)
             }
             .padding(.horizontal, 15).padding(.top, 10).padding(.bottom, 12)
-            .background(SupportColors.card, in: SupportBubbleShape(bottomLeading: avatar ? 6 : 22))
+            .background(SupportColors.card, in: SupportBubbleShape(bottomLeading: avatar ? 6 : 22, rightToLeft: layoutDirection == .rightToLeft))
             .shadow(color: SupportColors.shadow.opacity(0.06), radius: 8, y: 2)
             .accessibilityElement(children: .combine)
             Spacer(minLength: 40)
@@ -886,7 +943,8 @@ struct SupportHandoffPill: View {
     var body: some View {
         HStack(spacing: 8) {
             SupportAvatar(name: to, size: 22, colors: [palette.warm, palette.hot], symbol: to == nil ? "person.2.fill" : nil)
-            Text("Passed to \(to ?? "the team") · usually replies in \(replyTime)")
+            Text(to.map { SupportStrings.text("support.thread.handoff.person", ["name": $0, "time": replyTime]) }
+                 ?? SupportStrings.text("support.thread.handoff.team", ["time": replyTime]))
                 .font(.system(size: 12.5, weight: .semibold)).foregroundStyle(SupportColors.muted).lineLimit(2)
         }
         .padding(.leading, 5).padding(.trailing, 12).padding(.vertical, 5)
@@ -901,6 +959,7 @@ struct SupportPendingBubble: View {
     let pending: PendingMessage
     let palette: SupportPalette
     let retry: () -> Void
+    @Environment(\.layoutDirection) private var layoutDirection
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 5) {
@@ -917,13 +976,13 @@ struct SupportPendingBubble: View {
             if !pending.text.isEmpty {
                 Text(pending.text).font(.system(size: 16)).foregroundStyle(palette.onAccent)
                     .padding(.horizontal, 15).padding(.vertical, 11)
-                    .background(palette.bubble, in: SupportBubbleShape(bottomTrailing: 6))
+                    .background(palette.bubble, in: SupportBubbleShape(bottomTrailing: 6, rightToLeft: layoutDirection == .rightToLeft))
                     .opacity(0.6)
             }
             if pending.failed {
-                Button("Not sent · Tap to retry", action: retry).font(.system(size: 12, weight: .semibold)).foregroundStyle(.red)
+                Button(SupportStrings.text("support.thread.notSent"), action: retry).font(.system(size: 12, weight: .semibold)).foregroundStyle(.red)
             } else {
-                Text("Sending…").font(.system(size: 11.5, weight: .medium)).foregroundStyle(SupportColors.muted)
+                Text(SupportStrings.text("support.thread.sending")).font(.system(size: 11.5, weight: .medium)).foregroundStyle(SupportColors.muted)
             }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -995,7 +1054,7 @@ extension View {
                 }
                 .supportGlass()
                 .padding(16)
-                .accessibilityLabel("Close")
+                .accessibilityLabel(SupportStrings.text("support.a11y.close"))
             }
             .onTapGesture { item.wrappedValue = nil }
         }

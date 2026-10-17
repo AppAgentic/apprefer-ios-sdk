@@ -73,7 +73,7 @@ final class SDK093Tests: XCTestCase {
     }
 
     func testVersion() {
-        XCTAssertEqual(AppReferVersion.current, "0.9.3")
+        XCTAssertEqual(AppReferVersion.current, "0.10.0")
     }
 
     private func attributionStorage(keychain: FakeDeviceIdKeychain = FakeDeviceIdKeychain()) -> AppReferStorage {
@@ -191,18 +191,20 @@ final class SDK093Tests: XCTestCase {
     // MARK: - Fix 4: the cleared markers live with the session token (Keychain)
 
     func testClearedSessionMarkerSurvivesAReinstallWithTheKeychainSession() async throws {
+        // One in-memory device Keychain for the attribution flag and the Support session, as on
+        // a phone (the live one has no entitlement in a hostless iOS-simulator test bundle).
         let keychain = FakeDeviceIdKeychain()
         let userStorage = attributionStorage(keychain: keychain)
         userStorage.setUserId("acct_A")
-        let api = supportAPI(userStorage)
+        let api = supportAPI(userStorage, tokenKeychain: keychain)
         await api.reset()
         await api.configure(apiKey: "pk_test")
         await api.revokePending(using: "pk_test")
         _ = try await api.conversations()
         await api.clearIdentity()
-        let clearedSession = try XCTUnwrap(KeychainHelper.load(key: "apprefer_support_session").value)
-        XCTAssertTrue(SupportAPI.sessionMintedWhileCleared())
-        XCTAssertNotNil(KeychainHelper.load(key: SupportAPI.clearedSessionKey).value, "next to the token")
+        let clearedSession = try XCTUnwrap(keychain.value("apprefer_support_session"))
+        XCTAssertTrue(SupportAPI.sessionMintedWhileCleared(keychain: keychain))
+        XCTAssertNotNil(keychain.value(SupportAPI.clearedSessionKey), "next to the token")
         XCTAssertFalse(UserDefaults.standard.bool(forKey: SupportAPI.clearedSessionKey))
         XCTAssertEqual(keychain.value(AppReferStorage.keySupportIdentityCleared), "1")
 
@@ -211,7 +213,7 @@ final class SDK093Tests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: SupportAPI.clearedSessionKey)
         let reinstalled = attributionStorage(keychain: keychain)
         XCTAssertTrue(reinstalled.supportIdentityCleared, "still knows it was cleared")
-        let api2 = supportAPI(reinstalled, deviceId: "install-1")
+        let api2 = supportAPI(reinstalled, deviceId: "install-1", tokenKeychain: keychain)
         await api2.configure(apiKey: "pk_test")
         await api2.revokePending(using: "pk_test")
         // Still anonymous: the surviving session is used without the account.
@@ -228,20 +230,20 @@ final class SDK093Tests: XCTestCase {
         XCTAssertFalse(SupportRecorder093.calls.contains { $0.session == clearedSession && $0.body["appUserId"] as? String == "acct_B" })
         await api2.revokePending(using: "pk_test")
         XCTAssertFalse(SupportRecorder093.deletes(clearedSession).isEmpty)
-        XCTAssertFalse(SupportAPI.sessionMintedWhileCleared())
+        XCTAssertFalse(SupportAPI.sessionMintedWhileCleared(keychain: keychain))
         await api2.reset()
         await api2.revokePending(using: "pk_test")
     }
 
     func testOldUserDefaultsMarkersMoveToTheKeychain() {
-        // The session marker.
-        KeychainHelper.delete(key: SupportAPI.clearedSessionKey)
+        // The session marker (in-memory Keychain: also works in a hostless simulator bundle).
+        let sessionKeychain = FakeDeviceIdKeychain()
         UserDefaults.standard.set(true, forKey: SupportAPI.clearedSessionKey)
-        XCTAssertTrue(SupportAPI.sessionMintedWhileCleared())
-        XCTAssertNotNil(KeychainHelper.load(key: SupportAPI.clearedSessionKey).value)
+        XCTAssertTrue(SupportAPI.sessionMintedWhileCleared(keychain: sessionKeychain))
+        XCTAssertNotNil(sessionKeychain.value(SupportAPI.clearedSessionKey))
         XCTAssertNil(UserDefaults.standard.object(forKey: SupportAPI.clearedSessionKey))
-        SupportAPI.setSessionMintedWhileCleared(false)
-        XCTAssertFalse(SupportAPI.sessionMintedWhileCleared())
+        SupportAPI.setSessionMintedWhileCleared(false, keychain: sessionKeychain)
+        XCTAssertFalse(SupportAPI.sessionMintedWhileCleared(keychain: sessionKeychain))
 
         // The identity-cleared flag.
         let keychain = FakeDeviceIdKeychain()
