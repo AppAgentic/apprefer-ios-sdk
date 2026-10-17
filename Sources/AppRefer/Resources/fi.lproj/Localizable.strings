@@ -202,3 +202,17 @@
 "support.status.sentNoticeInApp" = "Lähetetty klo {time} · tiimin vastaus näkyy tässä";
 /* Like 'support.status.sentNoticeInApp' when the time is unknown. */
 "support.status.sentNoticeInAppNoTime" = "Lähetetty · tiimin vastaus näkyy tässä";
+/* Notification button that opens the app on the notification's screen. One word, very short. */
+"engagement.action.open" = "Avaa";
+/* Notification button to look at something in the app. One word, very short. */
+"engagement.action.view" = "Näytä";
+/* Notification button to begin an activity in the app (a lesson, a workout, a setup step). One word, very short. */
+"engagement.action.start" = "Aloita";
+/* Notification button that hides the notification and shows it again later. Short. */
+"engagement.action.snooze" = "Muistuta myöhemmin";
+/* Android notification category name (Settings › Notifications) for the app's offers and news. */
+"engagement.channel.marketing" = "Tarjoukset ja uutiset";
+/* Android notification category name for reminders the user chose to receive. */
+"engagement.channel.reminders" = "Muistutukset";
+/* Android notification category name for account and subscription notices (billing problems, renewals). */
+"engagement.channel.service" = "Tili ja laskutus";

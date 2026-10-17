@@ -1,3 +1,13 @@
+## 0.11.0 (unreleased)
+
+- Lifecycle engagement client: `AppRefer.engagement` (`start`, `setDeviceToken`, `refreshDeviceState`, `notificationPermission`, `preferences`/`setPreferences` for marketing, reminders and service, `identify(assertion:)`, `logout`, `deleteInstall`, `onNotificationEvent`, `setNavigationReady`, `handle(_:)`, `presentationOptions(for:)`, `registerNotificationCategories`). Off unless the app starts it and AppRefer enabled it for the app (dry run on the server in this release).
+- New extension-safe library product `AppReferNotifications` for the host's Notification Service Extension: `AppReferNotificationService` adds an allowlisted HTTPS PNG/JPEG image (bounded size, time and pixels, redirects refused, ephemeral session, exactly one content-handler call including expiry races) and otherwise delivers the text unchanged; `AppReferEngagementPayload` parser; App Group shared identity and "received" markers. The main `AppRefer` product depends on it.
+- Notification buttons: 16 categories `apprefer.eng.<kind>[.<kind>]` merged with the app's own, labelled from the 35-language table (new keys `engagement.action.open|view|start|snooze`, `engagement.channel.*`).
+- `AppRefer.trackEvent` carries the engagement install credential (`X-AppRefer-Install`) only for events the app chose, only to AppRefer, only while the same install and identity are current; queued events keep a stamp, never the credential. `AppRefer.reset()` also logs engagement out; `setCollectionEnabled` and `configure` keep it in step.
+- Push tokens use the 0.10.1 signing-environment detection (`AppRefer.support.pushEnvironment` override).
+- Sample host with a Notification Service Extension: `Samples/EngagementHost` (xcodegen).
+- Version 0.11.0.
+
 ## 0.10.1 (unreleased)
 
 - Support push: the APNs environment for `registerDeviceToken` and `status().pushReady` is now read from the app's signing instead of the DEBUG flag. The embedded provisioning profile's `aps-environment` decides (`development` = sandbox, `production` = production); with no profile (App Store, TestFlight) or an unreadable one, production; the Simulator uses sandbox. A development-signed Release build (internal testers) now registers sandbox tokens, and a distribution-signed Debug build production ones. Parsing uses only Foundation (`PropertyListSerialization` on the profile's embedded XML plist, files over 2 MB ignored).

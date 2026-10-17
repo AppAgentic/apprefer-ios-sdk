@@ -10,10 +10,15 @@ let package = Package(
     platforms: [.iOS(.v15), .macOS(.v12), .tvOS(.v15)],
     products: [
         .library(name: "AppRefer", targets: ["AppRefer"]),
+        // For the host app's Notification Service Extension target: extension-safe (Foundation,
+        // ImageIO, UserNotifications only; no UIApplication) and independent of AppRefer.
+        .library(name: "AppReferNotifications", targets: ["AppReferNotifications"]),
     ],
     targets: [
+        .target(name: "AppReferNotifications"),
         .target(
             name: "AppRefer",
+            dependencies: ["AppReferNotifications"],
             resources: [.process("Resources")],
             linkerSettings: [
                 .linkedFramework("AdServices", .when(platforms: [.iOS])),
@@ -22,5 +27,6 @@ let package = Package(
             ]
         ),
         .testTarget(name: "AppReferTests", dependencies: ["AppRefer"]),
+        .testTarget(name: "AppReferNotificationsTests", dependencies: ["AppReferNotifications"]),
     ]
 )

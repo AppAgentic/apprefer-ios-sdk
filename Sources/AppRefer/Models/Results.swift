@@ -15,4 +15,6 @@ struct PendingProductEvent: Codable {
     let created: Date
     var attempts: Int
     var nextAttempt: Date
+    /// Engagement identity stamp at enqueue (never the credential); absent in older queues.
+    var engagementStamp: String? = nil
 }

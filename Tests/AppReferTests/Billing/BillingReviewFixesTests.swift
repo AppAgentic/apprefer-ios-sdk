@@ -291,6 +291,7 @@ final class FakeDeviceIdKeychain: DeviceIdKeychain, @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         addCalls += 1
+        if failAdds { return errSecIO }
         if let preempt = preemptValue {
             values[key] = preempt
             preemptValue = nil
@@ -302,6 +303,7 @@ final class FakeDeviceIdKeychain: DeviceIdKeychain, @unchecked Sendable {
 
     /// Simulates a Keychain that can't save (e.g. no entitlement).
     var failSaves = false
+    var failAdds = false
 
     func save(key: String, value: String) -> Bool {
         lock.lock()

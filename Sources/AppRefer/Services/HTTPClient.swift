@@ -59,6 +59,10 @@ final class AppReferHTTPClient: @unchecked Sendable {
     func event(_ body: [String: Any]) async -> Int? { await eventResponse(body).status }
 
     func eventResponse(_ body: [String: Any]) async -> ProductEventResponse {
+        await eventResponse(body, headers: [:])
+    }
+
+    func eventResponse(_ body: [String: Any], headers: [String: String]) async -> ProductEventResponse {
         guard collectionAllowed(), !Task.isCancelled else { return ProductEventResponse(status: nil, retryAfter: nil) }
         guard let url = URL(string: primaryURL + "/api/track/event"),
               let data = try? JSONSerialization.data(withJSONObject: body) else { return ProductEventResponse(status: 400, retryAfter: nil) }
@@ -68,6 +72,7 @@ final class AppReferHTTPClient: @unchecked Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "X-AppRefer-Key")
         request.setValue(sdkVersion, forHTTPHeaderField: "X-SDK-Version")
+        for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
         do {
             let (_, response) = try await eventSession.data(for: request)
             let http = response as? HTTPURLResponse

@@ -1,0 +1,51 @@
+# Sample host for AppRefer lifecycle notifications: an app plus the Notification Service
+# Extension a host adds itself. Generate with `xcodegen generate` (here or with --project).
+name: EngagementHost
+options:
+  bundleIdPrefix: com.apprefer.sample
+  deploymentTarget:
+    iOS: "15.0"
+packages:
+  AppRefer:
+    path: ../..
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  EngagementHost:
+    type: application
+    platform: iOS
+    sources: [App]
+    dependencies:
+      - package: AppRefer
+        product: AppRefer
+      - target: NotificationService
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.apprefer.sample.engagementhost
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        CODE_SIGN_ENTITLEMENTS: App/EngagementHost.entitlements
+  NotificationService:
+    type: app-extension
+    platform: iOS
+    sources: [NotificationService]
+    dependencies:
+      # Only the extension-safe product; never the main AppRefer module.
+      - package: AppRefer
+        product: AppReferNotifications
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.apprefer.sample.engagementhost.NotificationService
+        APPLICATION_EXTENSION_API_ONLY: YES
+        CODE_SIGN_ENTITLEMENTS: NotificationService/NotificationService.entitlements
+    info:
+      path: NotificationService/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService

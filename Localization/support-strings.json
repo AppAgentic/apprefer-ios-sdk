@@ -1,6 +1,6 @@
 {
-  "$schema_note": "AppRefer Support (help chat) strings shared by the iOS, Android, Flutter and React Native SDKs. Placeholders are {name}-style and filled by name. Plural keys (\"plural\": true) hold CLDR cardinal categories per language. Hand-over and AI answer text come from the server, not this table.",
-  "version": "0.10.0",
+  "$schema_note": "AppRefer Support (help chat) and lifecycle notification strings shared by the iOS, Android, Flutter and React Native SDKs. Placeholders are {name}-style and filled by name. Plural keys (\"plural\": true) hold CLDR cardinal categories per language. Hand-over and AI answer text come from the server, not this table.",
+  "version": "0.11.0",
   "languages": [
     "en",
     "ar",
@@ -605,6 +605,41 @@
       "en": "Sent · the team's reply will appear here",
       "comment": "Like 'support.status.sentNoticeInApp' when the time is unknown.",
       "placeholders": []
+    },
+    "engagement.action.open": {
+      "en": "Open",
+      "comment": "Notification button that opens the app on the notification's screen. One word, very short.",
+      "placeholders": []
+    },
+    "engagement.action.view": {
+      "en": "View",
+      "comment": "Notification button to look at something in the app. One word, very short.",
+      "placeholders": []
+    },
+    "engagement.action.start": {
+      "en": "Start",
+      "comment": "Notification button to begin an activity in the app (a lesson, a workout, a setup step). One word, very short.",
+      "placeholders": []
+    },
+    "engagement.action.snooze": {
+      "en": "Remind me later",
+      "comment": "Notification button that hides the notification and shows it again later. Short.",
+      "placeholders": []
+    },
+    "engagement.channel.marketing": {
+      "en": "Offers and news",
+      "comment": "Android notification category name (Settings › Notifications) for the app's offers and news.",
+      "placeholders": []
+    },
+    "engagement.channel.reminders": {
+      "en": "Reminders",
+      "comment": "Android notification category name for reminders the user chose to receive.",
+      "placeholders": []
+    },
+    "engagement.channel.service": {
+      "en": "Account and billing",
+      "comment": "Android notification category name for account and subscription notices (billing problems, renewals).",
+      "placeholders": []
     }
   },
   "translations": {
@@ -715,7 +750,14 @@
       "support.status.sentNoticeEmail": "أُرسلت {time} · سنراسلك عبر البريد الإلكتروني عند رد الفريق",
       "support.status.sentNoticeEmailNoTime": "أُرسلت · سنراسلك عبر البريد الإلكتروني عند رد الفريق",
       "support.status.sentNoticeInApp": "أُرسلت {time} · سيظهر رد الفريق هنا",
-      "support.status.sentNoticeInAppNoTime": "أُرسلت · سيظهر رد الفريق هنا"
+      "support.status.sentNoticeInAppNoTime": "أُرسلت · سيظهر رد الفريق هنا",
+      "engagement.action.open": "فتح",
+      "engagement.action.view": "عرض",
+      "engagement.action.start": "ابدأ",
+      "engagement.action.snooze": "ذكّرني لاحقًا",
+      "engagement.channel.marketing": "العروض والأخبار",
+      "engagement.channel.reminders": "التذكيرات",
+      "engagement.channel.service": "الحساب والفوترة"
     },
     "ca": {
       "support.home.title": "Suport {app}",
@@ -821,7 +863,14 @@
       "support.status.sentNoticeEmail": "Enviat a les {time} · t’enviarem un correu quan l’equip respongui",
       "support.status.sentNoticeEmailNoTime": "Enviat · t’enviarem un correu quan l’equip respongui",
       "support.status.sentNoticeInApp": "Enviat a les {time} · la resposta de l’equip apareixerà aquí",
-      "support.status.sentNoticeInAppNoTime": "Enviat · la resposta de l’equip apareixerà aquí"
+      "support.status.sentNoticeInAppNoTime": "Enviat · la resposta de l’equip apareixerà aquí",
+      "engagement.action.open": "Obre",
+      "engagement.action.view": "Mostra",
+      "engagement.action.start": "Comença",
+      "engagement.action.snooze": "Recorda-m’ho més tard",
+      "engagement.channel.marketing": "Ofertes i novetats",
+      "engagement.channel.reminders": "Recordatoris",
+      "engagement.channel.service": "Compte i facturació"
     },
     "cs": {
       "support.home.title": "Podpora {app}",
@@ -927,7 +976,14 @@
       "support.status.sentNoticeEmail": "Odesláno v {time} · až tým odpoví, pošleme vám e-mail",
       "support.status.sentNoticeEmailNoTime": "Odesláno · až tým odpoví, pošleme vám e-mail",
       "support.status.sentNoticeInApp": "Odesláno v {time} · odpověď týmu se zobrazí tady",
-      "support.status.sentNoticeInAppNoTime": "Odesláno · odpověď týmu se zobrazí tady"
+      "support.status.sentNoticeInAppNoTime": "Odesláno · odpověď týmu se zobrazí tady",
+      "engagement.action.open": "Otevřít",
+      "engagement.action.view": "Zobrazit",
+      "engagement.action.start": "Začít",
+      "engagement.action.snooze": "Připomenout později",
+      "engagement.channel.marketing": "Nabídky a novinky",
+      "engagement.channel.reminders": "Připomínky",
+      "engagement.channel.service": "Účet a platby"
     },
     "da": {
       "support.home.title": "Support til {app}",
@@ -1032,7 +1088,14 @@
       "support.status.sentNoticeEmail": "Sendt kl. {time} · vi sender dig en mail, når teamet svarer",
       "support.status.sentNoticeEmailNoTime": "Sendt · vi sender dig en mail, når teamet svarer",
       "support.status.sentNoticeInApp": "Sendt kl. {time} · teamets svar vises her",
-      "support.status.sentNoticeInAppNoTime": "Sendt · teamets svar vises her"
+      "support.status.sentNoticeInAppNoTime": "Sendt · teamets svar vises her",
+      "engagement.action.open": "Åbn",
+      "engagement.action.view": "Vis",
+      "engagement.action.start": "Start",
+      "engagement.action.snooze": "Mind mig om det senere",
+      "engagement.channel.marketing": "Tilbud og nyheder",
+      "engagement.channel.reminders": "Påmindelser",
+      "engagement.channel.service": "Konto og betaling"
     },
     "de": {
       "support.home.title": "Support für {app}",
@@ -1137,7 +1200,14 @@
       "support.status.sentNoticeEmail": "Gesendet um {time} · wir schicken dir eine E-Mail, wenn das Team antwortet",
       "support.status.sentNoticeEmailNoTime": "Gesendet · wir schicken dir eine E-Mail, wenn das Team antwortet",
       "support.status.sentNoticeInApp": "Gesendet um {time} · die Antwort des Teams erscheint hier",
-      "support.status.sentNoticeInAppNoTime": "Gesendet · die Antwort des Teams erscheint hier"
+      "support.status.sentNoticeInAppNoTime": "Gesendet · die Antwort des Teams erscheint hier",
+      "engagement.action.open": "Öffnen",
+      "engagement.action.view": "Ansehen",
+      "engagement.action.start": "Starten",
+      "engagement.action.snooze": "Später erinnern",
+      "engagement.channel.marketing": "Angebote und Neuigkeiten",
+      "engagement.channel.reminders": "Erinnerungen",
+      "engagement.channel.service": "Konto und Abrechnung"
     },
     "el": {
       "support.home.title": "Υποστήριξη {app}",
@@ -1242,7 +1312,14 @@
       "support.status.sentNoticeEmail": "Στάλθηκε στις {time} · θα σου στείλουμε email όταν απαντήσει η ομάδα",
       "support.status.sentNoticeEmailNoTime": "Στάλθηκε · θα σου στείλουμε email όταν απαντήσει η ομάδα",
       "support.status.sentNoticeInApp": "Στάλθηκε στις {time} · η απάντηση της ομάδας θα εμφανιστεί εδώ",
-      "support.status.sentNoticeInAppNoTime": "Στάλθηκε · η απάντηση της ομάδας θα εμφανιστεί εδώ"
+      "support.status.sentNoticeInAppNoTime": "Στάλθηκε · η απάντηση της ομάδας θα εμφανιστεί εδώ",
+      "engagement.action.open": "Άνοιγμα",
+      "engagement.action.view": "Προβολή",
+      "engagement.action.start": "Έναρξη",
+      "engagement.action.snooze": "Υπενθύμιση αργότερα",
+      "engagement.channel.marketing": "Προσφορές και νέα",
+      "engagement.channel.reminders": "Υπενθυμίσεις",
+      "engagement.channel.service": "Λογαριασμός και χρεώσεις"
     },
     "es": {
       "support.home.title": "Soporte de {app}",
@@ -1348,7 +1425,14 @@
       "support.status.sentNoticeEmail": "Enviado a las {time} · te enviaremos un correo cuando responda el equipo",
       "support.status.sentNoticeEmailNoTime": "Enviado · te enviaremos un correo cuando responda el equipo",
       "support.status.sentNoticeInApp": "Enviado a las {time} · la respuesta del equipo aparecerá aquí",
-      "support.status.sentNoticeInAppNoTime": "Enviado · la respuesta del equipo aparecerá aquí"
+      "support.status.sentNoticeInAppNoTime": "Enviado · la respuesta del equipo aparecerá aquí",
+      "engagement.action.open": "Abrir",
+      "engagement.action.view": "Ver",
+      "engagement.action.start": "Empezar",
+      "engagement.action.snooze": "Recordármelo más tarde",
+      "engagement.channel.marketing": "Ofertas y novedades",
+      "engagement.channel.reminders": "Recordatorios",
+      "engagement.channel.service": "Cuenta y facturación"
     },
     "es-MX": {
       "support.home.title": "Soporte de {app}",
@@ -1454,7 +1538,14 @@
       "support.status.sentNoticeEmail": "Enviado a las {time} · te mandaremos un correo cuando el equipo responda",
       "support.status.sentNoticeEmailNoTime": "Enviado · te mandaremos un correo cuando el equipo responda",
       "support.status.sentNoticeInApp": "Enviado a las {time} · la respuesta del equipo aparecerá aquí",
-      "support.status.sentNoticeInAppNoTime": "Enviado · la respuesta del equipo aparecerá aquí"
+      "support.status.sentNoticeInAppNoTime": "Enviado · la respuesta del equipo aparecerá aquí",
+      "engagement.action.open": "Abrir",
+      "engagement.action.view": "Ver",
+      "engagement.action.start": "Comenzar",
+      "engagement.action.snooze": "Recordarme más tarde",
+      "engagement.channel.marketing": "Ofertas y novedades",
+      "engagement.channel.reminders": "Recordatorios",
+      "engagement.channel.service": "Cuenta y facturación"
     },
     "fi": {
       "support.home.title": "Asiakastuki · {app}",
@@ -1559,7 +1650,14 @@
       "support.status.sentNoticeEmail": "Lähetetty klo {time} · lähetämme sähköpostia, kun tiimi vastaa",
       "support.status.sentNoticeEmailNoTime": "Lähetetty · lähetämme sähköpostia, kun tiimi vastaa",
       "support.status.sentNoticeInApp": "Lähetetty klo {time} · tiimin vastaus näkyy tässä",
-      "support.status.sentNoticeInAppNoTime": "Lähetetty · tiimin vastaus näkyy tässä"
+      "support.status.sentNoticeInAppNoTime": "Lähetetty · tiimin vastaus näkyy tässä",
+      "engagement.action.open": "Avaa",
+      "engagement.action.view": "Näytä",
+      "engagement.action.start": "Aloita",
+      "engagement.action.snooze": "Muistuta myöhemmin",
+      "engagement.channel.marketing": "Tarjoukset ja uutiset",
+      "engagement.channel.reminders": "Muistutukset",
+      "engagement.channel.service": "Tili ja laskutus"
     },
     "fr": {
       "support.home.title": "Assistance {app}",
@@ -1665,7 +1763,14 @@
       "support.status.sentNoticeEmail": "Envoyé à {time} · nous vous enverrons un e-mail dès que l’équipe répondra",
       "support.status.sentNoticeEmailNoTime": "Envoyé · nous vous enverrons un e-mail dès que l’équipe répondra",
       "support.status.sentNoticeInApp": "Envoyé à {time} · la réponse de l’équipe s’affichera ici",
-      "support.status.sentNoticeInAppNoTime": "Envoyé · la réponse de l’équipe s’affichera ici"
+      "support.status.sentNoticeInAppNoTime": "Envoyé · la réponse de l’équipe s’affichera ici",
+      "engagement.action.open": "Ouvrir",
+      "engagement.action.view": "Voir",
+      "engagement.action.start": "Commencer",
+      "engagement.action.snooze": "Me le rappeler plus tard",
+      "engagement.channel.marketing": "Offres et nouveautés",
+      "engagement.channel.reminders": "Rappels",
+      "engagement.channel.service": "Compte et facturation"
     },
     "he": {
       "support.home.title": "התמיכה של {app}",
@@ -1771,7 +1876,14 @@
       "support.status.sentNoticeEmail": "נשלח ב-{time} · נשלח לך אימייל כשהצוות יענה",
       "support.status.sentNoticeEmailNoTime": "נשלח · נשלח לך אימייל כשהצוות יענה",
       "support.status.sentNoticeInApp": "נשלח ב-{time} · תשובת הצוות תופיע כאן",
-      "support.status.sentNoticeInAppNoTime": "נשלח · תשובת הצוות תופיע כאן"
+      "support.status.sentNoticeInAppNoTime": "נשלח · תשובת הצוות תופיע כאן",
+      "engagement.action.open": "פתיחה",
+      "engagement.action.view": "הצגה",
+      "engagement.action.start": "התחלה",
+      "engagement.action.snooze": "להזכיר לי אחר כך",
+      "engagement.channel.marketing": "מבצעים וחדשות",
+      "engagement.channel.reminders": "תזכורות",
+      "engagement.channel.service": "חשבון וחיובים"
     },
     "hi": {
       "support.home.title": "{app} सहायता",
@@ -1876,7 +1988,14 @@
       "support.status.sentNoticeEmail": "{time} पर भेजा गया · टीम का जवाब आने पर हम आपको ईमेल करेंगे",
       "support.status.sentNoticeEmailNoTime": "भेजा गया · टीम का जवाब आने पर हम आपको ईमेल करेंगे",
       "support.status.sentNoticeInApp": "{time} पर भेजा गया · टीम का जवाब यहीं दिखेगा",
-      "support.status.sentNoticeInAppNoTime": "भेजा गया · टीम का जवाब यहीं दिखेगा"
+      "support.status.sentNoticeInAppNoTime": "भेजा गया · टीम का जवाब यहीं दिखेगा",
+      "engagement.action.open": "खोलें",
+      "engagement.action.view": "देखें",
+      "engagement.action.start": "शुरू करें",
+      "engagement.action.snooze": "बाद में याद दिलाएँ",
+      "engagement.channel.marketing": "ऑफ़र और ख़बरें",
+      "engagement.channel.reminders": "रिमाइंडर",
+      "engagement.channel.service": "खाता और बिलिंग"
     },
     "hr": {
       "support.home.title": "Podrška · {app}",
@@ -1982,7 +2101,14 @@
       "support.status.sentNoticeEmail": "Poslano u {time} · poslat ćemo ti e-poruku kad tim odgovori",
       "support.status.sentNoticeEmailNoTime": "Poslano · poslat ćemo ti e-poruku kad tim odgovori",
       "support.status.sentNoticeInApp": "Poslano u {time} · odgovor tima pojavit će se ovdje",
-      "support.status.sentNoticeInAppNoTime": "Poslano · odgovor tima pojavit će se ovdje"
+      "support.status.sentNoticeInAppNoTime": "Poslano · odgovor tima pojavit će se ovdje",
+      "engagement.action.open": "Otvori",
+      "engagement.action.view": "Prikaži",
+      "engagement.action.start": "Započni",
+      "engagement.action.snooze": "Podsjeti me kasnije",
+      "engagement.channel.marketing": "Ponude i novosti",
+      "engagement.channel.reminders": "Podsjetnici",
+      "engagement.channel.service": "Račun i naplata"
     },
     "hu": {
       "support.home.title": "{app} ügyfélszolgálat",
@@ -2087,7 +2213,14 @@
       "support.status.sentNoticeEmail": "Elküldve: {time} · e-mailt küldünk, ha a csapat válaszol",
       "support.status.sentNoticeEmailNoTime": "Elküldve · e-mailt küldünk, ha a csapat válaszol",
       "support.status.sentNoticeInApp": "Elküldve: {time} · a csapat válasza itt jelenik meg",
-      "support.status.sentNoticeInAppNoTime": "Elküldve · a csapat válasza itt jelenik meg"
+      "support.status.sentNoticeInAppNoTime": "Elküldve · a csapat válasza itt jelenik meg",
+      "engagement.action.open": "Megnyitás",
+      "engagement.action.view": "Megtekintés",
+      "engagement.action.start": "Kezdés",
+      "engagement.action.snooze": "Emlékeztess később",
+      "engagement.channel.marketing": "Ajánlatok és hírek",
+      "engagement.channel.reminders": "Emlékeztetők",
+      "engagement.channel.service": "Fiók és számlázás"
     },
     "id": {
       "support.home.title": "Bantuan {app}",
@@ -2191,7 +2324,14 @@
       "support.status.sentNoticeEmail": "Terkirim {time} · kami akan kirim email saat tim membalas",
       "support.status.sentNoticeEmailNoTime": "Terkirim · kami akan kirim email saat tim membalas",
       "support.status.sentNoticeInApp": "Terkirim {time} · balasan tim akan muncul di sini",
-      "support.status.sentNoticeInAppNoTime": "Terkirim · balasan tim akan muncul di sini"
+      "support.status.sentNoticeInAppNoTime": "Terkirim · balasan tim akan muncul di sini",
+      "engagement.action.open": "Buka",
+      "engagement.action.view": "Lihat",
+      "engagement.action.start": "Mulai",
+      "engagement.action.snooze": "Ingatkan nanti",
+      "engagement.channel.marketing": "Penawaran dan berita",
+      "engagement.channel.reminders": "Pengingat",
+      "engagement.channel.service": "Akun dan tagihan"
     },
     "it": {
       "support.home.title": "Assistenza {app}",
@@ -2297,7 +2437,14 @@
       "support.status.sentNoticeEmail": "Inviato alle {time} · ti invieremo un’email quando il team risponde",
       "support.status.sentNoticeEmailNoTime": "Inviato · ti invieremo un’email quando il team risponde",
       "support.status.sentNoticeInApp": "Inviato alle {time} · la risposta del team apparirà qui",
-      "support.status.sentNoticeInAppNoTime": "Inviato · la risposta del team apparirà qui"
+      "support.status.sentNoticeInAppNoTime": "Inviato · la risposta del team apparirà qui",
+      "engagement.action.open": "Apri",
+      "engagement.action.view": "Vedi",
+      "engagement.action.start": "Inizia",
+      "engagement.action.snooze": "Ricordamelo più tardi",
+      "engagement.channel.marketing": "Offerte e novità",
+      "engagement.channel.reminders": "Promemoria",
+      "engagement.channel.service": "Account e fatturazione"
     },
     "ja": {
       "support.home.title": "{app} サポート",
@@ -2401,7 +2548,14 @@
       "support.status.sentNoticeEmail": "{time}に送信 · チームから返信があればメールでお知らせします",
       "support.status.sentNoticeEmailNoTime": "送信済み · チームから返信があればメールでお知らせします",
       "support.status.sentNoticeInApp": "{time}に送信 · チームからの返信はここに表示されます",
-      "support.status.sentNoticeInAppNoTime": "送信済み · チームからの返信はここに表示されます"
+      "support.status.sentNoticeInAppNoTime": "送信済み · チームからの返信はここに表示されます",
+      "engagement.action.open": "開く",
+      "engagement.action.view": "表示",
+      "engagement.action.start": "始める",
+      "engagement.action.snooze": "後で通知",
+      "engagement.channel.marketing": "お得な情報とお知らせ",
+      "engagement.channel.reminders": "リマインダー",
+      "engagement.channel.service": "アカウントと請求"
     },
     "ko": {
       "support.home.title": "{app} 고객지원",
@@ -2505,7 +2659,14 @@
       "support.status.sentNoticeEmail": "{time}에 전송됨 · 팀이 답변하면 이메일로 알려 드릴게요",
       "support.status.sentNoticeEmailNoTime": "전송됨 · 팀이 답변하면 이메일로 알려 드릴게요",
       "support.status.sentNoticeInApp": "{time}에 전송됨 · 팀의 답변이 여기에 표시돼요",
-      "support.status.sentNoticeInAppNoTime": "전송됨 · 팀의 답변이 여기에 표시돼요"
+      "support.status.sentNoticeInAppNoTime": "전송됨 · 팀의 답변이 여기에 표시돼요",
+      "engagement.action.open": "열기",
+      "engagement.action.view": "보기",
+      "engagement.action.start": "시작",
+      "engagement.action.snooze": "나중에 알림",
+      "engagement.channel.marketing": "혜택 및 소식",
+      "engagement.channel.reminders": "리마인더",
+      "engagement.channel.service": "계정 및 결제"
     },
     "ms": {
       "support.home.title": "Sokongan {app}",
@@ -2609,7 +2770,14 @@
       "support.status.sentNoticeEmail": "Dihantar {time} · kami akan e-mel anda apabila pasukan membalas",
       "support.status.sentNoticeEmailNoTime": "Dihantar · kami akan e-mel anda apabila pasukan membalas",
       "support.status.sentNoticeInApp": "Dihantar {time} · balasan pasukan akan dipaparkan di sini",
-      "support.status.sentNoticeInAppNoTime": "Dihantar · balasan pasukan akan dipaparkan di sini"
+      "support.status.sentNoticeInAppNoTime": "Dihantar · balasan pasukan akan dipaparkan di sini",
+      "engagement.action.open": "Buka",
+      "engagement.action.view": "Lihat",
+      "engagement.action.start": "Mula",
+      "engagement.action.snooze": "Ingatkan saya kemudian",
+      "engagement.channel.marketing": "Tawaran dan berita",
+      "engagement.channel.reminders": "Peringatan",
+      "engagement.channel.service": "Akaun dan pengebilan"
     },
     "nb": {
       "support.home.title": "Kundestøtte for {app}",
@@ -2714,7 +2882,14 @@
       "support.status.sentNoticeEmail": "Sendt kl. {time} · vi sender deg en e-post når teamet svarer",
       "support.status.sentNoticeEmailNoTime": "Sendt · vi sender deg en e-post når teamet svarer",
       "support.status.sentNoticeInApp": "Sendt kl. {time} · svaret fra teamet vises her",
-      "support.status.sentNoticeInAppNoTime": "Sendt · svaret fra teamet vises her"
+      "support.status.sentNoticeInAppNoTime": "Sendt · svaret fra teamet vises her",
+      "engagement.action.open": "Åpne",
+      "engagement.action.view": "Vis",
+      "engagement.action.start": "Start",
+      "engagement.action.snooze": "Minn meg på det senere",
+      "engagement.channel.marketing": "Tilbud og nyheter",
+      "engagement.channel.reminders": "Påminnelser",
+      "engagement.channel.service": "Konto og betaling"
     },
     "nl": {
       "support.home.title": "Support van {app}",
@@ -2819,7 +2994,14 @@
       "support.status.sentNoticeEmail": "Verstuurd om {time} · we mailen je als het team reageert",
       "support.status.sentNoticeEmailNoTime": "Verstuurd · we mailen je als het team reageert",
       "support.status.sentNoticeInApp": "Verstuurd om {time} · het antwoord van het team verschijnt hier",
-      "support.status.sentNoticeInAppNoTime": "Verstuurd · het antwoord van het team verschijnt hier"
+      "support.status.sentNoticeInAppNoTime": "Verstuurd · het antwoord van het team verschijnt hier",
+      "engagement.action.open": "Openen",
+      "engagement.action.view": "Bekijken",
+      "engagement.action.start": "Starten",
+      "engagement.action.snooze": "Later herinneren",
+      "engagement.channel.marketing": "Aanbiedingen en nieuws",
+      "engagement.channel.reminders": "Herinneringen",
+      "engagement.channel.service": "Account en facturering"
     },
     "pl": {
       "support.home.title": "Pomoc · {app}",
@@ -2926,7 +3108,14 @@
       "support.status.sentNoticeEmail": "Wysłano o {time} · wyślemy e-mail, gdy zespół odpowie",
       "support.status.sentNoticeEmailNoTime": "Wysłano · wyślemy e-mail, gdy zespół odpowie",
       "support.status.sentNoticeInApp": "Wysłano o {time} · odpowiedź zespołu pojawi się tutaj",
-      "support.status.sentNoticeInAppNoTime": "Wysłano · odpowiedź zespołu pojawi się tutaj"
+      "support.status.sentNoticeInAppNoTime": "Wysłano · odpowiedź zespołu pojawi się tutaj",
+      "engagement.action.open": "Otwórz",
+      "engagement.action.view": "Zobacz",
+      "engagement.action.start": "Zacznij",
+      "engagement.action.snooze": "Przypomnij później",
+      "engagement.channel.marketing": "Oferty i nowości",
+      "engagement.channel.reminders": "Przypomnienia",
+      "engagement.channel.service": "Konto i płatności"
     },
     "pt-BR": {
       "support.home.title": "Suporte {app}",
@@ -3032,7 +3221,14 @@
       "support.status.sentNoticeEmail": "Enviada às {time} · vamos te mandar um e-mail quando a equipe responder",
       "support.status.sentNoticeEmailNoTime": "Enviada · vamos te mandar um e-mail quando a equipe responder",
       "support.status.sentNoticeInApp": "Enviada às {time} · a resposta da equipe vai aparecer aqui",
-      "support.status.sentNoticeInAppNoTime": "Enviada · a resposta da equipe vai aparecer aqui"
+      "support.status.sentNoticeInAppNoTime": "Enviada · a resposta da equipe vai aparecer aqui",
+      "engagement.action.open": "Abrir",
+      "engagement.action.view": "Ver",
+      "engagement.action.start": "Começar",
+      "engagement.action.snooze": "Lembrar mais tarde",
+      "engagement.channel.marketing": "Ofertas e novidades",
+      "engagement.channel.reminders": "Lembretes",
+      "engagement.channel.service": "Conta e cobrança"
     },
     "pt-PT": {
       "support.home.title": "Apoio {app}",
@@ -3138,7 +3334,14 @@
       "support.status.sentNoticeEmail": "Enviada às {time} · enviamos-lhe um e-mail quando a equipa responder",
       "support.status.sentNoticeEmailNoTime": "Enviada · enviamos-lhe um e-mail quando a equipa responder",
       "support.status.sentNoticeInApp": "Enviada às {time} · a resposta da equipa aparecerá aqui",
-      "support.status.sentNoticeInAppNoTime": "Enviada · a resposta da equipa aparecerá aqui"
+      "support.status.sentNoticeInAppNoTime": "Enviada · a resposta da equipa aparecerá aqui",
+      "engagement.action.open": "Abrir",
+      "engagement.action.view": "Ver",
+      "engagement.action.start": "Começar",
+      "engagement.action.snooze": "Lembrar mais tarde",
+      "engagement.channel.marketing": "Ofertas e novidades",
+      "engagement.channel.reminders": "Lembretes",
+      "engagement.channel.service": "Conta e faturação"
     },
     "ro": {
       "support.home.title": "Asistență {app}",
@@ -3244,7 +3447,14 @@
       "support.status.sentNoticeEmail": "Trimis la {time} · îți trimitem un e-mail când răspunde echipa",
       "support.status.sentNoticeEmailNoTime": "Trimis · îți trimitem un e-mail când răspunde echipa",
       "support.status.sentNoticeInApp": "Trimis la {time} · răspunsul echipei va apărea aici",
-      "support.status.sentNoticeInAppNoTime": "Trimis · răspunsul echipei va apărea aici"
+      "support.status.sentNoticeInAppNoTime": "Trimis · răspunsul echipei va apărea aici",
+      "engagement.action.open": "Deschide",
+      "engagement.action.view": "Vezi",
+      "engagement.action.start": "Începe",
+      "engagement.action.snooze": "Amintește-mi mai târziu",
+      "engagement.channel.marketing": "Oferte și noutăți",
+      "engagement.channel.reminders": "Mementouri",
+      "engagement.channel.service": "Cont și facturare"
     },
     "ru": {
       "support.home.title": "Поддержка {app}",
@@ -3351,7 +3561,14 @@
       "support.status.sentNoticeEmail": "Отправлено в {time} · пришлём письмо, когда команда ответит",
       "support.status.sentNoticeEmailNoTime": "Отправлено · пришлём письмо, когда команда ответит",
       "support.status.sentNoticeInApp": "Отправлено в {time} · ответ команды появится здесь",
-      "support.status.sentNoticeInAppNoTime": "Отправлено · ответ команды появится здесь"
+      "support.status.sentNoticeInAppNoTime": "Отправлено · ответ команды появится здесь",
+      "engagement.action.open": "Открыть",
+      "engagement.action.view": "Посмотреть",
+      "engagement.action.start": "Начать",
+      "engagement.action.snooze": "Напомнить позже",
+      "engagement.channel.marketing": "Предложения и новости",
+      "engagement.channel.reminders": "Напоминания",
+      "engagement.channel.service": "Аккаунт и оплата"
     },
     "sk": {
       "support.home.title": "Podpora {app}",
@@ -3457,7 +3674,14 @@
       "support.status.sentNoticeEmail": "Odoslané o {time} · keď tím odpovie, pošleme vám e-mail",
       "support.status.sentNoticeEmailNoTime": "Odoslané · keď tím odpovie, pošleme vám e-mail",
       "support.status.sentNoticeInApp": "Odoslané o {time} · odpoveď tímu sa zobrazí tu",
-      "support.status.sentNoticeInAppNoTime": "Odoslané · odpoveď tímu sa zobrazí tu"
+      "support.status.sentNoticeInAppNoTime": "Odoslané · odpoveď tímu sa zobrazí tu",
+      "engagement.action.open": "Otvoriť",
+      "engagement.action.view": "Zobraziť",
+      "engagement.action.start": "Začať",
+      "engagement.action.snooze": "Pripomenúť neskôr",
+      "engagement.channel.marketing": "Ponuky a novinky",
+      "engagement.channel.reminders": "Pripomienky",
+      "engagement.channel.service": "Účet a platby"
     },
     "sv": {
       "support.home.title": "Support för {app}",
@@ -3562,7 +3786,14 @@
       "support.status.sentNoticeEmail": "Skickat kl. {time} · vi mejlar dig när teamet svarar",
       "support.status.sentNoticeEmailNoTime": "Skickat · vi mejlar dig när teamet svarar",
       "support.status.sentNoticeInApp": "Skickat kl. {time} · teamets svar visas här",
-      "support.status.sentNoticeInAppNoTime": "Skickat · teamets svar visas här"
+      "support.status.sentNoticeInAppNoTime": "Skickat · teamets svar visas här",
+      "engagement.action.open": "Öppna",
+      "engagement.action.view": "Visa",
+      "engagement.action.start": "Starta",
+      "engagement.action.snooze": "Påminn mig senare",
+      "engagement.channel.marketing": "Erbjudanden och nyheter",
+      "engagement.channel.reminders": "Påminnelser",
+      "engagement.channel.service": "Konto och betalning"
     },
     "th": {
       "support.home.title": "ฝ่ายช่วยเหลือ {app}",
@@ -3666,7 +3897,14 @@
       "support.status.sentNoticeEmail": "ส่งแล้ว {time} · เราจะส่งอีเมลแจ้งเมื่อทีมตอบกลับ",
       "support.status.sentNoticeEmailNoTime": "ส่งแล้ว · เราจะส่งอีเมลแจ้งเมื่อทีมตอบกลับ",
       "support.status.sentNoticeInApp": "ส่งแล้ว {time} · คำตอบจากทีมจะแสดงที่นี่",
-      "support.status.sentNoticeInAppNoTime": "ส่งแล้ว · คำตอบจากทีมจะแสดงที่นี่"
+      "support.status.sentNoticeInAppNoTime": "ส่งแล้ว · คำตอบจากทีมจะแสดงที่นี่",
+      "engagement.action.open": "เปิด",
+      "engagement.action.view": "ดู",
+      "engagement.action.start": "เริ่ม",
+      "engagement.action.snooze": "เตือนฉันภายหลัง",
+      "engagement.channel.marketing": "ข้อเสนอและข่าวสาร",
+      "engagement.channel.reminders": "การแจ้งเตือนความจำ",
+      "engagement.channel.service": "บัญชีและการเรียกเก็บเงิน"
     },
     "tr": {
       "support.home.title": "{app} Destek",
@@ -3771,7 +4009,14 @@
       "support.status.sentNoticeEmail": "Gönderildi: {time} · ekip yanıt verince sana e-posta göndereceğiz",
       "support.status.sentNoticeEmailNoTime": "Gönderildi · ekip yanıt verince sana e-posta göndereceğiz",
       "support.status.sentNoticeInApp": "Gönderildi: {time} · ekibin yanıtı burada görünecek",
-      "support.status.sentNoticeInAppNoTime": "Gönderildi · ekibin yanıtı burada görünecek"
+      "support.status.sentNoticeInAppNoTime": "Gönderildi · ekibin yanıtı burada görünecek",
+      "engagement.action.open": "Aç",
+      "engagement.action.view": "Görüntüle",
+      "engagement.action.start": "Başla",
+      "engagement.action.snooze": "Daha sonra hatırlat",
+      "engagement.channel.marketing": "Fırsatlar ve haberler",
+      "engagement.channel.reminders": "Hatırlatıcılar",
+      "engagement.channel.service": "Hesap ve faturalandırma"
     },
     "uk": {
       "support.home.title": "Підтримка {app}",
@@ -3878,7 +4123,14 @@
       "support.status.sentNoticeEmail": "Надіслано о {time} · надішлемо лист, коли команда відповість",
       "support.status.sentNoticeEmailNoTime": "Надіслано · надішлемо лист, коли команда відповість",
       "support.status.sentNoticeInApp": "Надіслано о {time} · відповідь команди з’явиться тут",
-      "support.status.sentNoticeInAppNoTime": "Надіслано · відповідь команди з’явиться тут"
+      "support.status.sentNoticeInAppNoTime": "Надіслано · відповідь команди з’явиться тут",
+      "engagement.action.open": "Відкрити",
+      "engagement.action.view": "Переглянути",
+      "engagement.action.start": "Почати",
+      "engagement.action.snooze": "Нагадати пізніше",
+      "engagement.channel.marketing": "Пропозиції та новини",
+      "engagement.channel.reminders": "Нагадування",
+      "engagement.channel.service": "Обліковий запис і оплата"
     },
     "vi": {
       "support.home.title": "Hỗ trợ {app}",
@@ -3982,7 +4234,14 @@
       "support.status.sentNoticeEmail": "Đã gửi lúc {time} · chúng tôi sẽ gửi email khi đội ngũ trả lời",
       "support.status.sentNoticeEmailNoTime": "Đã gửi · chúng tôi sẽ gửi email khi đội ngũ trả lời",
       "support.status.sentNoticeInApp": "Đã gửi lúc {time} · câu trả lời của đội ngũ sẽ hiện ở đây",
-      "support.status.sentNoticeInAppNoTime": "Đã gửi · câu trả lời của đội ngũ sẽ hiện ở đây"
+      "support.status.sentNoticeInAppNoTime": "Đã gửi · câu trả lời của đội ngũ sẽ hiện ở đây",
+      "engagement.action.open": "Mở",
+      "engagement.action.view": "Xem",
+      "engagement.action.start": "Bắt đầu",
+      "engagement.action.snooze": "Nhắc tôi sau",
+      "engagement.channel.marketing": "Ưu đãi và tin tức",
+      "engagement.channel.reminders": "Lời nhắc",
+      "engagement.channel.service": "Tài khoản và thanh toán"
     },
     "zh-Hans": {
       "support.home.title": "{app} 客服",
@@ -4086,7 +4345,14 @@
       "support.status.sentNoticeEmail": "{time} 已发送 · 团队回复后会发邮件通知你",
       "support.status.sentNoticeEmailNoTime": "已发送 · 团队回复后会发邮件通知你",
       "support.status.sentNoticeInApp": "{time} 已发送 · 团队的回复会显示在这里",
-      "support.status.sentNoticeInAppNoTime": "已发送 · 团队的回复会显示在这里"
+      "support.status.sentNoticeInAppNoTime": "已发送 · 团队的回复会显示在这里",
+      "engagement.action.open": "打开",
+      "engagement.action.view": "查看",
+      "engagement.action.start": "开始",
+      "engagement.action.snooze": "稍后提醒我",
+      "engagement.channel.marketing": "优惠与资讯",
+      "engagement.channel.reminders": "提醒",
+      "engagement.channel.service": "账户与账单"
     },
     "zh-Hant": {
       "support.home.title": "{app} 客服",
@@ -4190,7 +4456,14 @@
       "support.status.sentNoticeEmail": "{time} 已傳送 · 團隊回覆時會寄電子郵件通知你",
       "support.status.sentNoticeEmailNoTime": "已傳送 · 團隊回覆時會寄電子郵件通知你",
       "support.status.sentNoticeInApp": "{time} 已傳送 · 團隊的回覆會顯示在這裡",
-      "support.status.sentNoticeInAppNoTime": "已傳送 · 團隊的回覆會顯示在這裡"
+      "support.status.sentNoticeInAppNoTime": "已傳送 · 團隊的回覆會顯示在這裡",
+      "engagement.action.open": "開啟",
+      "engagement.action.view": "檢視",
+      "engagement.action.start": "開始",
+      "engagement.action.snooze": "稍後提醒我",
+      "engagement.channel.marketing": "優惠與資訊",
+      "engagement.channel.reminders": "提醒",
+      "engagement.channel.service": "帳號與帳單"
     }
   }
 }

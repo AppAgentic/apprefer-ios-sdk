@@ -202,3 +202,17 @@
 "support.status.sentNoticeInApp" = "{time} पर भेजा गया · टीम का जवाब यहीं दिखेगा";
 /* Like 'support.status.sentNoticeInApp' when the time is unknown. */
 "support.status.sentNoticeInAppNoTime" = "भेजा गया · टीम का जवाब यहीं दिखेगा";
+/* Notification button that opens the app on the notification's screen. One word, very short. */
+"engagement.action.open" = "खोलें";
+/* Notification button to look at something in the app. One word, very short. */
+"engagement.action.view" = "देखें";
+/* Notification button to begin an activity in the app (a lesson, a workout, a setup step). One word, very short. */
+"engagement.action.start" = "शुरू करें";
+/* Notification button that hides the notification and shows it again later. Short. */
+"engagement.action.snooze" = "बाद में याद दिलाएँ";
+/* Android notification category name (Settings › Notifications) for the app's offers and news. */
+"engagement.channel.marketing" = "ऑफ़र और ख़बरें";
+/* Android notification category name for reminders the user chose to receive. */
+"engagement.channel.reminders" = "रिमाइंडर";
+/* Android notification category name for account and subscription notices (billing problems, renewals). */
+"engagement.channel.service" = "खाता और बिलिंग";
