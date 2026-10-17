@@ -32,7 +32,17 @@ public final class AppReferEngagement: @unchecked Sendable {
         system: LiveEngagementNotificationSystem())
     #endif
 
-    init(client: EngagementClient = .shared) { self.client = client }
+    init(client: EngagementClient = .shared) {
+        self.client = client
+        #if os(iOS)
+        // Every identity change the client sees (sign-in, logout, reset, deletion, a key switch,
+        // an epoch moved by the backend, also one learned at a cold start) removes AppRefer's
+        // local snoozes and held navigation for the old identity.
+        client.identityObserver.set { [weak self] in
+            Task { @MainActor in await self?.notifications.identityInvalidated() }
+        }
+        #endif
+    }
 
     // MARK: Setup
 
@@ -156,9 +166,11 @@ extension AppRefer {
     public static var engagement: AppReferEngagement { .shared }
 
     /// The engagement header for a queued product event, when its stamp is still current.
-    static func engagementHeader(stamp: String?) -> String? {
-        guard let stamp, let snap = EngagementClient.shared.snapshot.get(), snap.accountEpoch != nil, snap.stamp == stamp else { return nil }
-        return snap.header
+    /// The engagement headers for a queued product event, when its stamp is still current: the
+    /// install credential and the account epoch the event was queued under.
+    static func engagementHeaders(stamp: String?) -> [String: String]? {
+        guard let stamp, let snap = EngagementClient.shared.snapshot.get(), let epoch = snap.accountEpoch, snap.stamp == stamp else { return nil }
+        return ["X-AppRefer-Install": snap.header, "X-AppRefer-Install-Epoch": String(epoch)]
     }
 
     /// The stamp a new product event carries: only for events the app chose, sent with the

@@ -13,8 +13,20 @@ struct EngagementSnapshot: Equatable, Sendable {
     let serial: Int
     let header: String
     let trackedEvents: Set<String>?
-    /// `slot:installId:serial`: queued events carry it and get the header only while it is current.
-    var stamp: String { "\(slot):\(installId):\(serial)" }
+    /// `slot:installId:serial:epoch`: queued events carry it and get the header only while it is
+    /// current. The epoch is part of it (and is sent as `X-AppRefer-Install-Epoch`), so an event
+    /// queued under one account never matches after a cold restart that learned another, and
+    /// the server refuses it if the install moved on before the SDK knew.
+    var stamp: String { "\(slot):\(installId):\(serial):\(accountEpoch.map(String.init) ?? "-")" }
+}
+
+/// Told (synchronously, on the client's executor) whenever the install's identity changes, so
+/// the notification layer can drop what belongs to the old one (local snoozes, held navigation).
+final class EngagementIdentityObserver: @unchecked Sendable {
+    private let lock = NSLock()
+    private var handler: (@Sendable () -> Void)?
+    func set(_ handler: (@Sendable () -> Void)?) { lock.lock(); self.handler = handler; lock.unlock() }
+    func fire() { lock.lock(); let h = handler; lock.unlock(); h?() }
 }
 
 final class EngagementSnapshotBox: @unchecked Sendable {
@@ -64,6 +76,7 @@ actor EngagementClient {
     private let pushEnvironment: @Sendable () -> String
     private let deviceId: @Sendable () -> String?
     nonisolated let snapshot = EngagementSnapshotBox()
+    nonisolated let identityObserver = EngagementIdentityObserver()
 
     init(baseURL: String = AppReferConfig.backendURL,
          session: URLSession = URLSession(configuration: .ephemeral),
@@ -85,7 +98,17 @@ actor EngagementClient {
     private var started = false
     private var options = AppReferEngagementOptions()
     private var credential: Credential?
-    private var accountEpoch: Int?
+    /// Persisted with the install id whenever known, so a cold start can tell that the server's
+    /// epoch moved while the app wasn't running.
+    private var accountEpoch: Int? {
+        didSet { if let accountEpoch, let credential { defaults.set("\(credential.installId):\(accountEpoch)", forKey: key("epoch")) } }
+    }
+    private var knownEpoch: Int? {
+        if let accountEpoch { return accountEpoch }
+        guard let credential, let saved = defaults.string(forKey: key("epoch")) else { return nil }
+        let parts = saved.split(separator: ":")
+        return parts.count == 2 && parts[0] == Substring(credential.installId) ? Int(parts[1]) : nil
+    }
     private var pushToken: String?
     private var generation = 0
     private var registrationRetried = false
@@ -111,13 +134,19 @@ actor EngagementClient {
 
     // Per-slot persisted state (no secrets).
     private func key(_ name: String) -> String { "apprefer_engagement_\(name)_\(slot ?? "none")" }
+    /// Every write is an identity change: observers drop what belonged to the previous identity.
     private var serial: Int {
         get { defaults.integer(forKey: key("serial")) }
-        set { defaults.set(newValue, forKey: key("serial")) }
+        set { defaults.set(newValue, forKey: key("serial")); identityObserver.fire() }
     }
     private var pendingLogout: Bool {
         get { defaults.bool(forKey: key("pending_logout")) }
-        set { defaults.set(newValue, forKey: key("pending_logout")) }
+        set { defaults.set(newValue, forKey: key("pending_logout")); if !newValue { pendingLogoutEpoch = nil } }
+    }
+    /// The epoch the saved logout was made under (nil: not known when it was made).
+    private var pendingLogoutEpoch: Int? {
+        get { defaults.object(forKey: key("pending_logout_epoch")) as? Int }
+        set { defaults.set(newValue, forKey: key("pending_logout_epoch")) }
     }
     private var disabledUntil: Date? {
         get { defaults.object(forKey: key("disabled_until")) as? Date }
@@ -172,6 +201,7 @@ actor EngagementClient {
             registrationRetried = false
             status = .pending
             publish()
+            identityObserver.fire()
         }
         self.apiKey = apiKey
         self.explicitKey = explicit
@@ -212,13 +242,28 @@ actor EngagementClient {
         guard gen == generation, let credential else { return status }
         if defaults.bool(forKey: Self.pendingLogoutAnyKey) {
             defaults.removeObject(forKey: Self.pendingLogoutAnyKey)
+            // Made before this slot started in that process: it applies to the identity this
+            // slot last knew (persisted), never to one the server moved to afterwards.
+            let epoch = knownEpoch
             pendingLogout = true
+            pendingLogoutEpoch = epoch
             serial += 1
         }
         if pendingLogout {
-            let (code, body, _) = await send("POST", "/api/engagement/v1/installs/me/logout", body: [:], apiKey: apiKey, credential: credential)
+            var expected = pendingLogoutEpoch
+            if expected == nil {
+                // Nothing was known about this install's identity when the logout was saved
+                // (it had never been verified here): log out whatever it is now.
+                let (code, body, _) = await send("GET", "/api/engagement/v1/installs/me", body: nil, apiKey: apiKey, credential: credential)
+                guard gen == generation else { return status }
+                expected = code == 200 ? (body?["install"] as? [String: Any])?["accountEpoch"] as? Int : nil
+                if expected == nil { if !handleFailure(code, body) { status = .pending }; publish(); return status }
+            }
+            let (code, body, _) = await send("POST", "/api/engagement/v1/installs/me/logout", body: ["expectedEpoch": expected!], apiKey: apiKey, credential: credential)
             guard gen == generation else { return status }
-            if code == 200 { pendingLogout = false; accountEpoch = body?["accountEpoch"] as? Int }
+            // 409: the install already left that identity (another sign-in or a backend
+            // change): the logout's purpose is met and it must not detach the newer one.
+            if code == 200 || code == 409 { pendingLogout = false; if code == 200 { accountEpoch = body?["accountEpoch"] as? Int } }
             else if handleFailure(code, body) { return status }
             else { status = .pending; publish(); return status }
         }
@@ -270,6 +315,7 @@ actor EngagementClient {
 
     private func forgetCredential() {
         keychain.delete(key: credentialKey())
+        defaults.removeObject(forKey: key("epoch"))
         credential = nil
         accountEpoch = nil
         lastSync = nil
@@ -315,13 +361,13 @@ actor EngagementClient {
         return true
     }
 
-    /// Server-side account changes (backend bind/unbind) also move the epoch.
+    /// Server-side account changes (backend bind/unbind) also move the epoch. Compared with the
+    /// last epoch known for this install, persisted across launches: a change made while the app
+    /// wasn't running still advances the serial, so nothing queued for the old identity matches.
     private func observeEpoch(_ epoch: Int?) {
         guard let epoch else { return }
-        if accountEpoch != epoch {
-            if accountEpoch != nil { serial += 1 }
-            accountEpoch = epoch
-        }
+        if knownEpoch != epoch { serial += 1 }
+        if accountEpoch != epoch { accountEpoch = epoch }
     }
 
     /// True when the response was handled as a terminal state (disabled, invalid install).
@@ -410,9 +456,12 @@ actor EngagementClient {
 
     private func runIdentify(_ assertion: String) async -> Result<Void, AppReferEngagementError> {
         guard case .active = status, let apiKey, let credential else { return .failure(.notStarted) }
+        // The identity this sign-in replaces: the server refuses it (409) if that changed meanwhile.
+        if knownEpoch == nil { _ = await reverify(gen: generation) }
+        guard let expected = knownEpoch else { return .failure(.unavailable) }
         beginIdentityChange()
         let gen = generation
-        let (code, body, _) = await send("POST", "/api/engagement/v1/installs/me/account", body: ["assertion": assertion], apiKey: apiKey, credential: credential)
+        let (code, body, _) = await send("POST", "/api/engagement/v1/installs/me/account", body: ["assertion": assertion, "expectedEpoch": expected], apiKey: apiKey, credential: credential)
         guard gen == generation else { return .failure(.identityChanged) }
         if code == 200, let epoch = body?["accountEpoch"] as? Int {
             // A sign-in that succeeds also supersedes an unsent logout.
@@ -454,17 +503,24 @@ actor EngagementClient {
             generation += 1
             return
         }
+        // Saved with the identity it signs out of; a newer pending logout keeps the older epoch
+        // only if nothing newer was confirmed in between.
+        let expected = knownEpoch
         beginIdentityChange()
-        pendingLogout = true
-        guard case .active = status, let apiKey, let credential else { return }
+        if !pendingLogout || pendingLogoutEpoch == nil { pendingLogout = true; pendingLogoutEpoch = expected }
+        guard case .active = status, let apiKey, let credential, let epoch = pendingLogoutEpoch else { return }
         let gen = generation
-        let (code, body, _) = await send("POST", "/api/engagement/v1/installs/me/logout", body: [:], apiKey: apiKey, credential: credential)
+        let (code, body, _) = await send("POST", "/api/engagement/v1/installs/me/logout", body: ["expectedEpoch": epoch], apiKey: apiKey, credential: credential)
         guard gen == generation else { return }
         if code == 200 {
             pendingLogout = false
             accountEpoch = body?["accountEpoch"] as? Int
             lastSync = nil
             publish()
+        } else if code == 409 {
+            // Already signed out of that identity on the server (a newer one is there): done.
+            pendingLogout = false
+            _ = await reverify(gen: gen)
         } else {
             handleFailure(code, body)
         }
@@ -480,6 +536,7 @@ actor EngagementClient {
         if credential == nil, case .found(let saved) = loadCredential() { credential = saved }
         guard var marked = credential else { return }
         beginIdentityChange()
+        defaults.removeObject(forKey: key("epoch"))
         marked.pendingDelete = true
         credential = marked
         _ = saveCredential(marked, adding: false)
@@ -513,7 +570,11 @@ actor EngagementClient {
         let gen = generation
         let (code, body, _) = await send("GET", "/api/engagement/v1/installs/me/preferences", body: nil, apiKey: apiKey, credential: credential)
         guard gen == generation else { return .failure(.identityChanged) }
-        guard code == 200, let prefs = Self.preferences(body) else { handleFailure(code, body); return .failure(failure(code, body)) }
+        guard code == 200, let prefs = Self.preferences(body), let epoch = body?["accountEpoch"] as? Int else { handleFailure(code, body); return .failure(failure(code, body)) }
+        // The choices are for the epoch they came with: learn it, so a later change is made for it.
+        let before = serial
+        observeEpoch(epoch)
+        if before != serial { publish() }
         return .success(prefs)
     }
 
@@ -524,13 +585,16 @@ actor EngagementClient {
     private func runSetPreferences(_ choices: [String: Bool]) async -> Result<AppReferEngagementPreferences, AppReferEngagementError> {
         guard !choices.isEmpty else { return .failure(.server(status: 400, code: "INVALID_BODY")) }
         guard case .active = status, let apiKey, let credential else { return .failure(.notStarted) }
-        // Only for the identity the person is using now: never mid sign-in or sign-out.
-        guard accountEpoch != nil else { return .failure(.identityChanged) }
+        // Only for the identity the person is using now: never mid sign-in or sign-out. The server
+        // refuses it (409) if the install's identity is no longer this epoch.
+        guard let epoch = accountEpoch else { return .failure(.identityChanged) }
         let gen = generation
-        let (code, body, _) = await send("PUT", "/api/engagement/v1/installs/me/preferences", body: choices, apiKey: apiKey, credential: credential)
+        var body: [String: Any] = choices
+        body["expectedEpoch"] = epoch
+        let (code, json, _) = await send("PUT", "/api/engagement/v1/installs/me/preferences", body: body, apiKey: apiKey, credential: credential)
         guard gen == generation else { return .failure(.identityChanged) }
         if code == 409 { _ = await reverify(gen: gen); return .failure(.identityChanged) }
-        guard code == 200, let prefs = Self.preferences(body) else { handleFailure(code, body); return .failure(failure(code, body)) }
+        guard code == 200, let prefs = Self.preferences(json) else { handleFailure(code, json); return .failure(failure(code, json)) }
         return .success(prefs)
     }
 

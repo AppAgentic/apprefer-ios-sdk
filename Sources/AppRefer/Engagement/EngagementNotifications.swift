@@ -31,7 +31,14 @@ protocol EngagementNotificationSystem: Sendable {
     func scheduleSnooze(identifier: String, title: String, subtitle: String?, body: String, userInfo: [String: Any],
                         category: String?, thread: String?, after seconds: TimeInterval) async -> Bool
     func registerCategories(_ categories: [EngagementCategory]) async
+    /// Removes AppRefer's own local snoozes, pending and delivered: `identifiers` when given,
+    /// otherwise every request whose identifier starts with `snoozePrefix`. The app's and
+    /// Support's notifications are never touched.
+    func removeSnoozes(identifiers: [String]?) async
 }
+
+/// Identifier prefix of the local notifications AppRefer schedules for a snooze.
+let snoozePrefix = "apprefer.eng.snooze."
 
 /// One iOS category: `apprefer.eng.<kind>[.<kind>]`, buttons `apprefer.action.<index>`.
 struct EngagementCategory: Equatable, Sendable {
@@ -82,9 +89,23 @@ final class EngagementNotifications {
         deliverPending()
     }
 
-    /// Account changed or reset: nothing queued for the previous identity is delivered.
+    /// Advances on every identity change; a snooze whose scheduling straddles one is removed.
+    private(set) var invalidations = 0
+
+    /// Account changed or reset: nothing queued for the previous identity is delivered, and its
+    /// local snoozes (pending or already shown) are removed so they can't reappear for the next.
     func resetForAccountChange() {
+        invalidations += 1
         pending.removeAll()
+        let system = self.system
+        Task { await system.removeSnoozes(identifiers: nil) }
+    }
+
+    /// Awaitable form for callers that need the removal done (tests, sign-out flows).
+    func identityInvalidated() async {
+        invalidations += 1
+        pending.removeAll()
+        await system.removeSnoozes(identifiers: nil)
     }
 
     var pendingCount: Int { pending.count }
@@ -166,10 +187,25 @@ final class EngagementNotifications {
         var info: [String: Any] = [:]
         for (k, v) in userInfo { if let key = k as? String { info[key] = v } }
         info["apprefer_snoozed"] = true
+        let identifier = snoozePrefix + EngagementClient.slot(for: payload.messageId)
+        // Fence: the identity this snooze is for. If it changes while the system call runs (the
+        // removal may have run before the add landed), the late request is removed afterwards.
+        let fence = invalidations
+        guard stillCurrent(payload) else { return }
         _ = await system.scheduleSnooze(
-            identifier: "apprefer.eng.snooze.\(EngagementClient.slot(for: payload.messageId))",
+            identifier: identifier,
             title: payload.title, subtitle: payload.subtitle, body: payload.body, userInfo: info,
             category: Self.category(for: Self.shownActions(payload, snoozed: true)), thread: payload.collapseKey, after: delay)
+        if fence != invalidations || !stillCurrent(payload) {
+            await system.removeSnoozes(identifiers: [identifier])
+        }
+    }
+
+    /// The payload still matches the current install and account (nil snapshot: not known, e.g.
+    /// offline; the identity observer covers real changes).
+    private func stillCurrent(_ payload: AppReferEngagementPayload) -> Bool {
+        guard let current = snapshot.get() else { return true }
+        return current.installId == payload.installId && current.accountEpoch == payload.accountEpoch
     }
 
     // MARK: Exactly-once delivery
@@ -215,6 +251,9 @@ final class EngagementNotifications {
         let queued = pending
         pending = []
         for item in queued {
+            // Re-checked with the real clock at delivery: a notification that expired while its
+            // event waited (navigation not ready, no handler yet) is dropped, never acted on.
+            guard !item.payload.isExpired(at: now()) else { continue }
             if item.event.isNavigation {
                 guard navigationReady else { keep.append(item); continue }
                 // Re-checked at delivery: an account change while it waited drops it.
@@ -243,6 +282,22 @@ struct LiveEngagementNotificationSystem: EngagementNotificationSystem {
         let request = UNNotificationRequest(identifier: identifier, content: content,
                                             trigger: UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false))
         do { try await UNUserNotificationCenter.current().add(request); return true } catch { return false }
+    }
+
+    func removeSnoozes(identifiers: [String]?) async {
+        // The notification center needs a real app bundle (not a test runner or tool).
+        guard Bundle.main.bundleURL.pathExtension == "app" else { return }
+        let center = UNUserNotificationCenter.current()
+        if let identifiers {
+            let ours = identifiers.filter { $0.hasPrefix(snoozePrefix) }
+            center.removePendingNotificationRequests(withIdentifiers: ours)
+            center.removeDeliveredNotifications(withIdentifiers: ours)
+            return
+        }
+        let pending = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(snoozePrefix) }
+        let delivered = await center.deliveredNotifications().map(\.request.identifier).filter { $0.hasPrefix(snoozePrefix) }
+        center.removePendingNotificationRequests(withIdentifiers: pending)
+        center.removeDeliveredNotifications(withIdentifiers: delivered)
     }
 
     func registerCategories(_ categories: [EngagementCategory]) async {

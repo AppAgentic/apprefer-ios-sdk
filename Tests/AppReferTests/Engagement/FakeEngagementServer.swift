@@ -34,6 +34,11 @@ final class FakeEngagementServer: @unchecked Sendable {
     var installCount: Int { lock.lock(); defer { lock.unlock() }; return installs.count }
     func set(_ id: String, _ update: (inout Install) -> Void) { lock.lock(); if var i = installs[id] { update(&i); installs[id] = i }; lock.unlock() }
     func forget(_ id: String) { lock.lock(); installs[id] = nil; lock.unlock() }
+    /// The app's backend binds (or, with nil, detaches) the install directly: the epoch moves
+    /// without the SDK being told.
+    func backendBind(_ id: String, to account: String?) {
+        set(id) { $0.account = account; $0.epoch += 1; $0.prefs = ["marketing": false, "reminders": false, "service": $0.prefs["service"] == false ? false : true] }
+    }
 
     func handle(_ request: URLRequest, body: [String: Any]) -> (Int, [String: Any])? {
         let path = request.url!.path
@@ -58,7 +63,12 @@ final class FakeEngagementServer: @unchecked Sendable {
         }
         let id = String(cred[..<dot])
         func me() -> [String: Any] { ["install": ["installId": id, "accountEpoch": install.epoch, "accountBound": install.account != nil]] }
-        func prefs() -> [String: Any] { ["purposes": install.prefs.mapValues { ["granted": $0] }, "revision": 1] }
+        func prefs() -> [String: Any] { ["purposes": install.prefs.mapValues { ["granted": $0] }, "revision": 1, "accountEpoch": install.epoch] }
+        // Identity mutations must state the epoch they were made under (web/lib/engagement/identity.ts).
+        let identityMutation = (method == "PUT" && path.hasSuffix("/preferences")) || (method == "POST" && (path.hasSuffix("/logout") || path.hasSuffix("/account")))
+        let expected = (body["expectedEpoch"] as? NSNumber).flatMap { CFGetTypeID($0) == CFBooleanGetTypeID() ? nil : $0.intValue }
+        if identityMutation, expected == nil { return (400, ["error": ["code": "INVALID_BODY", "message": "expectedEpoch is required"]]) }
+        let stale = (409, ["error": ["code": "IDENTITY_CHANGED", "message": "changed"]] as [String: Any])
         switch (method, path) {
         case ("GET", "/api/engagement/v1/installs/me"): return (200, me())
         case ("PATCH", "/api/engagement/v1/installs/me"):
@@ -72,6 +82,7 @@ final class FakeEngagementServer: @unchecked Sendable {
                 return (401, ["error": ["code": "INVALID_ASSERTION", "message": "bad"]])
             }
             let user = String(assertion.dropFirst(3))
+            if install.account != user, expected != install.epoch { return stale }
             if install.account != user {
                 install.account = user; install.epoch += 1
                 install.prefs = ["marketing": false, "reminders": false, "service": install.prefs["service"] == false ? false : true]
@@ -79,13 +90,15 @@ final class FakeEngagementServer: @unchecked Sendable {
             installs[id] = install
             return (200, ["accountEpoch": install.epoch, "changed": true])
         case ("POST", "/api/engagement/v1/installs/me/logout"):
+            if expected != install.epoch { return stale }
             install.account = nil; install.epoch += 1
             install.prefs = ["marketing": false, "reminders": false, "service": install.prefs["service"] == false ? false : true]
             installs[id] = install
             return (200, ["accountEpoch": install.epoch])
         case ("GET", "/api/engagement/v1/installs/me/preferences"): return (200, prefs())
         case ("PUT", "/api/engagement/v1/installs/me/preferences"):
-            for (k, v) in body { if let b = v as? Bool { install.prefs[k] = b } }
+            if expected != install.epoch { return stale }
+            for (k, v) in body where k != "expectedEpoch" { if let b = v as? Bool { install.prefs[k] = b } }
             installs[id] = install
             return (200, prefs())
         case ("POST", "/api/engagement/v1/installs/me/receipts"):

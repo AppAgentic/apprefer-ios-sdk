@@ -245,6 +245,130 @@ final class EngagementClientTests: XCTestCase {
         XCTAssertGreaterThan(c.snapshot.get()!.serial, before)
     }
 
+    // MARK: Review fixes: cold restarts and explicit epochs
+
+    func testAColdRestartAfterABackendChangeNeverReusesTheOldStamp() async throws {
+        let c = client()
+        let idStatus = await c.start(apiKey: key, explicit: true, options: .init())
+        let id = try XCTUnwrap(installId(idStatus))
+        try await c.identify(assertion: "ok:user-a")
+        let underA = try XCTUnwrap(c.snapshot.get())
+        // The app is terminated with an event queued under A; the backend binds B meanwhile.
+        server.backendBind(id, to: "user-b")
+        let restarted = client()
+        _ = await restarted.start(apiKey: key, explicit: true, options: .init())
+        let underB = try XCTUnwrap(restarted.snapshot.get())
+        XCTAssertEqual(underB.accountEpoch, 2)
+        XCTAssertGreaterThan(underB.serial, underA.serial, "the persisted epoch shows the change made while the app wasn't running")
+        XCTAssertNotEqual(underB.stamp, underA.stamp)
+        // And to anonymous (a backend detach), again across a restart.
+        server.backendBind(id, to: nil)
+        let again = client()
+        _ = await again.start(apiKey: key, explicit: true, options: .init())
+        XCTAssertGreaterThan(again.snapshot.get()!.serial, underB.serial)
+        XCTAssertNotEqual(again.snapshot.get()!.stamp, underB.stamp)
+        // A restart with nothing changed keeps the stamp (no needless churn).
+        let same = client()
+        _ = await same.start(apiKey: key, explicit: true, options: .init())
+        XCTAssertEqual(same.snapshot.get()!.stamp, again.snapshot.get()!.stamp)
+        // A deleted (erased) credential: a new install, a new stamp.
+        server.forget(id)
+        let replaced = client()
+        _ = await replaced.start(apiKey: key, explicit: true, options: .init())
+        XCTAssertNotEqual(replaced.snapshot.get()!.installId, id)
+        XCTAssertNotEqual(replaced.snapshot.get()!.stamp, same.snapshot.get()!.stamp)
+    }
+
+    func testPreferencesStateTheirEpochAndAreRefusedForTheNextAccount() async throws {
+        let c = client()
+        let idStatus = await c.start(apiKey: key, explicit: true, options: .init())
+        let id = try XCTUnwrap(installId(idStatus))
+        try await c.identify(assertion: "ok:user-a")
+        _ = try await c.preferences()
+        server.backendBind(id, to: "user-b")
+        do { _ = try await c.setPreferences(["marketing": true]); XCTFail() } catch { XCTAssertEqual(error as? AppReferEngagementError, .identityChanged) }
+        let put = try XCTUnwrap(server.requests("PUT", "/api/engagement/v1/installs/me/preferences").last)
+        XCTAssertEqual(put.body["expectedEpoch"] as? Int, 1)
+        XCTAssertEqual(server.install(id)?.prefs["marketing"], false, "A's cached choice never reaches B")
+        // The refusal re-read the identity: a choice made now is B's.
+        _ = try await c.setPreferences(["marketing": true])
+        XCTAssertEqual(server.requests("PUT", "/api/engagement/v1/installs/me/preferences").last?.body["expectedEpoch"] as? Int, 2)
+        XCTAssertEqual(server.install(id)?.prefs["marketing"], true)
+    }
+
+    func testReadingPreferencesLearnsTheirEpoch() async throws {
+        let c = client()
+        let idStatus = await c.start(apiKey: key, explicit: true, options: .init())
+        let id = try XCTUnwrap(installId(idStatus))
+        let before = c.snapshot.get()!.serial
+        server.backendBind(id, to: "user-b")
+        _ = try await c.preferences()
+        XCTAssertEqual(c.snapshot.get()?.accountEpoch, 1)
+        XCTAssertGreaterThan(c.snapshot.get()!.serial, before)
+    }
+
+    func testAStaleLogoutNeverDetachesTheNextAccount() async throws {
+        let c = client()
+        let idStatus = await c.start(apiKey: key, explicit: true, options: .init())
+        let id = try XCTUnwrap(installId(idStatus))
+        try await c.identify(assertion: "ok:user-a")
+        server.offline = true
+        await c.logout() // saved for epoch 1
+        server.offline = false
+        server.backendBind(id, to: "user-b") // epoch 2, signed in elsewhere in the app's flow
+        _ = await client().start(apiKey: key, explicit: true, options: .init())
+        let logout = try XCTUnwrap(server.requests("POST", "/api/engagement/v1/installs/me/logout").last)
+        XCTAssertEqual(logout.body["expectedEpoch"] as? Int, 1)
+        XCTAssertEqual(server.install(id)?.account, "user-b", "refused (409): B stays bound")
+        XCTAssertEqual(server.install(id)?.epoch, 2)
+        let state = await client().stateForTesting()
+        XCTAssertFalse(state.pendingLogout, "the saved logout is settled, not retried forever")
+    }
+
+    func testASignInStartedUnderAnOldIdentityDoesNotReplaceTheNewOne() async throws {
+        let c = client()
+        let idStatus = await c.start(apiKey: key, explicit: true, options: .init())
+        let id = try XCTUnwrap(installId(idStatus))
+        server.backendBind(id, to: "user-b")
+        do { try await c.identify(assertion: "ok:user-a"); XCTFail() } catch { XCTAssertEqual(error as? AppReferEngagementError, .identityChanged) }
+        XCTAssertEqual(server.requests("POST", "/api/engagement/v1/installs/me/account").last?.body["expectedEpoch"] as? Int, 0)
+        XCTAssertEqual(server.install(id)?.account, "user-b")
+        XCTAssertEqual(c.snapshot.get()?.accountEpoch, 1, "re-read after the refusal")
+    }
+
+    func testEveryIdentityChangeIsObserved() async throws {
+        final class Count: @unchecked Sendable { let lock = NSLock(); var n = 0; func add() { lock.lock(); n += 1; lock.unlock() }; var value: Int { lock.lock(); defer { lock.unlock() }; return n } }
+        let count = Count()
+        let c = client()
+        c.identityObserver.set { count.add() }
+        let idStatus = await c.start(apiKey: key, explicit: true, options: .init())
+        let id = try XCTUnwrap(installId(idStatus))
+        var last = count.value
+        XCTAssertGreaterThan(last, 0, "registration")
+        for step in ["identify", "logout", "backend", "delete"] {
+            switch step {
+            case "identify": try await c.identify(assertion: "ok:user-a")
+            case "logout": await c.logout()
+            case "backend": server.backendBind(id, to: "user-c"); await c.setPushToken("ef".repeated(32))
+            default: await c.deleteInstall()
+            }
+            XCTAssertGreaterThan(count.value, last, step)
+            last = count.value
+        }
+        // A cold start that learns a newer epoch is observed too.
+        let fresh = client()
+        let freshCount = Count()
+        fresh.identityObserver.set { freshCount.add() }
+        let newIdStatus = await fresh.start(apiKey: key, explicit: true, options: .init())
+        let newId = try XCTUnwrap(installId(newIdStatus))
+        let restarted = client()
+        let restartCount = Count()
+        restarted.identityObserver.set { restartCount.add() }
+        server.backendBind(newId, to: "user-d")
+        _ = await restarted.start(apiKey: key, explicit: true, options: .init())
+        XCTAssertGreaterThan(restartCount.value, 0)
+    }
+
     // MARK: Preferences
 
     func testPreferencesBelongToTheIdentity() async throws {

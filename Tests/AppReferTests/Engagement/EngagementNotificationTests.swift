@@ -4,10 +4,29 @@ import XCTest
 private actor FakeSystem: EngagementNotificationSystem {
     var snoozes: [(identifier: String, category: String?, after: TimeInterval, userInfo: [String: Any])] = []
     var categories: [EngagementCategory] = []
+    /// What the notification center holds (pending or delivered), by identifier.
+    var scheduled: Set<String> = ["host.reminder", "apprefer.support.local"]
+    /// When set, the next add waits here (an in-flight `UNUserNotificationCenter.add`).
+    private var gate: CheckedContinuation<Void, Never>?
+    var holdNextAdd = false
+    private(set) var addStarted = false
     func scheduleSnooze(identifier: String, title: String, subtitle: String?, body: String, userInfo: [String: Any],
                         category: String?, thread: String?, after seconds: TimeInterval) async -> Bool {
-        snoozes.append((identifier, category, seconds, userInfo)); return true
+        snoozes.append((identifier, category, seconds, userInfo))
+        if holdNextAdd {
+            holdNextAdd = false
+            addStarted = true
+            await withCheckedContinuation { gate = $0 }
+        }
+        scheduled.insert(identifier)
+        return true
     }
+    func releaseAdd() { gate?.resume(); gate = nil }
+    func hold() { holdNextAdd = true }
+    func removeSnoozes(identifiers: [String]?) async {
+        scheduled = scheduled.filter { !($0.hasPrefix(snoozePrefix) && (identifiers?.contains($0) ?? true)) }
+    }
+    func held() -> Set<String> { scheduled }
     func registerCategories(_ categories: [EngagementCategory]) async { self.categories = categories }
     func snoozeCount() -> Int { snoozes.count }
     func lastSnooze() -> (identifier: String, category: String?, after: TimeInterval, userInfo: [String: Any])? { snoozes.last }
@@ -152,6 +171,67 @@ final class EngagementNotificationTests: XCTestCase {
         XCTAssertEqual(kinds, ["snooze", "action"])
     }
 
+    func testAnIdentityChangeRemovesOnlyAppReferSnoozes() async {
+        _ = await respond("apprefer.action.1", info(["exp": (Date().timeIntervalSince1970 + 3 * 3600) * 1000]))
+        var held = await system.held()
+        XCTAssertEqual(held.filter { $0.hasPrefix(snoozePrefix) }.count, 1)
+        // Sign-out, sign-in, reset, deletion or an epoch learned from the server: A's re-show must not appear for B.
+        await layer.identityInvalidated()
+        held = await system.held()
+        XCTAssertEqual(held, ["host.reminder", "apprefer.support.local"], "the app's and Support's own requests stay")
+    }
+
+    func testASnoozeWhoseAddLandsAfterAnIdentityChangeIsRemoved() async throws {
+        await system.hold()
+        let exp = (Date().timeIntervalSince1970 + 3 * 3600) * 1000
+        let tap = Task { await self.respond("apprefer.action.1", self.info(["exp": exp])) }
+        while !(await system.addStarted) { await Task.yield() }
+        // The removal runs while the system add is still in flight: it finds nothing yet.
+        await layer.identityInvalidated()
+        var held = await system.held()
+        XCTAssertFalse(held.contains { $0.hasPrefix(snoozePrefix) })
+        await system.releaseAdd()
+        _ = await tap.value
+        held = await system.held()
+        XCTAssertFalse(held.contains { $0.hasPrefix(snoozePrefix) }, "the late add is removed by its own fence")
+    }
+
+    func testASnoozeForAnIdentityThatAlreadyChangedIsNeverScheduled() async {
+        let exp = (Date().timeIntervalSince1970 + 3 * 3600) * 1000
+        await system.hold()
+        let tap = Task { await self.respond("apprefer.action.1", self.info(["exp": exp])) }
+        while !(await system.addStarted) { await Task.yield() }
+        // The snapshot moved (e.g. a backend bind learned by the client) before the observer hop ran.
+        box.set(EngagementSnapshot(slot: "s", installId: iid, accountEpoch: 3, serial: 2, header: "h", trackedEvents: nil))
+        await system.releaseAdd()
+        _ = await tap.value
+        let held = await system.held()
+        XCTAssertFalse(held.contains { $0.hasPrefix(snoozePrefix) })
+    }
+
+    func testDeferredEventsRecheckTheRealClock() async {
+        var clock = Date()
+        let timed = EngagementNotifications(snapshot: box, receipts: { _, _, _, _ in }, system: system,
+                                            defaults: UserDefaults(suiteName: "n-\(UUID().uuidString)")!, now: { clock })
+        var seen: [AppReferEngagementNotificationEvent] = []
+        timed.handler = { seen.append($0) }
+        let exp = (clock.timeIntervalSince1970 + 600) * 1000
+        // Tapped while valid, but the app isn't ready to navigate yet.
+        _ = await timed.handleResponse(userInfo: info(["exp": exp]), actionIdentifier: EngagementNotifications.defaultAction, categoryIdentifier: "")
+        XCTAssertEqual(timed.pendingCount, 1)
+        clock = clock.addingTimeInterval(601)
+        timed.setNavigationReady(true)
+        XCTAssertTrue(seen.isEmpty, "expired while waiting: never navigates")
+        XCTAssertEqual(timed.pendingCount, 0)
+        // A callback held for a missing handler is checked the same way.
+        let late = EngagementNotifications(snapshot: box, receipts: { _, _, _, _ in }, system: system,
+                                           defaults: UserDefaults(suiteName: "n-\(UUID().uuidString)")!, now: { clock })
+        _ = late.presentation(info(["exp": (clock.timeIntervalSince1970 + 60) * 1000, "mid": "sparkly_live_j_late_nudge"]))
+        clock = clock.addingTimeInterval(61)
+        late.handler = { seen.append($0) }
+        XCTAssertTrue(seen.isEmpty)
+    }
+
     func testSnoozeNeverOutlivesTheMessage() async {
         _ = await respond("apprefer.action.1", info(["exp": (Date().timeIntervalSince1970 + 90) * 1000]))
         let count = await system.snoozeCount()
@@ -200,12 +280,15 @@ final class EngagementEventHeaderTests: XCTestCase {
         let stamp = AppRefer.engagementStamp(eventName: "setup_started", apiKey: key)
         XCTAssertNotNil(stamp)
         XCTAssertFalse(stamp!.contains("secret"))
-        XCTAssertEqual(AppRefer.engagementHeader(stamp: stamp), "ei_aaaa.eis_secret")
+        XCTAssertEqual(AppRefer.engagementHeaders(stamp: stamp), ["X-AppRefer-Install": "ei_aaaa.eis_secret", "X-AppRefer-Install-Epoch": "0"])
         XCTAssertNil(AppRefer.engagementStamp(eventName: "_set_user_id", apiKey: key), "internal events never")
         XCTAssertNil(AppRefer.engagementStamp(eventName: "setup_started", apiKey: "pk_live_other0000000000000000001"), "another app's key never")
         // Identity moved on (reset, logout, sign-in): the queued event goes without it.
         EngagementClient.shared.snapshot.set(snapshot(serial: 2))
-        XCTAssertNil(AppRefer.engagementHeader(stamp: stamp))
+        XCTAssertNil(AppRefer.engagementHeaders(stamp: stamp))
+        // Same serial, another epoch (a cold start learned a backend change): never current.
+        EngagementClient.shared.snapshot.set(snapshot(serial: 1, epoch: 1))
+        XCTAssertNil(AppRefer.engagementHeaders(stamp: stamp))
         // Mid account change: nothing is stamped.
         EngagementClient.shared.snapshot.set(snapshot(serial: 3, epoch: nil))
         XCTAssertNil(AppRefer.engagementStamp(eventName: "setup_started", apiKey: key))
@@ -214,7 +297,7 @@ final class EngagementEventHeaderTests: XCTestCase {
         XCTAssertNotNil(AppRefer.engagementStamp(eventName: "setup_started", apiKey: key))
         XCTAssertNil(AppRefer.engagementStamp(eventName: "paywall_viewed", apiKey: key))
         EngagementClient.shared.snapshot.set(nil)
-        XCTAssertNil(AppRefer.engagementHeader(stamp: stamp))
+        XCTAssertNil(AppRefer.engagementHeaders(stamp: stamp))
     }
 
     func testTrackedEventSendsTheHeaderAndAStaleQueuedOneDoesNot() async throws {
@@ -225,6 +308,7 @@ final class EngagementEventHeaderTests: XCTestCase {
         _ = await sdk._trackEvent("setup_started", properties: nil, revenue: nil, currency: nil)
         var sent = await poster.sent
         XCTAssertEqual(sent.last?.headers["X-AppRefer-Install"], "ei_aaaa.eis_secret")
+        XCTAssertEqual(sent.last?.headers["X-AppRefer-Install-Epoch"], "0")
         XCTAssertNil(sent.last?.body["X-AppRefer-Install"])
         // Queue one while offline, then the identity changes before it is sent.
         await poster.setStatus(nil)

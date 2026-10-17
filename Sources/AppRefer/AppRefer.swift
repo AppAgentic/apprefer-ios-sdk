@@ -893,8 +893,8 @@ public actor AppRefer {
             guard let body = try? JSONSerialization.jsonObject(with: event.body) as? [String: Any] else { continue }
             let transport = client(for: trackingStatus.current())
             let response: ProductEventResponse
-            if let header = AppRefer.engagementHeader(stamp: event.engagementStamp) {
-                response = await transport.eventResponse(body, headers: ["X-AppRefer-Install": header])
+            if let headers = AppRefer.engagementHeaders(stamp: event.engagementStamp) {
+                response = await transport.eventResponse(body, headers: headers)
             } else {
                 response = await transport.eventResponse(body)
             }
