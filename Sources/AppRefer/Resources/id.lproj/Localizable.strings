@@ -200,3 +200,17 @@
 "support.status.sentNoticeInApp" = "Terkirim {time} · balasan tim akan muncul di sini";
 /* Like 'support.status.sentNoticeInApp' when the time is unknown. */
 "support.status.sentNoticeInAppNoTime" = "Terkirim · balasan tim akan muncul di sini";
+/* Notification button that opens the app on the notification's screen. One word, very short. */
+"engagement.action.open" = "Buka";
+/* Notification button to look at something in the app. One word, very short. */
+"engagement.action.view" = "Lihat";
+/* Notification button to begin an activity in the app (a lesson, a workout, a setup step). One word, very short. */
+"engagement.action.start" = "Mulai";
+/* Notification button that hides the notification and shows it again later. Short. */
+"engagement.action.snooze" = "Ingatkan nanti";
+/* Android notification category name (Settings › Notifications) for the app's offers and news. */
+"engagement.channel.marketing" = "Penawaran dan berita";
+/* Android notification category name for reminders the user chose to receive. */
+"engagement.channel.reminders" = "Pengingat";
+/* Android notification category name for account and subscription notices (billing problems, renewals). */
+"engagement.channel.service" = "Akun dan tagihan";

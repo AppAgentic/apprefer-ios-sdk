@@ -202,3 +202,17 @@
 "support.status.sentNoticeInApp" = "Verstuurd om {time} · het antwoord van het team verschijnt hier";
 /* Like 'support.status.sentNoticeInApp' when the time is unknown. */
 "support.status.sentNoticeInAppNoTime" = "Verstuurd · het antwoord van het team verschijnt hier";
+/* Notification button that opens the app on the notification's screen. One word, very short. */
+"engagement.action.open" = "Openen";
+/* Notification button to look at something in the app. One word, very short. */
+"engagement.action.view" = "Bekijken";
+/* Notification button to begin an activity in the app (a lesson, a workout, a setup step). One word, very short. */
+"engagement.action.start" = "Starten";
+/* Notification button that hides the notification and shows it again later. Short. */
+"engagement.action.snooze" = "Later herinneren";
+/* Android notification category name (Settings › Notifications) for the app's offers and news. */
+"engagement.channel.marketing" = "Aanbiedingen en nieuws";
+/* Android notification category name for reminders the user chose to receive. */
+"engagement.channel.reminders" = "Herinneringen";
+/* Android notification category name for account and subscription notices (billing problems, renewals). */
+"engagement.channel.service" = "Account en facturering";

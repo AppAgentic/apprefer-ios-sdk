@@ -10,6 +10,8 @@ protocol AppReferPosting: Sendable {
     func cancel() async
     func cancelEvents() async
     func eventResponse(_ body: [String: Any]) async -> ProductEventResponse
+    /// One event attempt with extra headers (the engagement install credential).
+    func eventResponse(_ body: [String: Any], headers: [String: String]) async -> ProductEventResponse
 }
 
 extension AppReferPosting {
@@ -20,6 +22,9 @@ extension AppReferPosting {
     func cancelEvents() async {}
     func eventResponse(_ body: [String: Any]) async -> ProductEventResponse {
         ProductEventResponse(status: await event(body), retryAfter: nil)
+    }
+    func eventResponse(_ body: [String: Any], headers: [String: String]) async -> ProductEventResponse {
+        await eventResponse(body)
     }
 }
 extension AppReferHTTPClient: AppReferPosting {}
@@ -187,6 +192,8 @@ public actor AppRefer {
 
         let (sdk, created, epoch) = sharedForConfiguration(config)
         if !created { await sdk.replaceConfiguration(config, expectedAccountEpoch: epoch) }
+        // Lifecycle engagement started without its own key follows this one.
+        await EngagementClient.shared.configurationChanged(apiKey: apiKey)
         await SupportAPI.shared.resumeRevocations(apiKey: apiKey)
         observeActivation()
 
@@ -259,6 +266,7 @@ public actor AppRefer {
                 await getShared()?.didBecomeActive()
                 await getShared()?.refreshConversionValue(force: false)
                 await getShared()?.flushPendingEvents()
+                await EngagementClient.shared.becameActive()
             }
         }
         #endif
@@ -362,6 +370,8 @@ public actor AppRefer {
             await clearPendingEvents()
         }
         await SupportAPI.shared.reset()
+        // Lifecycle engagement: the account's queued messages stop, nothing waits to navigate.
+        await AppReferEngagement.shared.logout()
         #if os(iOS)
         await AppReferSupport.shared.dismissForReset()
         #endif
@@ -383,6 +393,8 @@ public actor AppRefer {
             storage.setCollectionEnabled(enabled)
             if !enabled { storage.pendingEvents = nil }
         }
+        // Lifecycle engagement keeps sending its own state; the server stops SDK-event journeys.
+        Task { await EngagementClient.shared.refreshDeviceState() }
     }
 
     func _setCollectionEnabled(_ enabled: Bool) async {
@@ -818,7 +830,10 @@ public actor AppRefer {
         if let currency { body["currency"] = currency }
         guard let data = try? JSONSerialization.data(withJSONObject: body) else { return .dropped }
         guard var events = loadEvents() else { return .dropped }
-        events.append(PendingProductEvent(id: id, body: data, created: Date(), attempts: 0, nextAttempt: .distantPast))
+        // Only a stamp, never the credential, is saved with the event; the header is added at
+        // send time and only while the same install and identity are current.
+        let stamp = AppRefer.engagementStamp(eventName: eventName, apiKey: config.apiKey)
+        events.append(PendingProductEvent(id: id, body: data, created: Date(), attempts: 0, nextAttempt: .distantPast, engagementStamp: stamp))
         guard saveEvents(events) else { return .dropped }
         let epoch = eventGeneration
         let statuses = await flushPendingEvents(only: id)
@@ -876,7 +891,13 @@ public actor AppRefer {
         for event in pending where event.nextAttempt <= Date() && (eventId == nil || event.id == eventId) {
             guard epoch == eventGeneration, !Task.isCancelled, canCollect else { break }
             guard let body = try? JSONSerialization.jsonObject(with: event.body) as? [String: Any] else { continue }
-            let response = await client(for: trackingStatus.current()).eventResponse(body)
+            let transport = client(for: trackingStatus.current())
+            let response: ProductEventResponse
+            if let headers = AppRefer.engagementHeaders(stamp: event.engagementStamp) {
+                response = await transport.eventResponse(body, headers: headers)
+            } else {
+                response = await transport.eventResponse(body)
+            }
             let status = response.status
             guard epoch == eventGeneration, !Task.isCancelled else { break }
             guard var events = loadEvents() else { break }

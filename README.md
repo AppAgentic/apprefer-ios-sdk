@@ -1,5 +1,59 @@
 # AppRefer iOS SDK
 
+## 0.11.0 (unreleased): lifecycle notifications (engagement)
+
+**Not generally available.** AppRefer turns lifecycle engagement on per app; until then every engagement call answers "disabled" quietly and nothing is stored. The server side is dry-run only in this release: no notification is sent to anyone yet. This version is the client contract (wire schema 1) the live sender will use.
+
+Rules the SDK follows: nothing is registered until your app calls `start`; nothing asks for notification permission or tracking consent; the install secret lives only in secure storage (iOS Keychain / Android Keystore); an account is bound only with an assertion your backend gets from AppRefer (`POST /api/v1/apps/{appId}/engagement/assertions`, `engagement:identity` key), never a plain user id; Support sessions, tokens and `support_reply` pushes never enroll anyone, and Support's handlers ignore engagement pushes; a notification for another install or account, an expired one, or one that fails validation never navigates; each outcome (received, opened, button, snoozed, dismissed) is delivered once, and navigation waits for `setNavigationReady(true)`; a snooze is never a completion; receipts carry the message's own proof and are dropped after any account change; an account change also removes AppRefer's own snoozes and posted notifications for the previous account (on iOS a remote notification already on screen can't be withdrawn, but it never navigates or reports for the next account); queued events and identity changes carry the account epoch they were made under, so the server refuses one made for an account the install has left; destinations are in-app paths your app maps to screens, never URLs the SDK opens.
+
+```swift
+await AppRefer.configure(apiKey: "pk_live_…")
+await AppRefer.engagement.start(options: .init(
+    trackedEvents: ["setup_started", "setup_completed"],     // events journeys react to (nil = all)
+    appGroup: "group.com.example.app",                      // shared with the extension (optional)
+    notificationServiceExtension: true))                     // you ship the extension below
+// didRegisterForRemoteNotificationsWithDeviceToken:
+await AppRefer.engagement.setDeviceToken(deviceToken)
+// After your own permission prompt:
+await AppRefer.engagement.refreshDeviceState()
+// After sign-in (assertion from your backend, for `status()`'s install id):
+try await AppRefer.engagement.identify(assertion: assertion)
+// The person's own choices (your settings screen):
+try await AppRefer.engagement.setPreferences(marketing: true)
+// Navigation (your router):
+AppRefer.engagement.onNotificationEvent = { event in if event.isNavigation { router.open(event.destination) } }
+AppRefer.engagement.setNavigationReady(true) // once signed-in state is known
+```
+
+Your `UNUserNotificationCenterDelegate` stays yours; forward to AppRefer and keep Support:
+
+```swift
+func userNotificationCenter(_ c: UNUserNotificationCenter, didReceive r: UNNotificationResponse) async {
+    if await AppRefer.engagement.handle(r) { return }
+    _ = AppRefer.support.handleNotification(r.notification.request.content.userInfo)
+}
+func userNotificationCenter(_ c: UNUserNotificationCenter, willPresent n: UNNotification) async -> UNNotificationPresentationOptions {
+    AppRefer.engagement.presentationOptions(for: n) ?? [.banner, .list, .sound]
+}
+```
+
+**Images need a Notification Service Extension you add and sign** (File › New › Target › Notification Service Extension; the SDK can't create it). Add only the `AppReferNotifications` product to that target (extension-safe; not the main `AppRefer` product), the same App Group to both targets if you use one, and:
+
+```swift
+import AppReferNotifications
+final class NotificationService: UNNotificationServiceExtension {
+    private let appRefer = AppReferNotificationService(configuration: .init(
+        allowedImageHosts: ["assets.example.com"], appGroup: "group.com.example.app"))
+    override func didReceive(_ request: UNNotificationRequest, withContentHandler handler: @escaping (UNNotificationContent) -> Void) {
+        if appRefer.didReceive(request, withContentHandler: handler) { return }
+        handler(request.content)
+    }
+    override func serviceExtensionTimeWillExpire() { appRefer.serviceExtensionTimeWillExpire() }
+}
+```
+
+Images: HTTPS, exact allowlisted host names, PNG or JPEG, ≤ 300 KB and 2048 px by default, 8 s; anything else delivers the complete text. Without an App Group the extension can't see the signed-in account, so it fetches only allowlisted generic artwork (it never fetches per-user content). `Samples/EngagementHost` is a working host + extension (`xcodegen generate`). Not supported yet: carousels, video, content extensions, per-notification button titles (labels come from the SDK by kind: Open, View, Start, Remind me later).
+
 ## 0.10.0 (unreleased): help centre in the chat; the help chat speaks 35 languages
 
 **Help centre.** When your app has published help articles in AppRefer, the help home

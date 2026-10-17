@@ -1,0 +1,20 @@
+import XCTest
+import CryptoKit
+
+/// `EngagementPayload.swift` is shared by copy with the Flutter plugin and the React Native
+/// module (their copies drop `public`). This copy must match the hash in shared-sources.json;
+/// the parent's scripts/check-sdk-shared-sources.mjs keeps every copy and manifest equal.
+final class SharedSourceTests: XCTestCase {
+    func testSharedPayloadParserMatchesTheManifest() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: root.appendingPathComponent("Sources/AppReferNotifications/EngagementPayload.swift"), encoding: .utf8)
+        let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
+            .filter { !$0.contains("(copied; keep in sync)") }
+            .map { $0.replacingOccurrences(of: #"^(\s*)public "#, with: "$1", options: .regularExpression) }
+            .joined(separator: "\n")
+        let hash = SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
+        let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("shared-sources.json"))) as? [String: String]
+        XCTAssertEqual(hash, manifest?["engagementPayloadSwift"],
+                       "EngagementPayload.swift changed without the shared copies: run node scripts/check-sdk-shared-sources.mjs in the parent repo")
+    }
+}

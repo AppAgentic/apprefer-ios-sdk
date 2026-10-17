@@ -204,3 +204,17 @@
 "support.status.sentNoticeInApp" = "Odoslané o {time} · odpoveď tímu sa zobrazí tu";
 /* Like 'support.status.sentNoticeInApp' when the time is unknown. */
 "support.status.sentNoticeInAppNoTime" = "Odoslané · odpoveď tímu sa zobrazí tu";
+/* Notification button that opens the app on the notification's screen. One word, very short. */
+"engagement.action.open" = "Otvoriť";
+/* Notification button to look at something in the app. One word, very short. */
+"engagement.action.view" = "Zobraziť";
+/* Notification button to begin an activity in the app (a lesson, a workout, a setup step). One word, very short. */
+"engagement.action.start" = "Začať";
+/* Notification button that hides the notification and shows it again later. Short. */
+"engagement.action.snooze" = "Pripomenúť neskôr";
+/* Android notification category name (Settings › Notifications) for the app's offers and news. */
+"engagement.channel.marketing" = "Ponuky a novinky";
+/* Android notification category name for reminders the user chose to receive. */
+"engagement.channel.reminders" = "Pripomienky";
+/* Android notification category name for account and subscription notices (billing problems, renewals). */
+"engagement.channel.service" = "Účet a platby";
