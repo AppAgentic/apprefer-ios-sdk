@@ -4,9 +4,9 @@ import XCTest
 private actor ImportGate {
     var reached = false
     private var continuation: CheckedContinuation<Void, Never>?
-    func wait() async {
+    func wait(_ entered: XCTestExpectation? = nil) async {
         reached = true
-        await withCheckedContinuation { continuation = $0 }
+        await withCheckedContinuation { continuation = $0; entered?.fulfill() }
     }
     func release() { continuation?.resume(); continuation = nil }
 }
@@ -103,7 +103,7 @@ final class BillingMigrationReviewTests: XCTestCase {
         let store = FakeStoreKit()
         let entered = expectation(description: "background import reached store")
         store.onEntitlements = {
-            if store.unfinishedCalls > 1 { entered.fulfill(); await gate.wait() }
+            if store.unfinishedCalls > 1 { await gate.wait(entered) }
         }
         let transport = MockBillingTransport.ok(BillingFixtures.emptyCustomerJSON(appUserId: "alice"))
         let engine = env.engine(transport: transport, storeKit: store, appUserId: "alice")

@@ -298,11 +298,8 @@ actor SupportAPI {
         return true
     }
 
-    #if DEBUG
-    static let pushSandbox = true
-    #else
-    static let pushSandbox = false
-    #endif
+    /// The APNs environment from the app's signing (or its explicit choice), never from DEBUG.
+    static var pushSandbox: Bool { PushEnvironmentSetting.shared.effective == .sandbox }
 
     func retryRevocations() {
         guard let key = supportApiKey ?? AppRefer.currentApiKey() ?? UserDefaults.standard.string(forKey: "apprefer_support_last_key") else { return }

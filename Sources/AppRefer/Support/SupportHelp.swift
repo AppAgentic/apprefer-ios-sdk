@@ -140,11 +140,14 @@ public struct AppReferSupportStatus: Hashable, Sendable, Decodable {
 
     /// Register for reply notifications only when this is true: push is configured for
     /// iOS and Apple accepted the key (`verified == true`), and the APNs environment this
-    /// build uses (sandbox in Debug, production in Release) wasn't rejected.
-    public var pushReady: Bool {
+    /// build registers tokens for (`AppRefer.support.effectivePushEnvironment`: from the app's
+    /// signing, or the app's explicit choice) wasn't rejected.
+    public var pushReady: Bool { pushReady(for: PushEnvironmentSetting.shared.effective) }
+
+    func pushReady(for environment: AppReferPushEnvironment) -> Bool {
         guard push.ios.configured, push.ios.verified == true else { return false }
-        let environment = SupportAPI.pushSandbox ? push.ios.environments?.sandbox : push.ios.environments?.production
-        return environment != false
+        let accepted = environment == .sandbox ? push.ios.environments?.sandbox : push.ios.environments?.production
+        return accepted != false
     }
 
     /// Customers can answer reply emails and their answer reaches the conversation.

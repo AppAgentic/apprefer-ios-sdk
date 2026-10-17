@@ -1,3 +1,9 @@
+## 0.10.1 (unreleased)
+
+- Support push: the APNs environment for `registerDeviceToken` and `status().pushReady` is now read from the app's signing instead of the DEBUG flag. The embedded provisioning profile's `aps-environment` decides (`development` = sandbox, `production` = production); with no profile (App Store, TestFlight) or an unreadable one, production; the Simulator uses sandbox. A development-signed Release build (internal testers) now registers sandbox tokens, and a distribution-signed Debug build production ones. Parsing uses only Foundation (`PropertyListSerialization` on the profile's embedded XML plist, files over 2 MB ignored).
+- New `AppRefer.support.pushEnvironment` (`AppReferPushEnvironment?`, nil = detect) to force an environment, and `effectivePushEnvironment` to read the one in use.
+- Version 0.10.1.
+
 ## 0.10.0 (unreleased)
 
 - Help centre in the Support chat. With published articles, the help home shows a "Help articles" card (search entry, top three, "See all"); a help centre screen lists every article by category with search (instant local filter, then the server's search 300 ms after the last keystroke); an article reader renders markdown with a small safe parser (headings, setext headings, ordered/unordered/nested/task lists, quotes, fenced code, rules, https images; inline bold, italic, code, strikethrough, links via `AttributedString(markdown:)`). HTML is stripped (script/style with their content) and links keep only http(s) and mailto, opened outside the app. "Still need help? Message us" returns to the message field with the article's title as the subject. No articles: no section. Concierge design, Liquid Glass header, 35 languages.

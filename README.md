@@ -471,6 +471,10 @@ if (try? await AppRefer.support.status())?.pushReady == true {
 func application(_ app: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken token: Data) {
     AppRefer.support.registerDeviceToken(token)
 }
+// The APNs environment comes from the app's signing (embedded profile's aps-environment):
+// development-signed builds (Debug or Release) and the Simulator use sandbox; App Store,
+// TestFlight, Ad Hoc and Enterprise builds use production. To force one:
+// AppRefer.support.pushEnvironment = .sandbox
 // In your UNUserNotificationCenterDelegate:
 if AppRefer.support.handleNotification(response.notification.request.content.userInfo) { return }
 ```

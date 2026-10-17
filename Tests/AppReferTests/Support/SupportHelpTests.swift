@@ -205,7 +205,7 @@ final class SupportHelpTests: XCTestCase {
         XCTAssertFalse(status(false, true).pushReady)
         XCTAssertTrue(status(true, true, production: true, sandbox: true).pushReady)
         XCTAssertTrue(status(true, true, production: nil, sandbox: nil).pushReady, "unknown environments don't block")
-        // The environment this build pushes to (sandbox in Debug, production in Release).
+        // The environment this build pushes to (from its signing; the Simulator is sandbox).
         let rejectedHere = SupportAPI.pushSandbox ? status(true, true, production: true, sandbox: false) : status(true, true, production: false, sandbox: true)
         let rejectedElsewhere = SupportAPI.pushSandbox ? status(true, true, production: false, sandbox: true) : status(true, true, production: true, sandbox: false)
         XCTAssertFalse(rejectedHere.pushReady)
