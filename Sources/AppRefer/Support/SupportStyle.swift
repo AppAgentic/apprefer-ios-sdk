@@ -63,6 +63,61 @@ struct SupportPalette {
     var bubble: LinearGradient { LinearGradient(colors: [light, deep], startPoint: .topLeading, endPoint: .bottomTrailing) }
 }
 
+/// How the home header is drawn for `AppReferSupportHeaderStyle` (the Android `SupportHeaderLook`).
+/// `.accent` is the accent with three soft glows and text that follows the accent. `.plain` is one
+/// flat neutral grey surface with the page's text colour: no accent, glow or coloured avatar.
+struct SupportHeaderLook {
+    let plain: Bool
+    /// The header's base fill; `.accent` draws its glows on top.
+    let background: Color
+    var glows: Bool { !plain }
+    /// Title, greeting, subtitle, presence text and the close icon.
+    let foreground: Color
+    let closeTint: Color
+    let pillFill: Color
+    let pillStroke: Color
+    /// Avatars in the presence pill; nil keeps the accent's and per-person colours.
+    let avatars: [Color]?
+    /// The ring that separates overlapping avatars.
+    let avatarRing: Color
+    /// The initials tile shown when the app has no icon.
+    let iconTile: [Color]
+    let iconText: Color
+
+    /// Neutral (R = G = B) greys in 0...1: a step up from the page in dark mode, a step down in light.
+    static func plainWhite(dark: Bool) -> CGFloat { dark ? 28.0 / 255 : 235.0 / 255 }
+    static let plainAvatar: [CGFloat] = [107.0 / 255, 58.0 / 255]
+    static let plainInk: [CGFloat] = [1, 0.07]
+
+    init(_ style: AppReferSupportHeaderStyle, palette: SupportPalette, dark: Bool) {
+        plain = style == .plain
+        if plain {
+            let bg = Color(white: Double(Self.plainWhite(dark: dark)))
+            let ink = Color(white: Double(dark ? Self.plainInk[0] : Self.plainInk[1]))
+            background = bg
+            foreground = ink
+            closeTint = ink.opacity(0.08)
+            pillFill = ink.opacity(0.06)
+            pillStroke = ink.opacity(0.16)
+            avatars = Self.plainAvatar.map { Color(white: Double($0)) }
+            avatarRing = bg
+            iconTile = [Color(white: 0.24), Color(white: 0.11)]
+            iconText = .white
+        } else {
+            background = palette.accent
+            foreground = palette.onAccent
+            closeTint = palette.onAccent.opacity(0.12)
+            // A darker wash, not white glass: the hero is light at the edges and white text must stay readable.
+            pillFill = Color.black.opacity(palette.onAccent == .white ? 0.16 : 0.06)
+            pillStroke = palette.onAccent.opacity(0.3)
+            avatars = nil
+            avatarRing = .white.opacity(0.9)
+            iconTile = [Color(red: 0.16, green: 0.12, blue: 0.36), Color(red: 0.06, green: 0.04, blue: 0.12)]
+            iconText = palette.light
+        }
+    }
+}
+
 enum SupportColors {
     static let background = Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1) : UIColor(red: 0.961, green: 0.957, blue: 0.976, alpha: 1) })
     static let card = Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.12, green: 0.115, blue: 0.14, alpha: 1) : .white })

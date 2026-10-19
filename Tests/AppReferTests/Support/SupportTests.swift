@@ -56,6 +56,75 @@ final class SupportTests: XCTestCase {
     }
 
     @MainActor
+    func testHeaderStyleDefaultsToAccent() {
+        XCTAssertEqual(AppReferSupport.shared.headerStyle, .accent)
+        XCTAssertEqual(AppReferSupportHeaderStyle.allCases, [.accent, .plain])
+    }
+
+    func testAccentHeaderKeepsTheExistingLook() {
+        for accent in [Color(red: 0.47, green: 0.32, blue: 1), .white, Color(red: 1, green: 0.84, blue: 0.04)] {
+            let p = SupportPalette(accent)
+            for dark in [true, false] {
+                let look = SupportHeaderLook(.accent, palette: p, dark: dark)
+                XCTAssertFalse(look.plain)
+                XCTAssertTrue(look.glows)
+                XCTAssertEqual(look.background, p.accent)
+                XCTAssertEqual(look.foreground, p.onAccent)
+                XCTAssertEqual(look.closeTint, p.onAccent.opacity(0.12))
+                XCTAssertEqual(look.pillFill, Color.black.opacity(p.onAccent == .white ? 0.16 : 0.06))
+                XCTAssertEqual(look.pillStroke, p.onAccent.opacity(0.3))
+                XCTAssertNil(look.avatars)
+                XCTAssertEqual(look.iconText, p.light)
+            }
+        }
+    }
+
+    private func rgb(_ c: Color) -> (CGFloat, CGFloat, CGFloat, CGFloat) {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(c).getRed(&r, green: &g, blue: &b, alpha: &a)
+        return (r, g, b, a)
+    }
+
+    private func isNeutral(_ c: Color) -> Bool {
+        let (r, g, b, _) = rgb(c)
+        return abs(r - g) < 0.002 && abs(g - b) < 0.002
+    }
+
+    private func contrast(_ x: Color, _ y: Color) -> CGFloat {
+        func lum(_ c: Color) -> CGFloat {
+            let (r, g, b, _) = rgb(c)
+            func lin(_ v: CGFloat) -> CGFloat { v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+            return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+        }
+        let (a, b) = (lum(x), lum(y))
+        return (max(a, b) + 0.05) / (min(a, b) + 0.05)
+    }
+
+    func testWhiteAccentGlowsAreTinted() {
+        // Why `.plain` exists: a white accent's glow colours are not grey (the green/lavender glow).
+        let p = SupportPalette(.white)
+        XCTAssertFalse(isNeutral(p.hot) && isNeutral(p.warm))
+    }
+
+    func testPlainHeaderIsNeutralWithReadableText() {
+        for accent in [Color(red: 0.47, green: 0.32, blue: 1), .white, Color(red: 1, green: 0.84, blue: 0.04), Color(red: 0.12, green: 0.72, blue: 0.4)] {
+            let p = SupportPalette(accent)
+            for dark in [true, false] {
+                let look = SupportHeaderLook(.plain, palette: p, dark: dark)
+                XCTAssertTrue(look.plain)
+                XCTAssertFalse(look.glows, "no glow overlays")
+                for c in [look.background, look.foreground, look.closeTint, look.pillFill, look.pillStroke, look.avatarRing, look.iconText] + (look.avatars ?? []) + look.iconTile {
+                    XCTAssertTrue(isNeutral(c))
+                }
+                XCTAssertEqual(rgb(look.background).0, SupportHeaderLook.plainWhite(dark: dark), accuracy: 0.002)
+                XCTAssertEqual(rgb(look.foreground).0, dark ? 1 : 0.07, accuracy: 0.002)
+                XCTAssertGreaterThanOrEqual(contrast(look.foreground, look.background), 4.5)
+                for avatar in look.avatars ?? [] { XCTAssertGreaterThanOrEqual(contrast(.white, avatar), 4.5) }
+            }
+        }
+    }
+
+    @MainActor
     func testContinueCardPicksUnreadThenNewestOpen() {
         func conv(_ id: String, _ status: String, _ at: String, unread: Int = 0) -> AppReferSupportConversation {
             try! JSONDecoder().decode(AppReferSupportConversation.self, from: Data("""

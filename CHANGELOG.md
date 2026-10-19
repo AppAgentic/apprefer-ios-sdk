@@ -1,3 +1,8 @@
+## 0.11.1 (unreleased)
+
+- Support: `AppRefer.support.headerStyle` (`AppReferSupportHeaderStyle.accent` default, `.plain`). `.plain` draws the help home's header as one flat neutral grey (dark `#1C1C1C`, light `#EBEBEB`) with white / near-black text: no accent fill, no radial glows, neutral presence pill, close button, initials tile and presence avatars (the AI portrait still shows). For apps whose design has no colour accents, where even a white `accentColor` gave the hero tinted glows. `.accent` is unchanged; bubbles, buttons and the rest of the chat keep `accentColor` in both.
+- Version 0.11.1. No other change: lifecycle engagement stays off / dry run, Billing and attribution are untouched.
+
 ## 0.11.0 (unreleased)
 
 - Lifecycle engagement client: `AppRefer.engagement` (`start`, `setDeviceToken`, `refreshDeviceState`, `notificationPermission`, `preferences`/`setPreferences` for marketing, reminders and service, `identify(assertion:)`, `logout`, `deleteInstall`, `onNotificationEvent`, `setNavigationReady`, `handle(_:)`, `presentationOptions(for:)`, `registerNotificationCategories`). Off unless the app starts it and AppRefer enabled it for the app (dry run on the server in this release).
