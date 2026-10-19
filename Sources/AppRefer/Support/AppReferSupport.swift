@@ -13,12 +13,24 @@ import UIKit
 /// with `AppRefer.setUserId` is sent automatically), and for reply
 /// notifications `AppRefer.support.registerDeviceToken(_:)` plus
 /// `AppRefer.support.handleNotification(_:)`.
+/// How `AppRefer.support.headerStyle` draws the home screen's header.
+public enum AppReferSupportHeaderStyle: String, Sendable, CaseIterable {
+    /// The accent with soft coloured glows (the default).
+    case accent
+    /// A flat neutral grey surface with the page's text colour: no accent, glow or colour.
+    case plain
+}
+
 @MainActor
 public final class AppReferSupport {
     public static let shared = AppReferSupport()
 
     /// Bubble and button colour. Defaults to the app's accent colour.
     public var accentColor: Color?
+    /// The home screen's header. `.accent` (the default) fills it with the accent and soft
+    /// coloured glows; `.plain` is a flat neutral grey with the page's text colour, for apps
+    /// whose design has no colour accents. Bubbles and buttons keep `accentColor` either way.
+    public var headerStyle: AppReferSupportHeaderStyle = .accent
     /// Header title. Defaults to "<App name> support" in the chat's language.
     public var title: String?
     /// How fast the team usually answers, completing "We usually reply in …". Defaults to

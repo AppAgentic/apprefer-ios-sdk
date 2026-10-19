@@ -100,6 +100,7 @@ struct SupportHomeScreen: View {
     let palette: SupportPalette
     let close: () -> Void
     let push: (SupportRoute) -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var text: String
     @State private var images: [UIImage] = []
@@ -122,6 +123,7 @@ struct SupportHomeScreen: View {
     }
 
     private var support: AppReferSupport { .shared }
+    private var look: SupportHeaderLook { SupportHeaderLook(support.headerStyle, palette: palette, dark: colorScheme == .dark) }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -193,20 +195,20 @@ struct SupportHomeScreen: View {
                 appIcon
                 Spacer()
                 Button(action: close) {
-                    Image(systemName: "xmark").font(.system(size: 16, weight: .bold)).foregroundStyle(palette.onAccent).frame(width: 40, height: 40)
+                    Image(systemName: "xmark").font(.system(size: 16, weight: .bold)).foregroundStyle(look.foreground).frame(width: 40, height: 40)
                 }
-                .supportGlass(tint: palette.onAccent.opacity(0.12))
+                .supportGlass(tint: look.closeTint)
                 .accessibilityLabel(SupportStrings.text("support.a11y.close"))
             }
             Text(support.resolvedTitle)
-                .font(.system(size: 15, weight: .semibold)).foregroundStyle(palette.onAccent.opacity(0.85))
+                .font(.system(size: 15, weight: .semibold)).foregroundStyle(look.foreground.opacity(0.85))
                 .padding(.top, 20)
             Text(greeting)
-                .font(.system(size: 38, weight: .heavy)).tracking(-1).foregroundStyle(palette.onAccent)
+                .font(.system(size: 38, weight: .heavy)).tracking(-1).foregroundStyle(look.foreground)
                 .lineLimit(1).minimumScaleFactor(0.6)
                 .padding(.top, 2)
             Text(SupportStrings.text("support.home.subtitle"))
-                .font(.system(size: 19, weight: .medium)).foregroundStyle(palette.onAccent.opacity(0.92))
+                .font(.system(size: 19, weight: .medium)).foregroundStyle(look.foreground.opacity(0.92))
                 .padding(.top, 2)
             presence.padding(.top, 18)
         }
@@ -218,7 +220,7 @@ struct SupportHomeScreen: View {
             // Stretches when pulled down, so the colour never ends in a gap.
             GeometryReader { g in
                 let pull = max(0, g.frame(in: .named("home")).minY)
-                SupportHeroBackground(palette: palette)
+                SupportHeroBackground(palette: palette, look: look)
                     .frame(height: g.size.height + pull)
                     .offset(y: -pull)
             }
@@ -240,9 +242,9 @@ struct SupportHomeScreen: View {
         } else {
             Text(String(support.appName.prefix(2)).uppercased())
                 .font(.system(size: 15, weight: .heavy, design: .rounded))
-                .foregroundStyle(palette.light)
+                .foregroundStyle(look.iconText)
                 .frame(width: 46, height: 46)
-                .background(LinearGradient(colors: [Color(red: 0.16, green: 0.12, blue: 0.36), Color(red: 0.06, green: 0.04, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                .background(LinearGradient(colors: look.iconTile, startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
                 .shadow(color: .black.opacity(0.25), radius: 8, y: 6)
                 .accessibilityHidden(true)
         }
@@ -262,30 +264,30 @@ struct SupportHomeScreen: View {
                 ? SupportStrings.text("support.presence.one", ["name": first, "time": time])
                 : SupportStrings.text("support.presence.many", ["name": first, "time": time])
         }()
+        let look = look
         return HStack(spacing: 10) {
             HStack(spacing: -8) {
                 if let persona {
-                    SupportAvatar(name: persona.name, size: 28, colors: [palette.warm, palette.hot], image: persona.avatar)
-                        .overlay(Circle().stroke(.white.opacity(0.9), lineWidth: 2))
+                    SupportAvatar(name: persona.name, size: 28, colors: look.avatars ?? [palette.warm, palette.hot], image: persona.avatar)
+                        .overlay(Circle().stroke(look.avatarRing, lineWidth: 2))
                         .zIndex(10)
                 }
                 if names.isEmpty && persona == nil {
-                    SupportAvatar(name: nil, size: 28, colors: [palette.warm, palette.hot], symbol: "bubble.left.fill")
-                        .overlay(Circle().stroke(.white.opacity(0.9), lineWidth: 2))
+                    SupportAvatar(name: nil, size: 28, colors: look.avatars ?? [palette.warm, palette.hot], symbol: "bubble.left.fill")
+                        .overlay(Circle().stroke(look.avatarRing, lineWidth: 2))
                 } else {
                     ForEach(Array(names.enumerated()), id: \.offset) { i, name in
-                        SupportAvatar(name: name, size: 28, colors: avatarColors(i))
-                            .overlay(Circle().stroke(.white.opacity(0.9), lineWidth: 2))
+                        SupportAvatar(name: name, size: 28, colors: look.avatars ?? avatarColors(i))
+                            .overlay(Circle().stroke(look.avatarRing, lineWidth: 2))
                             .zIndex(Double(names.count - i))
                     }
                 }
             }
-            Text(line).font(.system(size: 14, weight: .medium)).foregroundStyle(palette.onAccent).lineLimit(2).minimumScaleFactor(0.85)
+            Text(line).font(.system(size: 14, weight: .medium)).foregroundStyle(look.foreground).lineLimit(2).minimumScaleFactor(0.85)
         }
         .padding(.leading, 8).padding(.trailing, 14).padding(.vertical, 7)
-        // A darker wash, not white glass: the hero is light at the edges and white text must stay readable.
-        .background(Color.black.opacity(palette.onAccent == .white ? 0.16 : 0.06), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(palette.onAccent.opacity(0.3), lineWidth: 1))
+        .background(look.pillFill, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(look.pillStroke, lineWidth: 1))
         .accessibilityElement(children: .combine)
     }
 
@@ -453,14 +455,20 @@ struct SupportHomeScreen: View {
 
 struct SupportHeroBackground: View {
     let palette: SupportPalette
+    let look: SupportHeaderLook
     var body: some View {
         ZStack {
-            palette.accent
-            RadialGradient(colors: [palette.light, palette.light.opacity(0)], center: UnitPoint(x: 0.1, y: 0), startRadius: 0, endRadius: 380)
-            RadialGradient(colors: [palette.hot, palette.hot.opacity(0)], center: UnitPoint(x: 1, y: 0.2), startRadius: 0, endRadius: 320)
-            RadialGradient(colors: [palette.warm.opacity(0.95), palette.warm.opacity(0)], center: UnitPoint(x: 0.6, y: 1.05), startRadius: 0, endRadius: 340)
+            look.background
+            if look.glows { glows }
         }
         .accessibilityHidden(true)
+    }
+
+    /// The accent style's three soft glows (light, hot and warm neighbours of the accent).
+    @ViewBuilder private var glows: some View {
+        RadialGradient(colors: [palette.light, palette.light.opacity(0)], center: UnitPoint(x: 0.1, y: 0), startRadius: 0, endRadius: 380)
+        RadialGradient(colors: [palette.hot, palette.hot.opacity(0)], center: UnitPoint(x: 1, y: 0.2), startRadius: 0, endRadius: 320)
+        RadialGradient(colors: [palette.warm.opacity(0.95), palette.warm.opacity(0)], center: UnitPoint(x: 0.6, y: 1.05), startRadius: 0, endRadius: 340)
     }
 }
 

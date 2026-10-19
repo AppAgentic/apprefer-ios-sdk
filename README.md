@@ -500,7 +500,7 @@ Proprietary. All rights reserved.
 
 ## Support chat (AppRefer Support)
 
-An in-app help chat your team answers from the AppRefer inbox. iOS 15+, SwiftUI, Liquid Glass on iOS 26+. The home screen has a hero in your accent colour with the team's names and reply time, the conversation to pick up again, quick-help tiles and a floating message bar; conversations show tailed bubbles, screenshots and one-tap quick replies. Light and dark mode.
+An in-app help chat your team answers from the AppRefer inbox. iOS 15+, SwiftUI, Liquid Glass on iOS 26+. The home screen has a hero in your accent colour (or, with `headerStyle = .plain`, a flat neutral grey) with the team's names and reply time, the conversation to pick up again, quick-help tiles and a floating message bar; conversations show tailed bubbles, screenshots and one-tap quick replies. Light and dark mode.
 
 ```swift
 // Anywhere (a Help button, Settings row…):
@@ -509,6 +509,7 @@ AppRefer.support.open()
 // Optional
 AppRefer.support.identify(name: "María", email: "maria@example.com") // the app user id from setUserId is sent automatically
 AppRefer.support.accentColor = .purple                  // text on a bright accent turns dark automatically
+AppRefer.support.headerStyle = .plain                   // 0.11.1: flat neutral grey header, no accent or glow (default .accent)
 AppRefer.support.teamNames = ["Jay", "Ana"]             // "Jay and the team · usually under an hour"
 AppRefer.support.replyTime = "under an hour"
 AppRefer.support.topics = [.billing, .bug, .idea,       // quick-help tiles; [] hides them
