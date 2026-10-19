@@ -306,11 +306,7 @@ struct SupportHomeScreen: View {
             VStack(alignment: .leading, spacing: 12) {
                 SupportSectionLabel(text: SupportStrings.text("support.home.continue"))
                 HStack(spacing: 12) {
-                    if c.lastFrom == "bot", let persona = personas.persona {
-                        SupportAvatar(name: persona.name, size: 46, colors: [palette.warm, palette.hot], image: persona.avatar)
-                    } else {
-                        SupportAvatar(name: support.teamNames.first, size: 46, colors: [palette.warm, palette.hot], symbol: support.teamNames.isEmpty ? "bubble.left.and.bubble.right.fill" : nil)
-                    }
+                    SupportContinueAvatar(c, persona: personas.persona, teamNames: support.teamNames, look: look, palette: palette)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(c.subject).font(.system(size: 16, weight: .semibold)).foregroundStyle(.primary).lineLimit(1)
                         Text(c.lastFrom == "customer" ? SupportStrings.text("support.home.youPrefix", ["text": c.preview]) : c.preview)

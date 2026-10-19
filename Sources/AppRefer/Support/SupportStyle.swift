@@ -76,7 +76,7 @@ struct SupportHeaderLook {
     let closeTint: Color
     let pillFill: Color
     let pillStroke: Color
-    /// Avatars in the presence pill; nil keeps the accent's and per-person colours.
+    /// Avatars in the presence pill and on the Continue card; nil keeps the accent's and per-person colours.
     let avatars: [Color]?
     /// The ring that separates overlapping avatars.
     let avatarRing: Color
@@ -178,6 +178,27 @@ struct SupportAvatar: View {
         .frame(width: size, height: size)
         .accessibilityHidden(true)
     }
+}
+
+/// The avatar on the home's Continue card: the AI's portrait when it answered last, else the first
+/// team member's initial (or a chat symbol). `.plain` draws it in the header's neutral greys; a
+/// portrait still covers them.
+struct SupportContinueAvatar: View {
+    let name: String?
+    let colors: [Color]
+    let symbol: String?
+    let image: URL?
+
+    init(_ c: AppReferSupportConversation, persona: AppReferSupportPersona?, teamNames: [String], look: SupportHeaderLook, palette: SupportPalette) {
+        colors = look.avatars ?? [palette.warm, palette.hot]
+        if c.lastFrom == "bot", let persona {
+            (name, symbol, image) = (persona.name, nil, persona.avatar)
+        } else {
+            (name, symbol, image) = (teamNames.first, teamNames.isEmpty ? "bubble.left.and.bubble.right.fill" : nil, nil)
+        }
+    }
+
+    var body: some View { SupportAvatar(name: name, size: 46, colors: colors, symbol: symbol, image: image) }
 }
 
 /// The small "AI" tag on everything the AI assistant says.
