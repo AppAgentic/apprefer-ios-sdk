@@ -250,7 +250,7 @@ final class SupportTestimonialTests: XCTestCase {
 
     func testEveryLanguageHasTheTestimonialStrings() {
         let keys = SupportStrings.table("en").keys.filter { $0.hasPrefix("support.testimonial.") }
-        XCTAssertEqual(keys.count, 30)
+        XCTAssertEqual(keys.count, 32)
         for language in SupportStrings.supportedLanguages {
             let table = SupportStrings.table(language)
             for key in keys { XCTAssertNotNil(table[key], "\(language) lacks \(key)") }
