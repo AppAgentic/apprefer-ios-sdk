@@ -42,6 +42,31 @@ public struct AppReferSupportMessage: Identifiable, Hashable, Sendable, Decodabl
     public var date: Date? { SupportDates.parse(createdAt) }
 }
 
+/// The answer of `AppRefer.support.verifyIdentity(_:)`. `verified` true: Support may use this
+/// account's private details (plan, orders, credits) for this session. Otherwise `reason` says
+/// why: the server's `malformed`, `bad_signature`, `other_app`, `other_environment`, `expired`,
+/// `bad_times`, `already_used`, `user_mismatch`, `session_replaced`, `session_gone` (ask your
+/// backend for a new token), or the SDK's `account_changed` (the account changed while it ran)
+/// and `identity_cleared` (after `clearIdentity()`).
+public struct AppReferSupportIdentityVerification: Equatable, Sendable {
+    public let verified: Bool
+    public let reason: String?
+    public let appUserId: String?
+
+    public init(verified: Bool, reason: String?, appUserId: String?) {
+        self.verified = verified
+        self.reason = reason
+        self.appUserId = appUserId
+    }
+
+    static func refused(_ reason: String) -> Self { .init(verified: false, reason: reason, appUserId: nil) }
+}
+
+struct SupportIdentityAnswer: Decodable {
+    struct Identity: Decodable { let verified: Bool; let reason: String?; let appUserId: String? }
+    let identity: Identity
+}
+
 /// The app's AI support assistant, set in AppRefer. Every message from it is tagged "AI".
 public struct AppReferSupportPersona: Hashable, Sendable, Decodable {
     public let name: String

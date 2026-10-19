@@ -112,6 +112,19 @@ public final class AppReferSupport {
         Task { await SupportAPI.shared.setIdentity(name: name, email: email, generation: epoch) }
     }
 
+    /// Confirms who the customer is, so your team and the AI assistant may use the account's
+    /// private details (plan, orders, credits). Your backend, after signing the user in, asks
+    /// AppRefer for a short-lived single-use token (`POST /api/v1/apps/{appId}/support/identity-tokens`
+    /// with your private key; never ship that key in the app) and passes it here. It verifies
+    /// the current Support session, so conversations already started on it count too. Call it
+    /// after `AppRefer.setUserId` with the same user; `AppRefer.reset()`, `clearIdentity()` or
+    /// another account ends it. Network failures are retried with the same token and then
+    /// thrown (retrying the same token later is safe); a refusal returns `verified == false`
+    /// with a reason. `identify(name:email:)` is unchanged.
+    public func verifyIdentity(_ identityToken: String) async throws -> AppReferSupportIdentityVerification {
+        try await SupportAPI.shared.verifyIdentity(identityToken)
+    }
+
     /// Opens the help chat straight on a new message, optionally pre-filled
     /// (e.g. a "Report a problem" button).
     public func compose(_ text: String = "") {

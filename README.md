@@ -508,6 +508,7 @@ AppRefer.support.open()
 
 // Optional
 AppRefer.support.identify(name: "María", email: "maria@example.com") // the app user id from setUserId is sent automatically
+let check = try await AppRefer.support.verifyIdentity(tokenFromYourBackend) // 0.12.0: confirms the account (see "Verified identity" below)
 AppRefer.support.accentColor = .purple                  // text on a bright accent turns dark automatically
 AppRefer.support.headerStyle = .plain                   // 0.11.1: flat neutral grey header, no accent or glow (default .accent); 0.11.2: Continue card avatar too
 AppRefer.support.teamNames = ["Jay", "Ana"]             // "Jay and the team · usually under an hour"
@@ -535,6 +536,29 @@ if AppRefer.support.handleNotification(response.notification.request.content.use
 ```
 
 Customers can attach up to four screenshots per message; they are compressed on the device (about 1600 px, under 700 KB) and uploaded straight to storage. The chat checks for replies only while it's open.
+
+### Verified identity (0.12.0)
+
+The app user id the SDK sends with Support is only a claim from the device. To let your team and
+the AI assistant use the account's private details (plan, purchases, orders, credits your backend
+shares), confirm it:
+
+1. Your backend, after signing the user in, calls
+   `POST https://apprefer.com/api/v1/apps/{appId}/support/identity-tokens` with your **private**
+   organisation key (`support:context` scope) and `{ "appUserId": "<the signed-in user>" }`. It
+   returns a single-use `identityToken` valid for up to 10 minutes. Never put the private key in
+   the app.
+2. The app passes that token to ``try await AppRefer.support.verifyIdentity(token)`` after `setUserId` with the same user.
+
+It verifies the current Support session, so conversations already started on it count too; no new
+conversation is needed. Network and server failures are retried with the same token and then
+thrown (sending the same token again is safe: the server acknowledges a retry from the same session).
+A refusal comes back as `verified: false` with a `reason` (`expired`, `already_used`,
+`user_mismatch`, `session_replaced`… get a new token), or `account_changed` when a reset,
+`clearIdentity()` or another user id happened while it ran. The token is never stored or logged.
+`reset()`, `clearIdentity()` and another account signing in end the verification. Until an app
+verifies, the AI assistant gets no account data at all, and your team sees the claimed account
+marked "Not verified". `identify` is unchanged.
 
 ### Languages and your own wording
 

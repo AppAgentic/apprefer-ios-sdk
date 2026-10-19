@@ -1,3 +1,8 @@
+## 0.12.0 (unreleased)
+
+- Support: `verifyIdentity(identityToken)` confirms who the customer is with a short-lived, single-use token your backend gets from AppRefer (`POST /api/v1/apps/{appId}/support/identity-tokens`, private key, never in the app). It verifies the current Support session (`POST /api/support/v1/session/identity`), so existing conversations on it count; returns `{ verified, reason, appUserId }`. Network and server failures are retried with the same token (the server acknowledges a retry from the same session), then thrown. A reset, `clearIdentity()` or a different user id while it runs answers `account_changed`; the token is never stored or logged. After `clearIdentity()` nothing is sent (`identity_cleared`). `identify(name, email)` is unchanged.
+- Version 0.12.0 (prerelease source for the actionable Support roadmap; not tagged or released).
+
 ## 0.11.2 (unreleased)
 
 - Support: `.plain` header style now also draws the avatar on the home's Continue card (the chat icon, or the first team member's initial) in the header's neutral greys (`#6B6B6B` to `#3A3A3A`, white glyph ≥ 5:1) instead of the accent's neighbours, which were pale mint for a white accent. The AI persona's portrait still covers it. No new API; the default accent style is unchanged, and the help tiles, conversation list and chat are untouched.

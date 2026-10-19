@@ -572,6 +572,49 @@ actor SupportAPI {
         UserDefaults.standard.removeObject(forKey: Self.pushKey)
     }
 
+    // MARK: - Identity verification
+
+    /// Waits between verification attempts after a network or server failure (tests shorten it).
+    private(set) var verifyRetryDelays: [UInt64] = [500_000_000, 1_500_000_000]
+    func setVerifyRetryDelays(_ delays: [UInt64]) { verifyRetryDelays = delays }
+
+    /// Verifies the current session for the app user id the app's backend vouched for with
+    /// `identityToken` (single use). The token is only sent, never stored or logged. Network and
+    /// server failures are retried with the same token (the server acknowledges a retry from the
+    /// same session), then thrown. A reset(), clearIdentity() or another stored user id while it
+    /// runs answers `account_changed`, never a verification for the new account.
+    func verifyIdentity(_ identityToken: String) async throws -> AppReferSupportIdentityVerification {
+        let token = identityToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty, token.count <= 2048 else { return .refused("malformed") }
+        guard userStorage.supportIdentityClearedState == .notCleared else {
+            if userStorage.supportIdentityClearedState == .unknown { throw Self.storeUnavailable() }
+            return .refused("identity_cleared")
+        }
+        let epoch = generation
+        let user = userStorage.getUserId()
+        var attempt = 0
+        while true {
+            let data: Data
+            do {
+                data = try await call("POST", "/api/support/v1/session/identity", body: ["identityToken": token], expectedGeneration: epoch)
+            } catch {
+                if epoch != generation { return .refused("account_changed") }
+                if error is CancellationError { throw error }
+                let status = (error as? AppReferSupportError)?.status ?? 0
+                let transient = error is URLError || status == 0 || status == 408 || status == 429 || status >= 500
+                guard transient, attempt < verifyRetryDelays.count else { throw error }
+                try await Task.sleep(nanoseconds: verifyRetryDelays[attempt])
+                attempt += 1
+                continue
+            }
+            guard epoch == generation, userStorage.supportIdentityClearedState == .notCleared, userStorage.getUserId() == user else {
+                return .refused("account_changed")
+            }
+            let answer = try JSONDecoder().decode(SupportIdentityAnswer.self, from: data).identity
+            return AppReferSupportIdentityVerification(verified: answer.verified, reason: answer.verified ? nil : (answer.reason ?? "unknown"), appUserId: answer.appUserId)
+        }
+    }
+
     // MARK: - Context
 
     /// App version, device and OS, shown to the team with a new conversation.
