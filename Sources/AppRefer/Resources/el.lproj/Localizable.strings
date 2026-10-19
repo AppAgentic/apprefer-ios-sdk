@@ -216,18 +216,20 @@
 "engagement.channel.reminders" = "Υπενθυμίσεις";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Λογαριασμός και χρεώσεις";
-/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
-"support.offer.title" = "Μια προσφορά για σένα";
-/* Button on an offer card that opens the app's own plans screen. Short. */
-"support.offer.open" = "Δες την προσφορά";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "Επιλογές για σένα";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "Δες τις επιλογές";
 /* Tag next to a plan on an offer card that the customer already has. */
 "support.offer.current" = "Τρέχον πρόγραμμα";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "Αγοράστηκε";
 /* Shown on an offer card when every plan in it is one the customer already has. */
 "support.offer.owned" = "Το έχεις ήδη";
-/* Shown on an offer card that was withdrawn, expired or changed. */
-"support.offer.unavailable" = "Αυτή η προσφορά δεν είναι πλέον διαθέσιμη";
-/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
-"support.offer.unsupported" = "Αυτή η προσφορά δεν ανοίγει σε αυτή την έκδοση της εφαρμογής";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Αυτές οι επιλογές δεν είναι πλέον διαθέσιμες";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "Ενημέρωσε την εφαρμογή για να το ανοίξεις";
 /* Plan length label on an offer card. */
 "support.offer.package.weekly" = "Εβδομαδιαίο";
 /* Plan length label on an offer card. */
@@ -244,8 +246,22 @@
 "support.offer.package.lifetime" = "Εφ’ όρου ζωής";
 /* Label for a plan with no standard length on an offer card, when the app gave it no name. */
 "support.offer.package.custom" = "Επιλογή";
-/* VoiceOver/TalkBack hint on the offer card's button. */
-"support.offer.a11y.hint" = "Ανοίγει τα προγράμματα της εφαρμογής";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "Ανοίγει αυτές τις επιλογές στην εφαρμογή";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/εβδομάδα";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "{price} κάθε 4 εβδομάδες";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/μήνα";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "{price} κάθε 2 μήνες";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "{price} κάθε 3 μήνες";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "{price} κάθε 6 μήνες";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/έτος";
 /* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
 "support.review.title" = "Μοιράσου την εμπειρία σου";
 /* Text on the review card. Store: App Store (brand name, never translated). */

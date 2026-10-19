@@ -96,12 +96,12 @@ final class SupportOfferTests: XCTestCase {
         let c = try card()
         XCTAssertEqual(SupportOfferLook.of(c, hasHandler: true), .open)
         XCTAssertEqual(SupportOfferLook.of(c, hasHandler: false), .unsupported)
-        XCTAssertEqual(SupportOfferLook.of(c, hasHandler: false).notice, "This offer can't be opened in this version of the app")
+        XCTAssertEqual(SupportOfferLook.of(c, hasHandler: false).notice, "Update the app to open this")
         let owned = try card(cardJSON.replacingOccurrences(of: #""status":"available""#, with: #""status":"owned""#))
         XCTAssertEqual(SupportOfferLook.of(owned, hasHandler: true), .owned)
         let gone = try card(cardJSON.replacingOccurrences(of: #""status":"available""#, with: #""status":"unavailable""#))
         XCTAssertEqual(SupportOfferLook.of(gone, hasHandler: true), .unavailable)
-        XCTAssertEqual(SupportOfferLook.of(gone, hasHandler: true).notice, "This offer is no longer available")
+        XCTAssertEqual(SupportOfferLook.of(gone, hasHandler: true).notice, "These options are no longer available")
         // An unknown future status is never drawn as an open card.
         let future = try card(cardJSON.replacingOccurrences(of: #""status":"available""#, with: #""status":"paused""#))
         XCTAssertEqual(SupportOfferLook.of(future, hasHandler: true), .unavailable)
@@ -116,7 +116,48 @@ final class SupportOfferTests: XCTestCase {
         XCTAssertEqual(SupportOfferText.label(custom, storeName: nil), "Option")
         SupportStrings.forcedLanguage = "de"
         XCTAssertEqual(SupportOfferText.label(c.packages[0], storeName: nil), "Jährlich")
-        XCTAssertEqual(SupportStrings.text("support.offer.open"), "Angebot ansehen")
+        XCTAssertEqual(SupportStrings.text("support.offer.open"), "Optionen ansehen")
+    }
+
+    /// Ordinary full-price cards never read like a deal, in any language.
+    func testCardCopyIsNeutralInEveryLanguage() {
+        let deal = ["offer", "angebot", "offre", "oferta", "offerta", "deal", "discount", "rabatt", "korting", "skidka", "скидк", "предложени", "オファー", "優惠", "优惠", "折扣", "할인", "割引"]
+        for language in ["en", "de", "fr", "es", "it", "pt-BR", "nl", "ru", "ja", "ko", "zh-Hans", "zh-Hant"] {
+            SupportStrings.forcedLanguage = language
+            for key in ["support.offer.title", "support.offer.open", "support.offer.unavailable", "support.offer.unsupported", "support.offer.a11y.hint"] {
+                let text = SupportStrings.text(key).lowercased()
+                XCTAssertFalse(deal.contains { text.contains($0) }, "\(language) \(key): \(text)")
+            }
+        }
+    }
+
+    /// The price carries the store's own billing period; one-time purchases and unusual periods show the bare store price.
+    func testPriceShowsTheStoresOwnPeriod() {
+        XCTAssertEqual(SupportOfferText.price(SupportOfferPrice(price: "£29.99", name: nil, period: "P1Y")), "£29.99/year")
+        XCTAssertEqual(SupportOfferText.price(SupportOfferPrice(price: "£4.99", name: nil, period: "P1M")), "£4.99/month")
+        XCTAssertEqual(SupportOfferText.price(SupportOfferPrice(price: "£2.99", name: nil, period: "P7D")), "£2.99/week")
+        XCTAssertEqual(SupportOfferText.price(SupportOfferPrice(price: "£9.99", name: nil, period: "P3M")), "£9.99 every 3 months")
+        XCTAssertEqual(SupportOfferText.price(SupportOfferPrice(price: "£9.99", name: nil, period: "P12M")), "£9.99/year")
+        XCTAssertEqual(SupportOfferText.price(SupportOfferPrice(price: "£4.99", name: nil, period: nil, oneTime: true)), "£4.99")
+        XCTAssertEqual(SupportOfferText.price(SupportOfferPrice(price: "£1.99", name: nil, period: "P3D")), "£1.99")
+        XCTAssertEqual(SupportOfferText.price(SupportOfferPrice(price: "£1.99", name: nil, period: "garbage")), "£1.99")
+        XCTAssertEqual(SupportOfferText.periodKey("P2Y"), nil)
+        SupportStrings.forcedLanguage = "de"
+        XCTAssertEqual(SupportOfferText.price(SupportOfferPrice(price: "29,99 €", name: nil, period: "P1Y")), "29,99 €/Jahr")
+        SupportStrings.forcedLanguage = "ja"
+        XCTAssertEqual(SupportOfferText.price(SupportOfferPrice(price: "¥1,500", name: nil, period: "P6M")), "6か月ごとに¥1,500")
+    }
+
+    /// An owned subscription is the current plan; an owned one-off (credit pack, lifetime) is purchased.
+    func testOwnedTagFitsWhatWasBought() {
+        let sub = AppReferSupportOfferCard.Package(id: "$ar_annual", packageType: "annual", displayName: nil, productId: "p", current: true)
+        let life = AppReferSupportOfferCard.Package(id: "$ar_lifetime", packageType: "lifetime", displayName: nil, productId: "l", current: true)
+        let pack = AppReferSupportOfferCard.Package(id: "gold", packageType: "custom", displayName: nil, productId: "g", current: true)
+        XCTAssertEqual(SupportOfferText.ownedTag(sub, price: SupportOfferPrice(price: "£29.99", name: nil, period: "P1Y")), "Current plan")
+        XCTAssertEqual(SupportOfferText.ownedTag(sub, price: nil), "Current plan")
+        XCTAssertEqual(SupportOfferText.ownedTag(life, price: nil), "Purchased")
+        XCTAssertEqual(SupportOfferText.ownedTag(pack, price: SupportOfferPrice(price: "£4.99", name: nil, oneTime: true)), "Purchased")
+        XCTAssertNil(SupportOfferText.ownedTag(AppReferSupportOfferCard.Package(id: "x", packageType: "monthly", displayName: nil, productId: "m", current: false), price: nil))
     }
 
     func testPickedPackageNarrowsTheRows() throws {
@@ -318,7 +359,7 @@ final class SupportOfferScreenshotTests: XCTestCase {
         let team = try decode(#"{"id":"m2","from":"team","authorName":"Jay","text":"Yes! Yearly works out cheaper. Here are both plans:","createdAt":"2026-10-19T12:00:00.000Z","attachments":[]}"#)
         let base = try JSONDecoder().decode(AppReferSupportOfferCard.self, from: Data(cardJSON.utf8))
         let state = { (status: String) in try JSONDecoder().decode(AppReferSupportOfferCard.self, from: Data(cardJSON.replacingOccurrences(of: #""status":"available""#, with: #""status":"\#(status)""#).utf8)) }
-        let prices = ["$ar_annual": SupportOfferPrice(price: "£29.99", name: nil), "$ar_monthly": SupportOfferPrice(price: "£4.99", name: nil)]
+        let prices = ["$ar_annual": SupportOfferPrice(price: "£29.99", name: nil, period: "P1Y"), "$ar_monthly": SupportOfferPrice(price: "£4.99", name: nil, period: "P1M")]
         let palette = SupportPalette(Color(red: 0.47, green: 0.34, blue: 1))
         let cases: [(String, AppReferSupportOfferCard, Bool, UIUserInterfaceStyle)] = [
             ("open-light", base, true, .light), ("open-dark", base, true, .dark),

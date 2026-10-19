@@ -216,18 +216,20 @@
 "engagement.channel.reminders" = "Påminnelser";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Konto och betalning";
-/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
-"support.offer.title" = "Ett erbjudande till dig";
-/* Button on an offer card that opens the app's own plans screen. Short. */
-"support.offer.open" = "Visa erbjudandet";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "Alternativ för dig";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "Visa alternativ";
 /* Tag next to a plan on an offer card that the customer already has. */
 "support.offer.current" = "Nuvarande abonnemang";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "Köpt";
 /* Shown on an offer card when every plan in it is one the customer already has. */
 "support.offer.owned" = "Det här har du redan";
-/* Shown on an offer card that was withdrawn, expired or changed. */
-"support.offer.unavailable" = "Erbjudandet är inte längre tillgängligt";
-/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
-"support.offer.unsupported" = "Erbjudandet kan inte öppnas i den här versionen av appen";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "De här alternativen är inte längre tillgängliga";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "Uppdatera appen för att öppna detta";
 /* Plan length label on an offer card. */
 "support.offer.package.weekly" = "Veckovis";
 /* Plan length label on an offer card. */
@@ -244,8 +246,22 @@
 "support.offer.package.lifetime" = "Livstid";
 /* Label for a plan with no standard length on an offer card, when the app gave it no name. */
 "support.offer.package.custom" = "Alternativ";
-/* VoiceOver/TalkBack hint on the offer card's button. */
-"support.offer.a11y.hint" = "Öppnar appens abonnemang";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "Öppnar alternativen i appen";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/vecka";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "{price} var 4:e vecka";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/månad";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "{price} varannan månad";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "{price} var 3:e månad";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "{price} var 6:e månad";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/år";
 /* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
 "support.review.title" = "Dela din upplevelse";
 /* Text on the review card. Store: App Store (brand name, never translated). */

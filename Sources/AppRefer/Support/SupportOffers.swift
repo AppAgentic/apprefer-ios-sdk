@@ -98,13 +98,48 @@ enum SupportOfferText {
         if let storeName, !storeName.isEmpty { return storeName }
         return SupportStrings.text("support.offer.package.custom")
     }
+
+    /// The `support.offer.price.*` key for a store billing period (ISO 8601, e.g. `P1Y`), or nil
+    /// for one-time purchases and periods the table doesn't word (the bare store price is shown).
+    static func periodKey(_ iso: String?) -> String? {
+        guard let iso = iso?.uppercased(), iso.hasPrefix("P"), let unit = iso.last, "DWMY".contains(unit),
+              let n = Int(iso.dropFirst().dropLast()), n > 0 else { return nil }
+        switch (String(unit), n) {
+        case ("D", 7), ("W", 1): return "week"
+        case ("D", 28), ("W", 4): return "fourWeeks"
+        case ("M", 1): return "month"
+        case ("M", 2): return "twoMonths"
+        case ("M", 3): return "threeMonths"
+        case ("M", 6): return "sixMonths"
+        case ("M", 12), ("Y", 1): return "year"
+        default: return nil
+        }
+    }
+
+    /// The store's own regular price with the store's own billing period, e.g. "£29.99/year".
+    static func price(_ p: SupportOfferPrice) -> String {
+        guard let key = periodKey(p.period) else { return p.price }
+        return SupportStrings.text("support.offer.price.\(key)", ["price": p.price])
+    }
+
+    /// The tag on a row the customer already has: "Purchased" for a one-off, "Current plan" for a subscription.
+    static func ownedTag(_ p: AppReferSupportOfferCard.Package, price: SupportOfferPrice?) -> String? {
+        guard p.current else { return nil }
+        let oneOff = price.map { $0.oneTime } ?? (p.packageType == "lifetime")
+        return SupportStrings.text(oneOff ? "support.offer.purchased" : "support.offer.current")
+    }
 }
 
 /// Store prices and names for offer cards, by offering then package id. Read from AppRefer
-/// Billing's offerings (the store's own formatted price); empty when Billing isn't used here.
+/// Billing's offerings (the store's own formatted regular price and billing period); empty when
+/// Billing isn't used here. The price is never an introductory or trial price.
 struct SupportOfferPrice: Hashable, Sendable {
     let price: String
     let name: String?
+    /// The store's billing period of a subscription (ISO 8601, e.g. `P1M`); nil for one-time purchases.
+    var period: String? = nil
+    /// A one-time purchase (credit pack, lifetime unlock), not a subscription.
+    var oneTime: Bool = false
 }
 
 /// Whether the app set `AppRefer.support.onOffer`, readable from the API actor (it rides on the
@@ -271,10 +306,29 @@ enum SupportOfferPrices {
         for id in offeringIds {
             guard let offering = all[id] else { continue }
             var byPackage: [String: SupportOfferPrice] = [:]
-            for p in offering.availablePackages { byPackage[p.identifier] = SupportOfferPrice(price: p.storeProduct.displayPrice, name: p.storeProduct.displayName) }
+            for p in offering.availablePackages { byPackage[p.identifier] = price(of: p.storeProduct) }
             out[id] = byPackage
         }
         return out
+    }
+
+    /// StoreKit's `displayPrice` is the regular price (introductory offers are separate), shown
+    /// with the subscription's own period.
+    static func price(of product: Product) -> SupportOfferPrice {
+        let period = product.subscription.map { iso($0.subscriptionPeriod) }
+        return SupportOfferPrice(price: product.displayPrice, name: product.displayName, period: period, oneTime: product.subscription == nil)
+    }
+
+    static func iso(_ period: Product.SubscriptionPeriod) -> String {
+        let unit: String
+        switch period.unit {
+        case .day: unit = "D"
+        case .week: unit = "W"
+        case .month: unit = "M"
+        case .year: unit = "Y"
+        @unknown default: unit = "?"
+        }
+        return "P\(period.value)\(unit)"
     }
 }
 
@@ -348,15 +402,17 @@ struct SupportOfferCardView: View {
         let price = prices[p.id]
         let label = SupportOfferText.label(p, storeName: price?.name)
         return HStack(spacing: 8) {
-            Text(label).font(.system(size: 15, weight: .medium)).foregroundStyle(.primary).lineLimit(2)
-            if p.current {
-                Text(SupportStrings.text("support.offer.current")).font(.system(size: 11.5, weight: .semibold))
+            Text(label).font(.system(size: 15, weight: .medium)).foregroundStyle(.primary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            if let tag = SupportOfferText.ownedTag(p, price: price) {
+                Text(tag).font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(palette.accent)
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(palette.accent.opacity(0.12), in: Capsule())
+                    .fixedSize()
             }
             Spacer(minLength: 8)
-            if let price { Text(price.price).font(.system(size: 15, weight: .semibold)).monospacedDigit().foregroundStyle(.primary) }
+            // The store's price and period are never truncated: the package name wraps instead.
+            if let price { Text(SupportOfferText.price(price)).font(.system(size: 15, weight: .semibold)).monospacedDigit().foregroundStyle(.primary).fixedSize() }
         }
         .padding(.vertical, 11)
         .accessibilityElement(children: .combine)

@@ -214,18 +214,20 @@
 "engagement.channel.reminders" = "Lời nhắc";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Tài khoản và thanh toán";
-/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
-"support.offer.title" = "Đề xuất dành cho bạn";
-/* Button on an offer card that opens the app's own plans screen. Short. */
-"support.offer.open" = "Xem đề xuất";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "Lựa chọn dành cho bạn";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "Xem lựa chọn";
 /* Tag next to a plan on an offer card that the customer already has. */
 "support.offer.current" = "Gói hiện tại";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "Đã mua";
 /* Shown on an offer card when every plan in it is one the customer already has. */
 "support.offer.owned" = "Bạn đã có gói này";
-/* Shown on an offer card that was withdrawn, expired or changed. */
-"support.offer.unavailable" = "Đề xuất này không còn khả dụng";
-/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
-"support.offer.unsupported" = "Không thể mở đề xuất này trong phiên bản ứng dụng này";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Các lựa chọn này không còn nữa";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "Hãy cập nhật ứng dụng để mở mục này";
 /* Plan length label on an offer card. */
 "support.offer.package.weekly" = "Hằng tuần";
 /* Plan length label on an offer card. */
@@ -242,8 +244,22 @@
 "support.offer.package.lifetime" = "Trọn đời";
 /* Label for a plan with no standard length on an offer card, when the app gave it no name. */
 "support.offer.package.custom" = "Tùy chọn";
-/* VoiceOver/TalkBack hint on the offer card's button. */
-"support.offer.a11y.hint" = "Mở các gói của ứng dụng";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "Mở các lựa chọn này trong ứng dụng";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/tuần";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "{price} mỗi 4 tuần";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/tháng";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "{price} mỗi 2 tháng";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "{price} mỗi 3 tháng";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "{price} mỗi 6 tháng";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/năm";
 /* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
 "support.review.title" = "Chia sẻ trải nghiệm của bạn";
 /* Text on the review card. Store: App Store (brand name, never translated). */

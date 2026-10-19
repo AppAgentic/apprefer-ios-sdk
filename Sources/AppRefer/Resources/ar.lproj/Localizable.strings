@@ -224,18 +224,20 @@
 "engagement.channel.reminders" = "التذكيرات";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "الحساب والفوترة";
-/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
-"support.offer.title" = "عرض لك";
-/* Button on an offer card that opens the app's own plans screen. Short. */
-"support.offer.open" = "عرض العرض";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "خيارات لك";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "عرض الخيارات";
 /* Tag next to a plan on an offer card that the customer already has. */
 "support.offer.current" = "خطتك الحالية";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "تم الشراء";
 /* Shown on an offer card when every plan in it is one the customer already has. */
 "support.offer.owned" = "لديك هذا بالفعل";
-/* Shown on an offer card that was withdrawn, expired or changed. */
-"support.offer.unavailable" = "لم يعد هذا العرض متاحًا";
-/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
-"support.offer.unsupported" = "لا يمكن فتح هذا العرض في هذا الإصدار من التطبيق";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "لم تعد هذه الخيارات متاحة";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "حدّث التطبيق لفتح هذا";
 /* Plan length label on an offer card. */
 "support.offer.package.weekly" = "أسبوعي";
 /* Plan length label on an offer card. */
@@ -252,8 +254,22 @@
 "support.offer.package.lifetime" = "مدى الحياة";
 /* Label for a plan with no standard length on an offer card, when the app gave it no name. */
 "support.offer.package.custom" = "خيار";
-/* VoiceOver/TalkBack hint on the offer card's button. */
-"support.offer.a11y.hint" = "يفتح خطط التطبيق";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "يفتح هذه الخيارات في التطبيق";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/أسبوع";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "{price} كل 4 أسابيع";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/شهر";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "{price} كل شهرين";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "{price} كل 3 أشهر";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "{price} كل 6 أشهر";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/سنة";
 /* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
 "support.review.title" = "شارك تجربتك";
 /* Text on the review card. Store: App Store (brand name, never translated). */

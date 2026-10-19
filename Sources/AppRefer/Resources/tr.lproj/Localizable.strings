@@ -216,18 +216,20 @@
 "engagement.channel.reminders" = "Hatırlatıcılar";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Hesap ve faturalandırma";
-/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
-"support.offer.title" = "Sana özel bir teklif";
-/* Button on an offer card that opens the app's own plans screen. Short. */
-"support.offer.open" = "Teklifi gör";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "Senin için seçenekler";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "Seçenekleri gör";
 /* Tag next to a plan on an offer card that the customer already has. */
 "support.offer.current" = "Mevcut plan";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "Satın alındı";
 /* Shown on an offer card when every plan in it is one the customer already has. */
 "support.offer.owned" = "Buna zaten sahipsin";
-/* Shown on an offer card that was withdrawn, expired or changed. */
-"support.offer.unavailable" = "Bu teklif artık geçerli değil";
-/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
-"support.offer.unsupported" = "Bu teklif uygulamanın bu sürümünde açılamıyor";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Bu seçenekler artık kullanılamıyor";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "Bunu açmak için uygulamayı güncelle";
 /* Plan length label on an offer card. */
 "support.offer.package.weekly" = "Haftalık";
 /* Plan length label on an offer card. */
@@ -244,8 +246,22 @@
 "support.offer.package.lifetime" = "Ömür boyu";
 /* Label for a plan with no standard length on an offer card, when the app gave it no name. */
 "support.offer.package.custom" = "Seçenek";
-/* VoiceOver/TalkBack hint on the offer card's button. */
-"support.offer.a11y.hint" = "Uygulamanın planlarını açar";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "Bu seçenekleri uygulamada açar";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/hafta";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "4 haftada bir {price}";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/ay";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "2 ayda bir {price}";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "3 ayda bir {price}";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "6 ayda bir {price}";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/yıl";
 /* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
 "support.review.title" = "Deneyimini paylaş";
 /* Text on the review card. Store: App Store (brand name, never translated). */
