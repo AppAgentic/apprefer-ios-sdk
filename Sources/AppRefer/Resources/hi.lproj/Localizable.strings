@@ -246,3 +246,19 @@
 "support.offer.package.custom" = "विकल्प";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "ऐप के प्लान खोलता है";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "अपना अनुभव साझा करें";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "आप चाहें तो App Store पर एक समीक्षा लिख सकते हैं।";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "आप चाहें तो Google Play पर एक समीक्षा लिख सकते हैं।";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "समीक्षा लिखें";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "यह समीक्षा लिंक अब उपलब्ध नहीं है";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "इस डिवाइस के लिए कोई स्टोर पेज नहीं है";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "App Store खोलता है";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Google Play खोलता है";

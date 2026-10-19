@@ -248,3 +248,19 @@
 "support.offer.package.custom" = "Možnost";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "Otevře předplatné v aplikaci";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "Podělte se o svou zkušenost";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "Pokud chcete, můžete napsat recenzi v App Store.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "Pokud chcete, můžete napsat recenzi v Google Play.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "Napsat recenzi";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "Tento odkaz na recenzi už není k dispozici";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "Pro toto zařízení není k dispozici stránka v obchodě";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "Otevře App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Otevře Google Play";

@@ -246,3 +246,19 @@
 "support.offer.package.custom" = "Option";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "Öffnet die Pläne der App";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "Teile deine Erfahrung";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "Wenn du möchtest, kannst du eine Bewertung im App Store schreiben.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "Wenn du möchtest, kannst du eine Bewertung bei Google Play schreiben.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "Bewertung schreiben";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "Dieser Bewertungslink ist nicht mehr verfügbar";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "Für dieses Gerät gibt es keine Store-Seite";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "Öffnet den App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Öffnet Google Play";

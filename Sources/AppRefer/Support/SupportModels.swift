@@ -38,6 +38,8 @@ public struct AppReferSupportMessage: Identifiable, Hashable, Sendable, Decodabl
     public let handoff: Bool?
     /// An offer card sent with this reply: one of the app's offerings, with its state when read.
     public let offer: AppReferSupportOfferCard?
+    /// An optional review card sent with this reply: a link to the app's own store page.
+    public let review: AppReferSupportReviewCard?
 
     public var isFromCustomer: Bool { from == "customer" }
     public var isHandoff: Bool { handoff == true }

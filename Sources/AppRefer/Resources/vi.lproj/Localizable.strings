@@ -244,3 +244,19 @@
 "support.offer.package.custom" = "Tùy chọn";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "Mở các gói của ứng dụng";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "Chia sẻ trải nghiệm của bạn";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "Nếu muốn, bạn có thể viết đánh giá trên App Store.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "Nếu muốn, bạn có thể viết đánh giá trên Google Play.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "Viết đánh giá";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "Liên kết đánh giá này không còn khả dụng";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "Không có trang cửa hàng cho thiết bị này";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "Mở App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Mở Google Play";

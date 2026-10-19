@@ -116,8 +116,9 @@ final class SupportOfferHandlerFlag: @unchecked Sendable {
     var isSet: Bool { lock.lock(); defer { lock.unlock() }; return value }
     func set(_ v: Bool) { lock.lock(); value = v; lock.unlock() }
 
-    /// `offers` (this SDK draws cards) and `offer-handler` (the app opens its paywall from them).
-    var header: String { isSet ? "offers, offer-handler" : "offers" }
+    /// `offers` (this SDK draws cards), `offer-handler` (the app opens its paywall from them) and
+    /// `reviews` (this SDK draws review cards and opens the store page itself).
+    var header: String { isSet ? "offers, offer-handler, reviews" : "offers, reviews" }
 }
 
 /// A receipt the server hasn't confirmed yet. Same id on every retry, so it's stored once.
@@ -223,9 +224,11 @@ extension SupportAPI {
     }
 
     /// Sends one receipt. Throws on network or server failure; a 4xx other than 408/429 is final.
+    /// Review cards (`rvc_…`) share this queue and post to their own route.
     func sendOfferReceipt(_ r: SupportOfferReceipt) async throws -> AppReferSupportOfferCard? {
         let body: [String: Any] = ["kind": r.kind, "clientEventId": r.clientEventId, "occurredAt": r.occurredAt]
-        let path = "/api/support/v1/conversations/\(r.conversationId.urlPathEscaped)/offers/\(r.cardId.urlPathEscaped)/events?platform=ios"
+        let kind = r.cardId.hasPrefix("rvc_") ? "reviews" : "offers"
+        let path = "/api/support/v1/conversations/\(r.conversationId.urlPathEscaped)/\(kind)/\(r.cardId.urlPathEscaped)/events?platform=ios"
         let data = try await sessionCall("POST", path, body: body)
         return (try? JSONDecoder().decode(SupportOfferEventAnswer.self, from: data))?.offer
     }
@@ -370,7 +373,11 @@ struct SupportOfferOpener: Sendable {
     var now: @Sendable () -> Date = { Date() }
 
     func receipt(for card: AppReferSupportOfferCard, conversationId: String) -> SupportOfferReceipt {
-        SupportOfferReceipt(conversationId: conversationId, cardId: card.cardId, kind: "opened",
+        receipt(cardId: card.cardId, conversationId: conversationId)
+    }
+
+    func receipt(cardId: String, conversationId: String) -> SupportOfferReceipt {
+        SupportOfferReceipt(conversationId: conversationId, cardId: cardId, kind: "opened",
                             clientEventId: .supportOfferEventId("open"), occurredAt: SupportOfferClock.iso(now()))
     }
 

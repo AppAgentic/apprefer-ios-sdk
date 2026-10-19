@@ -246,3 +246,19 @@
 "support.offer.package.custom" = "Επιλογή";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "Ανοίγει τα προγράμματα της εφαρμογής";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "Μοιράσου την εμπειρία σου";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "Αν θέλεις, μπορείς να γράψεις μια κριτική στο App Store.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "Αν θέλεις, μπορείς να γράψεις μια κριτική στο Google Play.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "Γράψε μια κριτική";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "Αυτός ο σύνδεσμος κριτικής δεν είναι πλέον διαθέσιμος";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "Δεν υπάρχει σελίδα καταστήματος για αυτή τη συσκευή";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "Ανοίγει το App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Ανοίγει το Google Play";

@@ -246,3 +246,19 @@
 "support.offer.package.custom" = "Seçenek";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "Uygulamanın planlarını açar";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "Deneyimini paylaş";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "İstersen App Store üzerinde bir değerlendirme yazabilirsin.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "İstersen Google Play üzerinde bir değerlendirme yazabilirsin.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "Değerlendirme yaz";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "Bu değerlendirme bağlantısı artık kullanılamıyor";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "Bu cihaz için mağaza sayfası yok";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "App Store uygulamasını açar";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Google Play uygulamasını açar";

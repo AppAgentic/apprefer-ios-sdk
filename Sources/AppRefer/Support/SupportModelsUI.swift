@@ -126,6 +126,7 @@ final class SupportThreadModel: ObservableObject {
             lastSeen = t.messages.last?.createdAt
             error = nil
             absorbOffers(t.messages)
+            absorbReviews(t.messages)
         } catch {
             self.error = SupportStrings.errorText(error)
         }
@@ -174,8 +175,10 @@ final class SupportThreadModel: ObservableObject {
 
     /// While the chat is open, card states are re-read every 30 seconds.
     func refreshOffersIfDue() async {
-        guard !offers.isEmpty, Date().timeIntervalSince(lastOfferRefresh) > 30 else { return }
+        guard !offers.isEmpty || !reviews.isEmpty, Date().timeIntervalSince(lastOfferRefresh) > 30 else { return }
+        lastOfferRefresh = Date()
         await refreshOffers()
+        await refreshReviews()
     }
 
     /// Once per card per launch (and stored once per card on the server).
@@ -206,6 +209,49 @@ final class SupportThreadModel: ObservableObject {
         AppReferSupport.shared.deliver(AppReferSupportOffer(cardId: card.cardId, conversationId: id, offeringId: card.offeringId, packageId: card.packageId))
     }
 
+    // MARK: Review cards
+
+    /// Each review card's latest state by card id.
+    @Published var reviews: [String: AppReferSupportReviewCard] = [:]
+
+    func reviewCard(_ m: AppReferSupportMessage) -> AppReferSupportReviewCard? {
+        guard let review = m.review else { return nil }
+        return reviews[review.cardId] ?? review
+    }
+
+    private func absorbReviews(_ incoming: [AppReferSupportMessage]) {
+        for c in incoming.compactMap(\.review) { reviews[c.cardId] = c }
+    }
+
+    /// Fresh states (withdrawn, expired, store page changed) alongside the offer refresh.
+    func refreshReviews() async {
+        guard !reviews.isEmpty, let cards = try? await SupportAPI.shared.reviewCards(id) else { return }
+        for c in cards { reviews[c.cardId] = c }
+    }
+
+    func reviewShown(_ card: AppReferSupportReviewCard) {
+        guard !shownSent.contains(card.cardId) else { return }
+        shownSent.insert(card.cardId)
+        opener.queue.enqueue(SupportOfferReceipt(conversationId: id, cardId: card.cardId, kind: "shown",
+                                                 clientEventId: supportReviewShownId(card.cardId), occurredAt: SupportOfferClock.iso(Date())))
+        Task { await SupportAPI.shared.flushOfferReceipts(opener.queue) }
+    }
+
+    /// The customer tapped "Write a review": checked with the server (at most 3 s), then the store
+    /// page opens. A withdrawn or changed card redraws instead; no answer opens it anyway.
+    func openReview(_ card: AppReferSupportReviewCard, generation epoch: Int) async {
+        guard opening == nil, case .open(let url) = SupportReviewLook.of(card) else { return }
+        opening = card.cardId
+        defer { opening = nil }
+        let outcome = await opener.check(opener.receipt(cardId: card.cardId, conversationId: id))
+        guard epoch == SupportAPI.shared.actionGeneration, !Task.isCancelled else { return }
+        if outcome == .refused {
+            await refreshReviews()
+            return
+        }
+        SupportReviewOpener.openURL(url)
+    }
+
     /// New messages since the last poll. Runs only while the chat is open and active.
     func poll() async {
         guard loaded, let t = try? await SupportAPI.shared.thread(id, after: lastSeen) else { return }
@@ -213,6 +259,7 @@ final class SupportThreadModel: ObservableObject {
         await SupportPersonaStore.shared.refresh()
         merge(t.messages)
         absorbOffers(t.messages)
+        absorbReviews(t.messages)
         // Only polls move the cursor: a team reply that landed just before our own
         // send is then still fetched.
         if let newest = t.messages.last?.createdAt { lastSeen = newest }

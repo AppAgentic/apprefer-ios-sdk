@@ -246,3 +246,19 @@
 "support.offer.package.custom" = "Vaihtoehto";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "Avaa sovelluksen tilaukset";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "Kerro kokemuksestasi";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "Halutessasi voit kirjoittaa arvostelun: App Store.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "Halutessasi voit kirjoittaa arvostelun: Google Play.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "Kirjoita arvostelu";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "Tämä arvostelulinkki ei ole enää käytettävissä";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "Tälle laitteelle ei ole kauppasivua";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "Avaa: App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Avaa: Google Play";

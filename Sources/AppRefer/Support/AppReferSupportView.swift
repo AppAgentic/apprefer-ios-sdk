@@ -691,7 +691,7 @@ struct SupportThreadScreen: View {
             for await _ in AppReferBilling.customerInfoStream { await model.refreshOffers() }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            Task { await model.refreshOffers() }
+            Task { await model.refreshOffers(); await model.refreshReviews() }
         }
     }
 
@@ -743,6 +743,18 @@ struct SupportThreadScreen: View {
                 .padding(.leading, 38)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .onAppear { model.cardShown(card) }
+            }
+        } else if let review = model.reviewCard(m) {
+            VStack(alignment: .leading, spacing: 8) {
+                if !m.text.isEmpty { bubble(i, m) }
+                SupportReviewCardView(
+                    card: review, palette: palette, opening: model.opening == review.cardId,
+                    open: { SupportAccountState.shared.run { await model.openReview(review, generation: $0) } }
+                )
+                .frame(maxWidth: 340, alignment: .leading)
+                .padding(.leading, 38)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onAppear { model.reviewShown(review) }
             }
         } else {
             bubble(i, m)

@@ -244,3 +244,19 @@
 "support.offer.package.custom" = "オプション";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "アプリのプランを開きます";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "ご感想をお聞かせください";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "よろしければ、App Storeでレビューを書くことができます。";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "よろしければ、Google Playでレビューを書くことができます。";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "レビューを書く";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "このレビューのリンクは利用できなくなりました";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "このデバイス用のストアページはありません";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "App Storeを開きます";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Google Playを開きます";

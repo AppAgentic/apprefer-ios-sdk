@@ -244,3 +244,19 @@
 "support.offer.package.custom" = "ตัวเลือก";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "เปิดแพ็กเกจของแอป";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "แบ่งปันประสบการณ์ของคุณ";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "หากต้องการ คุณสามารถเขียนรีวิวได้ที่ App Store";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "หากต้องการ คุณสามารถเขียนรีวิวได้ที่ Google Play";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "เขียนรีวิว";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "ลิงก์รีวิวนี้ใช้ไม่ได้แล้ว";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "ไม่มีหน้าร้านค้าสำหรับอุปกรณ์นี้";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "เปิด App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "เปิด Google Play";

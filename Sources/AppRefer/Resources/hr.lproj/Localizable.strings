@@ -248,3 +248,19 @@
 "support.offer.package.custom" = "Opcija";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "Otvara planove aplikacije";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "Podijelite svoje iskustvo";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "Ako želite, možete napisati recenziju na App Store.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "Ako želite, možete napisati recenziju na Google Play.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "Napišite recenziju";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "Ova poveznica za recenziju više nije dostupna";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "Za ovaj uređaj nema stranice u trgovini";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "Otvara App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Otvara Google Play";

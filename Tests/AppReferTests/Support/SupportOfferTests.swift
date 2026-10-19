@@ -198,13 +198,13 @@ final class SupportOfferTests: XCTestCase {
         SupportOfferHandlerFlag.shared.set(false)
         XCTAssertEqual(cards.map(\.cardId), ["ofc_0123456789abcdef01234567"], "unreadable entries are skipped")
         let calls = OfferStub.requests.filter { !isSession($0.0) }
-        XCTAssertEqual(calls[0].0.value(forHTTPHeaderField: "X-AppRefer-Support-Features"), "offers")
+        XCTAssertEqual(calls[0].0.value(forHTTPHeaderField: "X-AppRefer-Support-Features"), "offers, reviews")
         let threadQuery = try XCTUnwrap(URLComponents(url: calls[0].0.url!, resolvingAgainstBaseURL: false)?.queryItems)
         XCTAssertEqual(threadQuery.first { $0.name == "platform" }?.value, "ios")
         XCTAssertEqual(threadQuery.first { $0.name == "after" }?.value, "2026-10-19T12:00:00.000Z")
         XCTAssertEqual(calls[1].0.url!.path, "/api/support/v1/conversations/cv1/offers")
         XCTAssertEqual(calls[1].0.url!.query, "platform=ios")
-        XCTAssertEqual(calls[1].0.value(forHTTPHeaderField: "X-AppRefer-Support-Features"), "offers, offer-handler")
+        XCTAssertEqual(calls[1].0.value(forHTTPHeaderField: "X-AppRefer-Support-Features"), "offers, offer-handler, reviews")
     }
 
     func testFlushSendsOnceKeepsTransientFailuresAndDropsRefusals() async throws {

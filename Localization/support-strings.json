@@ -715,6 +715,46 @@
       "en": "Opens the app's plans",
       "comment": "VoiceOver/TalkBack hint on the offer card's button.",
       "placeholders": []
+    },
+    "support.review.title": {
+      "en": "Share your experience",
+      "comment": "Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything.",
+      "placeholders": []
+    },
+    "support.review.body.appStore": {
+      "en": "If you'd like, you can write a review on the App Store.",
+      "comment": "Text on the review card. Store: App Store (brand name, never translated).",
+      "placeholders": []
+    },
+    "support.review.body.googlePlay": {
+      "en": "If you'd like, you can write a review on Google Play.",
+      "comment": "Text on the review card. Store: Google Play (brand name, never translated).",
+      "placeholders": []
+    },
+    "support.review.open": {
+      "en": "Write a review",
+      "comment": "Button on the review card that opens the app's store page. Short.",
+      "placeholders": []
+    },
+    "support.review.unavailable": {
+      "en": "This review link is no longer available",
+      "comment": "Shown on a review card that was withdrawn, expired or changed.",
+      "placeholders": []
+    },
+    "support.review.unsupported": {
+      "en": "There's no store page for this device",
+      "comment": "Shown on a review card when the app has no store page for this platform.",
+      "placeholders": []
+    },
+    "support.review.a11y.hint.appStore": {
+      "en": "Opens the App Store",
+      "comment": "VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated).",
+      "placeholders": []
+    },
+    "support.review.a11y.hint.googlePlay": {
+      "en": "Opens Google Play",
+      "comment": "VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated).",
+      "placeholders": []
     }
   },
   "translations": {
@@ -847,7 +887,15 @@
       "support.offer.package.annual": "سنوي",
       "support.offer.package.lifetime": "مدى الحياة",
       "support.offer.package.custom": "خيار",
-      "support.offer.a11y.hint": "يفتح خطط التطبيق"
+      "support.offer.a11y.hint": "يفتح خطط التطبيق",
+      "support.review.title": "شارك تجربتك",
+      "support.review.body.appStore": "إذا أردت، يمكنك كتابة مراجعة على App Store.",
+      "support.review.body.googlePlay": "إذا أردت، يمكنك كتابة مراجعة على Google Play.",
+      "support.review.open": "اكتب مراجعة",
+      "support.review.unavailable": "رابط المراجعة هذا لم يعد متاحًا",
+      "support.review.unsupported": "لا توجد صفحة متجر لهذا الجهاز",
+      "support.review.a11y.hint.appStore": "يفتح App Store",
+      "support.review.a11y.hint.googlePlay": "يفتح Google Play"
     },
     "ca": {
       "support.home.title": "Suport {app}",
@@ -975,7 +1023,15 @@
       "support.offer.package.annual": "Anual",
       "support.offer.package.lifetime": "De per vida",
       "support.offer.package.custom": "Opció",
-      "support.offer.a11y.hint": "Obre els plans de l’app"
+      "support.offer.a11y.hint": "Obre els plans de l’app",
+      "support.review.title": "Comparteix la teva experiència",
+      "support.review.body.appStore": "Si vols, pots escriure una ressenya a l’App Store.",
+      "support.review.body.googlePlay": "Si vols, pots escriure una ressenya a Google Play.",
+      "support.review.open": "Escriu una ressenya",
+      "support.review.unavailable": "Aquest enllaç de ressenya ja no està disponible",
+      "support.review.unsupported": "No hi ha cap pàgina de botiga per a aquest dispositiu",
+      "support.review.a11y.hint.appStore": "Obre l’App Store",
+      "support.review.a11y.hint.googlePlay": "Obre Google Play"
     },
     "cs": {
       "support.home.title": "Podpora {app}",
@@ -1103,7 +1159,15 @@
       "support.offer.package.annual": "Ročně",
       "support.offer.package.lifetime": "Doživotně",
       "support.offer.package.custom": "Možnost",
-      "support.offer.a11y.hint": "Otevře předplatné v aplikaci"
+      "support.offer.a11y.hint": "Otevře předplatné v aplikaci",
+      "support.review.title": "Podělte se o svou zkušenost",
+      "support.review.body.appStore": "Pokud chcete, můžete napsat recenzi v App Store.",
+      "support.review.body.googlePlay": "Pokud chcete, můžete napsat recenzi v Google Play.",
+      "support.review.open": "Napsat recenzi",
+      "support.review.unavailable": "Tento odkaz na recenzi už není k dispozici",
+      "support.review.unsupported": "Pro toto zařízení není k dispozici stránka v obchodě",
+      "support.review.a11y.hint.appStore": "Otevře App Store",
+      "support.review.a11y.hint.googlePlay": "Otevře Google Play"
     },
     "da": {
       "support.home.title": "Support til {app}",
@@ -1230,7 +1294,15 @@
       "support.offer.package.annual": "Årligt",
       "support.offer.package.lifetime": "Livstid",
       "support.offer.package.custom": "Mulighed",
-      "support.offer.a11y.hint": "Åbner appens abonnementer"
+      "support.offer.a11y.hint": "Åbner appens abonnementer",
+      "support.review.title": "Del din oplevelse",
+      "support.review.body.appStore": "Hvis du har lyst, kan du skrive en anmeldelse på App Store.",
+      "support.review.body.googlePlay": "Hvis du har lyst, kan du skrive en anmeldelse på Google Play.",
+      "support.review.open": "Skriv en anmeldelse",
+      "support.review.unavailable": "Dette link til anmeldelse er ikke længere tilgængeligt",
+      "support.review.unsupported": "Der er ingen butiksside til denne enhed",
+      "support.review.a11y.hint.appStore": "Åbner App Store",
+      "support.review.a11y.hint.googlePlay": "Åbner Google Play"
     },
     "de": {
       "support.home.title": "Support für {app}",
@@ -1357,7 +1429,15 @@
       "support.offer.package.annual": "Jährlich",
       "support.offer.package.lifetime": "Lebenslang",
       "support.offer.package.custom": "Option",
-      "support.offer.a11y.hint": "Öffnet die Pläne der App"
+      "support.offer.a11y.hint": "Öffnet die Pläne der App",
+      "support.review.title": "Teile deine Erfahrung",
+      "support.review.body.appStore": "Wenn du möchtest, kannst du eine Bewertung im App Store schreiben.",
+      "support.review.body.googlePlay": "Wenn du möchtest, kannst du eine Bewertung bei Google Play schreiben.",
+      "support.review.open": "Bewertung schreiben",
+      "support.review.unavailable": "Dieser Bewertungslink ist nicht mehr verfügbar",
+      "support.review.unsupported": "Für dieses Gerät gibt es keine Store-Seite",
+      "support.review.a11y.hint.appStore": "Öffnet den App Store",
+      "support.review.a11y.hint.googlePlay": "Öffnet Google Play"
     },
     "el": {
       "support.home.title": "Υποστήριξη {app}",
@@ -1484,7 +1564,15 @@
       "support.offer.package.annual": "Ετήσιο",
       "support.offer.package.lifetime": "Εφ’ όρου ζωής",
       "support.offer.package.custom": "Επιλογή",
-      "support.offer.a11y.hint": "Ανοίγει τα προγράμματα της εφαρμογής"
+      "support.offer.a11y.hint": "Ανοίγει τα προγράμματα της εφαρμογής",
+      "support.review.title": "Μοιράσου την εμπειρία σου",
+      "support.review.body.appStore": "Αν θέλεις, μπορείς να γράψεις μια κριτική στο App Store.",
+      "support.review.body.googlePlay": "Αν θέλεις, μπορείς να γράψεις μια κριτική στο Google Play.",
+      "support.review.open": "Γράψε μια κριτική",
+      "support.review.unavailable": "Αυτός ο σύνδεσμος κριτικής δεν είναι πλέον διαθέσιμος",
+      "support.review.unsupported": "Δεν υπάρχει σελίδα καταστήματος για αυτή τη συσκευή",
+      "support.review.a11y.hint.appStore": "Ανοίγει το App Store",
+      "support.review.a11y.hint.googlePlay": "Ανοίγει το Google Play"
     },
     "es": {
       "support.home.title": "Soporte de {app}",
@@ -1612,7 +1700,15 @@
       "support.offer.package.annual": "Anual",
       "support.offer.package.lifetime": "De por vida",
       "support.offer.package.custom": "Opción",
-      "support.offer.a11y.hint": "Abre los planes de la app"
+      "support.offer.a11y.hint": "Abre los planes de la app",
+      "support.review.title": "Comparte tu experiencia",
+      "support.review.body.appStore": "Si quieres, puedes escribir una reseña en la App Store.",
+      "support.review.body.googlePlay": "Si quieres, puedes escribir una reseña en Google Play.",
+      "support.review.open": "Escribir una reseña",
+      "support.review.unavailable": "Este enlace de reseña ya no está disponible",
+      "support.review.unsupported": "No hay una página de la tienda para este dispositivo",
+      "support.review.a11y.hint.appStore": "Abre la App Store",
+      "support.review.a11y.hint.googlePlay": "Abre Google Play"
     },
     "es-MX": {
       "support.home.title": "Soporte de {app}",
@@ -1740,7 +1836,15 @@
       "support.offer.package.annual": "Anual",
       "support.offer.package.lifetime": "De por vida",
       "support.offer.package.custom": "Opción",
-      "support.offer.a11y.hint": "Abre los planes de la app"
+      "support.offer.a11y.hint": "Abre los planes de la app",
+      "support.review.title": "Comparte tu experiencia",
+      "support.review.body.appStore": "Si quieres, puedes escribir una reseña en la App Store.",
+      "support.review.body.googlePlay": "Si quieres, puedes escribir una reseña en Google Play.",
+      "support.review.open": "Escribir una reseña",
+      "support.review.unavailable": "Este enlace de reseña ya no está disponible",
+      "support.review.unsupported": "No hay una página de la tienda para este dispositivo",
+      "support.review.a11y.hint.appStore": "Abre la App Store",
+      "support.review.a11y.hint.googlePlay": "Abre Google Play"
     },
     "fi": {
       "support.home.title": "Asiakastuki · {app}",
@@ -1867,7 +1971,15 @@
       "support.offer.package.annual": "Vuosittain",
       "support.offer.package.lifetime": "Elinikäinen",
       "support.offer.package.custom": "Vaihtoehto",
-      "support.offer.a11y.hint": "Avaa sovelluksen tilaukset"
+      "support.offer.a11y.hint": "Avaa sovelluksen tilaukset",
+      "support.review.title": "Kerro kokemuksestasi",
+      "support.review.body.appStore": "Halutessasi voit kirjoittaa arvostelun: App Store.",
+      "support.review.body.googlePlay": "Halutessasi voit kirjoittaa arvostelun: Google Play.",
+      "support.review.open": "Kirjoita arvostelu",
+      "support.review.unavailable": "Tämä arvostelulinkki ei ole enää käytettävissä",
+      "support.review.unsupported": "Tälle laitteelle ei ole kauppasivua",
+      "support.review.a11y.hint.appStore": "Avaa: App Store",
+      "support.review.a11y.hint.googlePlay": "Avaa: Google Play"
     },
     "fr": {
       "support.home.title": "Assistance {app}",
@@ -1995,7 +2107,15 @@
       "support.offer.package.annual": "Annuel",
       "support.offer.package.lifetime": "À vie",
       "support.offer.package.custom": "Option",
-      "support.offer.a11y.hint": "Ouvre les formules de l’app"
+      "support.offer.a11y.hint": "Ouvre les formules de l’app",
+      "support.review.title": "Partagez votre expérience",
+      "support.review.body.appStore": "Si vous le souhaitez, vous pouvez écrire un avis sur l’App Store.",
+      "support.review.body.googlePlay": "Si vous le souhaitez, vous pouvez écrire un avis sur Google Play.",
+      "support.review.open": "Écrire un avis",
+      "support.review.unavailable": "Ce lien vers l’avis n’est plus disponible",
+      "support.review.unsupported": "Aucune page de boutique pour cet appareil",
+      "support.review.a11y.hint.appStore": "Ouvre l’App Store",
+      "support.review.a11y.hint.googlePlay": "Ouvre Google Play"
     },
     "he": {
       "support.home.title": "התמיכה של {app}",
@@ -2123,7 +2243,15 @@
       "support.offer.package.annual": "שנתי",
       "support.offer.package.lifetime": "לכל החיים",
       "support.offer.package.custom": "אפשרות",
-      "support.offer.a11y.hint": "פותח את התוכניות של האפליקציה"
+      "support.offer.a11y.hint": "פותח את התוכניות של האפליקציה",
+      "support.review.title": "שתפו את החוויה שלכם",
+      "support.review.body.appStore": "אם תרצו, אפשר לכתוב ביקורת ב-App Store.",
+      "support.review.body.googlePlay": "אם תרצו, אפשר לכתוב ביקורת ב-Google Play.",
+      "support.review.open": "כתיבת ביקורת",
+      "support.review.unavailable": "הקישור לביקורת כבר לא זמין",
+      "support.review.unsupported": "אין דף חנות למכשיר הזה",
+      "support.review.a11y.hint.appStore": "פותח את App Store",
+      "support.review.a11y.hint.googlePlay": "פותח את Google Play"
     },
     "hi": {
       "support.home.title": "{app} सहायता",
@@ -2250,7 +2378,15 @@
       "support.offer.package.annual": "वार्षिक",
       "support.offer.package.lifetime": "आजीवन",
       "support.offer.package.custom": "विकल्प",
-      "support.offer.a11y.hint": "ऐप के प्लान खोलता है"
+      "support.offer.a11y.hint": "ऐप के प्लान खोलता है",
+      "support.review.title": "अपना अनुभव साझा करें",
+      "support.review.body.appStore": "आप चाहें तो App Store पर एक समीक्षा लिख सकते हैं।",
+      "support.review.body.googlePlay": "आप चाहें तो Google Play पर एक समीक्षा लिख सकते हैं।",
+      "support.review.open": "समीक्षा लिखें",
+      "support.review.unavailable": "यह समीक्षा लिंक अब उपलब्ध नहीं है",
+      "support.review.unsupported": "इस डिवाइस के लिए कोई स्टोर पेज नहीं है",
+      "support.review.a11y.hint.appStore": "App Store खोलता है",
+      "support.review.a11y.hint.googlePlay": "Google Play खोलता है"
     },
     "hr": {
       "support.home.title": "Podrška · {app}",
@@ -2378,7 +2514,15 @@
       "support.offer.package.annual": "Godišnje",
       "support.offer.package.lifetime": "Doživotno",
       "support.offer.package.custom": "Opcija",
-      "support.offer.a11y.hint": "Otvara planove aplikacije"
+      "support.offer.a11y.hint": "Otvara planove aplikacije",
+      "support.review.title": "Podijelite svoje iskustvo",
+      "support.review.body.appStore": "Ako želite, možete napisati recenziju na App Store.",
+      "support.review.body.googlePlay": "Ako želite, možete napisati recenziju na Google Play.",
+      "support.review.open": "Napišite recenziju",
+      "support.review.unavailable": "Ova poveznica za recenziju više nije dostupna",
+      "support.review.unsupported": "Za ovaj uređaj nema stranice u trgovini",
+      "support.review.a11y.hint.appStore": "Otvara App Store",
+      "support.review.a11y.hint.googlePlay": "Otvara Google Play"
     },
     "hu": {
       "support.home.title": "{app} ügyfélszolgálat",
@@ -2505,7 +2649,15 @@
       "support.offer.package.annual": "Éves",
       "support.offer.package.lifetime": "Örökös",
       "support.offer.package.custom": "Lehetőség",
-      "support.offer.a11y.hint": "Megnyitja az alkalmazás csomagjait"
+      "support.offer.a11y.hint": "Megnyitja az alkalmazás csomagjait",
+      "support.review.title": "Oszd meg a tapasztalatod",
+      "support.review.body.appStore": "Ha szeretnéd, írhatsz értékelést itt: App Store.",
+      "support.review.body.googlePlay": "Ha szeretnéd, írhatsz értékelést itt: Google Play.",
+      "support.review.open": "Értékelés írása",
+      "support.review.unavailable": "Ez az értékelési link már nem érhető el",
+      "support.review.unsupported": "Ehhez az eszközhöz nincs áruházi oldal",
+      "support.review.a11y.hint.appStore": "Megnyitja: App Store",
+      "support.review.a11y.hint.googlePlay": "Megnyitja: Google Play"
     },
     "id": {
       "support.home.title": "Bantuan {app}",
@@ -2631,7 +2783,15 @@
       "support.offer.package.annual": "Tahunan",
       "support.offer.package.lifetime": "Seumur hidup",
       "support.offer.package.custom": "Pilihan",
-      "support.offer.a11y.hint": "Membuka paket aplikasi"
+      "support.offer.a11y.hint": "Membuka paket aplikasi",
+      "support.review.title": "Bagikan pengalamanmu",
+      "support.review.body.appStore": "Jika mau, kamu bisa menulis ulasan di App Store.",
+      "support.review.body.googlePlay": "Jika mau, kamu bisa menulis ulasan di Google Play.",
+      "support.review.open": "Tulis ulasan",
+      "support.review.unavailable": "Tautan ulasan ini sudah tidak tersedia",
+      "support.review.unsupported": "Tidak ada halaman toko untuk perangkat ini",
+      "support.review.a11y.hint.appStore": "Membuka App Store",
+      "support.review.a11y.hint.googlePlay": "Membuka Google Play"
     },
     "it": {
       "support.home.title": "Assistenza {app}",
@@ -2759,7 +2919,15 @@
       "support.offer.package.annual": "Annuale",
       "support.offer.package.lifetime": "A vita",
       "support.offer.package.custom": "Opzione",
-      "support.offer.a11y.hint": "Apre i piani dell’app"
+      "support.offer.a11y.hint": "Apre i piani dell’app",
+      "support.review.title": "Condividi la tua esperienza",
+      "support.review.body.appStore": "Se vuoi, puoi scrivere una recensione sull’App Store.",
+      "support.review.body.googlePlay": "Se vuoi, puoi scrivere una recensione su Google Play.",
+      "support.review.open": "Scrivi una recensione",
+      "support.review.unavailable": "Questo link alla recensione non è più disponibile",
+      "support.review.unsupported": "Non c’è una pagina dello store per questo dispositivo",
+      "support.review.a11y.hint.appStore": "Apre l’App Store",
+      "support.review.a11y.hint.googlePlay": "Apre Google Play"
     },
     "ja": {
       "support.home.title": "{app} サポート",
@@ -2885,7 +3053,15 @@
       "support.offer.package.annual": "年間",
       "support.offer.package.lifetime": "買い切り",
       "support.offer.package.custom": "オプション",
-      "support.offer.a11y.hint": "アプリのプランを開きます"
+      "support.offer.a11y.hint": "アプリのプランを開きます",
+      "support.review.title": "ご感想をお聞かせください",
+      "support.review.body.appStore": "よろしければ、App Storeでレビューを書くことができます。",
+      "support.review.body.googlePlay": "よろしければ、Google Playでレビューを書くことができます。",
+      "support.review.open": "レビューを書く",
+      "support.review.unavailable": "このレビューのリンクは利用できなくなりました",
+      "support.review.unsupported": "このデバイス用のストアページはありません",
+      "support.review.a11y.hint.appStore": "App Storeを開きます",
+      "support.review.a11y.hint.googlePlay": "Google Playを開きます"
     },
     "ko": {
       "support.home.title": "{app} 고객지원",
@@ -3011,7 +3187,15 @@
       "support.offer.package.annual": "연간",
       "support.offer.package.lifetime": "평생",
       "support.offer.package.custom": "옵션",
-      "support.offer.a11y.hint": "앱의 플랜을 열어요"
+      "support.offer.a11y.hint": "앱의 플랜을 열어요",
+      "support.review.title": "사용 경험을 공유해 주세요",
+      "support.review.body.appStore": "원하시면 App Store에서 리뷰를 작성할 수 있어요.",
+      "support.review.body.googlePlay": "원하시면 Google Play에서 리뷰를 작성할 수 있어요.",
+      "support.review.open": "리뷰 작성",
+      "support.review.unavailable": "이 리뷰 링크는 더 이상 사용할 수 없어요",
+      "support.review.unsupported": "이 기기용 스토어 페이지가 없어요",
+      "support.review.a11y.hint.appStore": "App Store 열기",
+      "support.review.a11y.hint.googlePlay": "Google Play 열기"
     },
     "ms": {
       "support.home.title": "Sokongan {app}",
@@ -3137,7 +3321,15 @@
       "support.offer.package.annual": "Tahunan",
       "support.offer.package.lifetime": "Seumur hidup",
       "support.offer.package.custom": "Pilihan",
-      "support.offer.a11y.hint": "Membuka pelan apl"
+      "support.offer.a11y.hint": "Membuka pelan apl",
+      "support.review.title": "Kongsi pengalaman anda",
+      "support.review.body.appStore": "Jika mahu, anda boleh menulis ulasan di App Store.",
+      "support.review.body.googlePlay": "Jika mahu, anda boleh menulis ulasan di Google Play.",
+      "support.review.open": "Tulis ulasan",
+      "support.review.unavailable": "Pautan ulasan ini tidak lagi tersedia",
+      "support.review.unsupported": "Tiada halaman kedai untuk peranti ini",
+      "support.review.a11y.hint.appStore": "Membuka App Store",
+      "support.review.a11y.hint.googlePlay": "Membuka Google Play"
     },
     "nb": {
       "support.home.title": "Kundestøtte for {app}",
@@ -3264,7 +3456,15 @@
       "support.offer.package.annual": "Årlig",
       "support.offer.package.lifetime": "Livstid",
       "support.offer.package.custom": "Alternativ",
-      "support.offer.a11y.hint": "Åpner appens abonnementer"
+      "support.offer.a11y.hint": "Åpner appens abonnementer",
+      "support.review.title": "Del opplevelsen din",
+      "support.review.body.appStore": "Hvis du vil, kan du skrive en anmeldelse på App Store.",
+      "support.review.body.googlePlay": "Hvis du vil, kan du skrive en anmeldelse på Google Play.",
+      "support.review.open": "Skriv en anmeldelse",
+      "support.review.unavailable": "Denne anmeldelseslenken er ikke lenger tilgjengelig",
+      "support.review.unsupported": "Det finnes ingen butikkside for denne enheten",
+      "support.review.a11y.hint.appStore": "Åpner App Store",
+      "support.review.a11y.hint.googlePlay": "Åpner Google Play"
     },
     "nl": {
       "support.home.title": "Support van {app}",
@@ -3391,7 +3591,15 @@
       "support.offer.package.annual": "Jaarlijks",
       "support.offer.package.lifetime": "Levenslang",
       "support.offer.package.custom": "Optie",
-      "support.offer.a11y.hint": "Opent de abonnementen van de app"
+      "support.offer.a11y.hint": "Opent de abonnementen van de app",
+      "support.review.title": "Deel je ervaring",
+      "support.review.body.appStore": "Als je wilt, kun je een review schrijven in App Store.",
+      "support.review.body.googlePlay": "Als je wilt, kun je een review schrijven in Google Play.",
+      "support.review.open": "Schrijf een review",
+      "support.review.unavailable": "Deze reviewlink is niet meer beschikbaar",
+      "support.review.unsupported": "Er is geen storepagina voor dit apparaat",
+      "support.review.a11y.hint.appStore": "Opent App Store",
+      "support.review.a11y.hint.googlePlay": "Opent Google Play"
     },
     "pl": {
       "support.home.title": "Pomoc · {app}",
@@ -3520,7 +3728,15 @@
       "support.offer.package.annual": "Rocznie",
       "support.offer.package.lifetime": "Dożywotnio",
       "support.offer.package.custom": "Opcja",
-      "support.offer.a11y.hint": "Otwiera plany w aplikacji"
+      "support.offer.a11y.hint": "Otwiera plany w aplikacji",
+      "support.review.title": "Podziel się swoją opinią",
+      "support.review.body.appStore": "Jeśli chcesz, możesz napisać recenzję w App Store.",
+      "support.review.body.googlePlay": "Jeśli chcesz, możesz napisać recenzję w Google Play.",
+      "support.review.open": "Napisz recenzję",
+      "support.review.unavailable": "Ten link do recenzji nie jest już dostępny",
+      "support.review.unsupported": "Dla tego urządzenia nie ma strony w sklepie",
+      "support.review.a11y.hint.appStore": "Otwiera App Store",
+      "support.review.a11y.hint.googlePlay": "Otwiera Google Play"
     },
     "pt-BR": {
       "support.home.title": "Suporte {app}",
@@ -3648,7 +3864,15 @@
       "support.offer.package.annual": "Anual",
       "support.offer.package.lifetime": "Vitalício",
       "support.offer.package.custom": "Opção",
-      "support.offer.a11y.hint": "Abre os planos do app"
+      "support.offer.a11y.hint": "Abre os planos do app",
+      "support.review.title": "Conte como foi sua experiência",
+      "support.review.body.appStore": "Se quiser, você pode escrever uma avaliação na App Store.",
+      "support.review.body.googlePlay": "Se quiser, você pode escrever uma avaliação no Google Play.",
+      "support.review.open": "Escrever uma avaliação",
+      "support.review.unavailable": "Este link de avaliação não está mais disponível",
+      "support.review.unsupported": "Não há página da loja para este dispositivo",
+      "support.review.a11y.hint.appStore": "Abre a App Store",
+      "support.review.a11y.hint.googlePlay": "Abre o Google Play"
     },
     "pt-PT": {
       "support.home.title": "Apoio {app}",
@@ -3776,7 +4000,15 @@
       "support.offer.package.annual": "Anual",
       "support.offer.package.lifetime": "Vitalício",
       "support.offer.package.custom": "Opção",
-      "support.offer.a11y.hint": "Abre os planos da app"
+      "support.offer.a11y.hint": "Abre os planos da app",
+      "support.review.title": "Partilha a tua experiência",
+      "support.review.body.appStore": "Se quiseres, podes escrever uma avaliação na App Store.",
+      "support.review.body.googlePlay": "Se quiseres, podes escrever uma avaliação no Google Play.",
+      "support.review.open": "Escrever uma avaliação",
+      "support.review.unavailable": "Esta ligação de avaliação já não está disponível",
+      "support.review.unsupported": "Não há página da loja para este dispositivo",
+      "support.review.a11y.hint.appStore": "Abre a App Store",
+      "support.review.a11y.hint.googlePlay": "Abre o Google Play"
     },
     "ro": {
       "support.home.title": "Asistență {app}",
@@ -3904,7 +4136,15 @@
       "support.offer.package.annual": "Anual",
       "support.offer.package.lifetime": "Pe viață",
       "support.offer.package.custom": "Opțiune",
-      "support.offer.a11y.hint": "Deschide planurile aplicației"
+      "support.offer.a11y.hint": "Deschide planurile aplicației",
+      "support.review.title": "Spune-ne cum a fost",
+      "support.review.body.appStore": "Dacă vrei, poți scrie o recenzie în App Store.",
+      "support.review.body.googlePlay": "Dacă vrei, poți scrie o recenzie în Google Play.",
+      "support.review.open": "Scrie o recenzie",
+      "support.review.unavailable": "Acest link pentru recenzie nu mai este disponibil",
+      "support.review.unsupported": "Nu există o pagină în magazin pentru acest dispozitiv",
+      "support.review.a11y.hint.appStore": "Deschide App Store",
+      "support.review.a11y.hint.googlePlay": "Deschide Google Play"
     },
     "ru": {
       "support.home.title": "Поддержка {app}",
@@ -4033,7 +4273,15 @@
       "support.offer.package.annual": "Ежегодно",
       "support.offer.package.lifetime": "Навсегда",
       "support.offer.package.custom": "Вариант",
-      "support.offer.a11y.hint": "Открывает планы приложения"
+      "support.offer.a11y.hint": "Открывает планы приложения",
+      "support.review.title": "Поделитесь впечатлениями",
+      "support.review.body.appStore": "Если хотите, можете написать отзыв в App Store.",
+      "support.review.body.googlePlay": "Если хотите, можете написать отзыв в Google Play.",
+      "support.review.open": "Написать отзыв",
+      "support.review.unavailable": "Эта ссылка для отзыва больше недоступна",
+      "support.review.unsupported": "Для этого устройства нет страницы в магазине",
+      "support.review.a11y.hint.appStore": "Открывает App Store",
+      "support.review.a11y.hint.googlePlay": "Открывает Google Play"
     },
     "sk": {
       "support.home.title": "Podpora {app}",
@@ -4161,7 +4409,15 @@
       "support.offer.package.annual": "Ročne",
       "support.offer.package.lifetime": "Doživotne",
       "support.offer.package.custom": "Možnosť",
-      "support.offer.a11y.hint": "Otvorí predplatné v aplikácii"
+      "support.offer.a11y.hint": "Otvorí predplatné v aplikácii",
+      "support.review.title": "Podeľte sa o svoju skúsenosť",
+      "support.review.body.appStore": "Ak chcete, môžete napísať recenziu v App Store.",
+      "support.review.body.googlePlay": "Ak chcete, môžete napísať recenziu v Google Play.",
+      "support.review.open": "Napísať recenziu",
+      "support.review.unavailable": "Tento odkaz na recenziu už nie je k dispozícii",
+      "support.review.unsupported": "Pre toto zariadenie nie je k dispozícii stránka v obchode",
+      "support.review.a11y.hint.appStore": "Otvorí App Store",
+      "support.review.a11y.hint.googlePlay": "Otvorí Google Play"
     },
     "sv": {
       "support.home.title": "Support för {app}",
@@ -4288,7 +4544,15 @@
       "support.offer.package.annual": "Årsvis",
       "support.offer.package.lifetime": "Livstid",
       "support.offer.package.custom": "Alternativ",
-      "support.offer.a11y.hint": "Öppnar appens abonnemang"
+      "support.offer.a11y.hint": "Öppnar appens abonnemang",
+      "support.review.title": "Dela din upplevelse",
+      "support.review.body.appStore": "Om du vill kan du skriva en recension på App Store.",
+      "support.review.body.googlePlay": "Om du vill kan du skriva en recension på Google Play.",
+      "support.review.open": "Skriv en recension",
+      "support.review.unavailable": "Den här recensionslänken är inte längre tillgänglig",
+      "support.review.unsupported": "Det finns ingen butikssida för den här enheten",
+      "support.review.a11y.hint.appStore": "Öppnar App Store",
+      "support.review.a11y.hint.googlePlay": "Öppnar Google Play"
     },
     "th": {
       "support.home.title": "ฝ่ายช่วยเหลือ {app}",
@@ -4414,7 +4678,15 @@
       "support.offer.package.annual": "รายปี",
       "support.offer.package.lifetime": "ตลอดชีพ",
       "support.offer.package.custom": "ตัวเลือก",
-      "support.offer.a11y.hint": "เปิดแพ็กเกจของแอป"
+      "support.offer.a11y.hint": "เปิดแพ็กเกจของแอป",
+      "support.review.title": "แบ่งปันประสบการณ์ของคุณ",
+      "support.review.body.appStore": "หากต้องการ คุณสามารถเขียนรีวิวได้ที่ App Store",
+      "support.review.body.googlePlay": "หากต้องการ คุณสามารถเขียนรีวิวได้ที่ Google Play",
+      "support.review.open": "เขียนรีวิว",
+      "support.review.unavailable": "ลิงก์รีวิวนี้ใช้ไม่ได้แล้ว",
+      "support.review.unsupported": "ไม่มีหน้าร้านค้าสำหรับอุปกรณ์นี้",
+      "support.review.a11y.hint.appStore": "เปิด App Store",
+      "support.review.a11y.hint.googlePlay": "เปิด Google Play"
     },
     "tr": {
       "support.home.title": "{app} Destek",
@@ -4541,7 +4813,15 @@
       "support.offer.package.annual": "Yıllık",
       "support.offer.package.lifetime": "Ömür boyu",
       "support.offer.package.custom": "Seçenek",
-      "support.offer.a11y.hint": "Uygulamanın planlarını açar"
+      "support.offer.a11y.hint": "Uygulamanın planlarını açar",
+      "support.review.title": "Deneyimini paylaş",
+      "support.review.body.appStore": "İstersen App Store üzerinde bir değerlendirme yazabilirsin.",
+      "support.review.body.googlePlay": "İstersen Google Play üzerinde bir değerlendirme yazabilirsin.",
+      "support.review.open": "Değerlendirme yaz",
+      "support.review.unavailable": "Bu değerlendirme bağlantısı artık kullanılamıyor",
+      "support.review.unsupported": "Bu cihaz için mağaza sayfası yok",
+      "support.review.a11y.hint.appStore": "App Store uygulamasını açar",
+      "support.review.a11y.hint.googlePlay": "Google Play uygulamasını açar"
     },
     "uk": {
       "support.home.title": "Підтримка {app}",
@@ -4670,7 +4950,15 @@
       "support.offer.package.annual": "Щороку",
       "support.offer.package.lifetime": "Назавжди",
       "support.offer.package.custom": "Варіант",
-      "support.offer.a11y.hint": "Відкриває плани застосунку"
+      "support.offer.a11y.hint": "Відкриває плани застосунку",
+      "support.review.title": "Поділіться враженнями",
+      "support.review.body.appStore": "Якщо бажаєте, можете написати відгук у App Store.",
+      "support.review.body.googlePlay": "Якщо бажаєте, можете написати відгук у Google Play.",
+      "support.review.open": "Написати відгук",
+      "support.review.unavailable": "Це посилання для відгуку більше не доступне",
+      "support.review.unsupported": "Для цього пристрою немає сторінки в магазині",
+      "support.review.a11y.hint.appStore": "Відкриває App Store",
+      "support.review.a11y.hint.googlePlay": "Відкриває Google Play"
     },
     "vi": {
       "support.home.title": "Hỗ trợ {app}",
@@ -4796,7 +5084,15 @@
       "support.offer.package.annual": "Hằng năm",
       "support.offer.package.lifetime": "Trọn đời",
       "support.offer.package.custom": "Tùy chọn",
-      "support.offer.a11y.hint": "Mở các gói của ứng dụng"
+      "support.offer.a11y.hint": "Mở các gói của ứng dụng",
+      "support.review.title": "Chia sẻ trải nghiệm của bạn",
+      "support.review.body.appStore": "Nếu muốn, bạn có thể viết đánh giá trên App Store.",
+      "support.review.body.googlePlay": "Nếu muốn, bạn có thể viết đánh giá trên Google Play.",
+      "support.review.open": "Viết đánh giá",
+      "support.review.unavailable": "Liên kết đánh giá này không còn khả dụng",
+      "support.review.unsupported": "Không có trang cửa hàng cho thiết bị này",
+      "support.review.a11y.hint.appStore": "Mở App Store",
+      "support.review.a11y.hint.googlePlay": "Mở Google Play"
     },
     "zh-Hans": {
       "support.home.title": "{app} 客服",
@@ -4922,7 +5218,15 @@
       "support.offer.package.annual": "每年",
       "support.offer.package.lifetime": "永久",
       "support.offer.package.custom": "选项",
-      "support.offer.a11y.hint": "打开应用的方案页面"
+      "support.offer.a11y.hint": "打开应用的方案页面",
+      "support.review.title": "分享你的使用体验",
+      "support.review.body.appStore": "如果愿意，你可以在 App Store 上写一条评论。",
+      "support.review.body.googlePlay": "如果愿意，你可以在 Google Play 上写一条评论。",
+      "support.review.open": "写评论",
+      "support.review.unavailable": "此评论链接已不可用",
+      "support.review.unsupported": "此设备没有对应的商店页面",
+      "support.review.a11y.hint.appStore": "打开 App Store",
+      "support.review.a11y.hint.googlePlay": "打开 Google Play"
     },
     "zh-Hant": {
       "support.home.title": "{app} 客服",
@@ -5048,7 +5352,15 @@
       "support.offer.package.annual": "每年",
       "support.offer.package.lifetime": "永久",
       "support.offer.package.custom": "選項",
-      "support.offer.a11y.hint": "開啟 App 的方案頁面"
+      "support.offer.a11y.hint": "開啟 App 的方案頁面",
+      "support.review.title": "分享你的使用體驗",
+      "support.review.body.appStore": "如果願意，你可以在 App Store 上寫一則評論。",
+      "support.review.body.googlePlay": "如果願意，你可以在 Google Play 上寫一則評論。",
+      "support.review.open": "撰寫評論",
+      "support.review.unavailable": "此評論連結已無法使用",
+      "support.review.unsupported": "此裝置沒有對應的商店頁面",
+      "support.review.a11y.hint.appStore": "開啟 App Store",
+      "support.review.a11y.hint.googlePlay": "開啟 Google Play"
     }
   }
 }

@@ -248,3 +248,19 @@
 "support.offer.package.custom" = "אפשרות";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "פותח את התוכניות של האפליקציה";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "שתפו את החוויה שלכם";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "אם תרצו, אפשר לכתוב ביקורת ב-App Store.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "אם תרצו, אפשר לכתוב ביקורת ב-Google Play.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "כתיבת ביקורת";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "הקישור לביקורת כבר לא זמין";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "אין דף חנות למכשיר הזה";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "פותח את App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "פותח את Google Play";

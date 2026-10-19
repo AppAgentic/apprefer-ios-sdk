@@ -244,3 +244,19 @@
 "support.offer.package.custom" = "選項";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "開啟 App 的方案頁面";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "分享你的使用體驗";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "如果願意，你可以在 App Store 上寫一則評論。";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "如果願意，你可以在 Google Play 上寫一則評論。";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "撰寫評論";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "此評論連結已無法使用";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "此裝置沒有對應的商店頁面";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "開啟 App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "開啟 Google Play";

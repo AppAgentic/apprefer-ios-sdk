@@ -254,3 +254,19 @@
 "support.offer.package.custom" = "خيار";
 /* VoiceOver/TalkBack hint on the offer card's button. */
 "support.offer.a11y.hint" = "يفتح خطط التطبيق";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "شارك تجربتك";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "إذا أردت، يمكنك كتابة مراجعة على App Store.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "إذا أردت، يمكنك كتابة مراجعة على Google Play.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "اكتب مراجعة";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "رابط المراجعة هذا لم يعد متاحًا";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "لا توجد صفحة متجر لهذا الجهاز";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "يفتح App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "يفتح Google Play";
