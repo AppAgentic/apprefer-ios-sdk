@@ -298,10 +298,10 @@
 "support.testimonial.cameraDenied" = "Kameran käyttö on pois päältä. Voit valita kirjastostasi.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Valitse toinen";
-/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
 "support.testimonial.publish" = "Salli julkinen käyttö";
-/* Hint under the public-use switch (which starts off). */
-"support.testimonial.publishHint" = "Vapaaehtoinen ja pois päältä, ellet laita sitä päälle. Palkkio on sama kummassakin tapauksessa, ja voit perua luvan myöhemmin.";
+/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
+"support.testimonial.publishHint" = "Päällä, ellet laita sitä pois. Palkkio on sama kummassakin tapauksessa, ja voit perua luvan myöhemmin.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Jaa";
 /* Progress while uploading. {percent} = 0-100. */

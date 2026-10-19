@@ -5,7 +5,8 @@ import Foundation
 // app's policy, or automation); this SDK only answers one, for the account the support session is
 // verified for (`AppRefer.support.verifyIdentity`). The reward and the publication permission
 // text come from the request: the SDK never chooses a reward and never ties it to what is said.
-// Taking part earns the reward; allowing public use is a separate, optional switch.
+// Taking part earns the reward; public use is a separate switch that starts on and the customer
+// can turn off. Only the final Share sends its value, with the permission version shown.
 
 /// A photo/video request as the server sends it.
 public struct AppReferTestimonialRequest: Hashable, Sendable, Decodable {
@@ -220,7 +221,10 @@ final class TestimonialFlowModel: ObservableObject {
     @Published private(set) var phase: Phase = .loading
     @Published private(set) var request: AppReferTestimonialRequest?
     @Published private(set) var file: TestimonialFile?
-    @Published var publish = false
+    /// Public use starts on; the customer can turn it off. Nothing is recorded until `submit()`
+    /// (opening, picking or cancelling sends no answer), and a request without permission text
+    /// (an older server) can't be submitted, so no permission is ever assumed.
+    @Published var publish = true
     /// The localized message for the last problem (nil when none).
     @Published private(set) var notice: String?
 
@@ -344,8 +348,8 @@ final class TestimonialFlowModel: ObservableObject {
     }
 }
 
-/// The capture screen: what's asked, the reward, pick or record, preview, the optional public-use
-/// switch with the app's exact permission text, honest progress, then the result. Embed it, or let
+/// The capture screen: what's asked, the reward, pick or record, preview, the public-use switch
+/// (on unless the customer turns it off) with the app's exact permission text, honest progress, then the result. Embed it, or let
 /// `AppRefer.support.testimonials.present(requestId:)` show it.
 public struct AppReferTestimonialView: View {
     @StateObject private var model: TestimonialFlowModel

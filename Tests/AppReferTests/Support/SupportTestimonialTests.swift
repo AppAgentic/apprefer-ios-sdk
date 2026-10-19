@@ -115,6 +115,40 @@ final class SupportTestimonialTests: XCTestCase {
         XCTAssertEqual(model.result.rewardStatus, "pending")
     }
 
+    func testPublicUseStartsOnButOnlyTheFinalShareRecordsIt() async throws {
+        let transport = FakeTransport(FakeTransport.decode(FakeTransport.json()))
+        let model = TestimonialFlowModel(requestId: "tsr_0123456789abcdef0123456789abcdef", transport: transport, generation: 0)
+        XCTAssertTrue(model.publish, "public use starts on")
+        await model.load()
+        model.picked(.success(try jpegFile()))
+        XCTAssertEqual(model.request?.permission?.text, "You may show this in the app.", "the app's registered text is what the switch shows")
+        XCTAssertTrue(transport.submits.isEmpty, "opening and picking record nothing")
+        await model.submit()
+        XCTAssertEqual(transport.submits.count, 1)
+        XCTAssertTrue(transport.submits[0].publication, "left on: the share says yes, with the version shown")
+        XCTAssertEqual(transport.submits[0].version, "0123456789abcdef")
+        XCTAssertEqual(model.result.publication, "granted")
+        XCTAssertEqual(model.result.rewardStatus, "pending", "same reward path whether on or off")
+
+        let declined = TestimonialFlowModel(requestId: "tsr_x", transport: FakeTransport(FakeTransport.decode(FakeTransport.json())), generation: 0)
+        await declined.load()
+        declined.picked(.success(try jpegFile()))
+        let result = await declined.decline(dontAskAgain: false)
+        XCTAssertNil(result.publication, "declining sends no permission answer")
+    }
+
+    func testARequestWithoutPermissionTextIsNeverSubmittedWithAnAssumedAnswer() async throws {
+        let old = FakeTransport.json().replacingOccurrences(of: #""permission":{"text":"You may show this in the app.","scopes":["in_app"],"version":"0123456789abcdef"},"#, with: "")
+        let transport = FakeTransport(FakeTransport.decode(old))
+        let model = TestimonialFlowModel(requestId: "tsr_x", transport: transport, generation: 0)
+        await model.load()
+        XCTAssertNil(model.request?.permission)
+        model.picked(.success(try jpegFile()))
+        await model.submit()
+        XCTAssertTrue(transport.submits.isEmpty, "no permission text means no answer is sent or inferred")
+        XCTAssertEqual(transport.slots, 0)
+    }
+
     func testARefusedFileNeedsANewUploadAndAClosedRequestEndsTheFlow() async throws {
         let transport = FakeTransport(FakeTransport.decode(FakeTransport.json()))
         let model = TestimonialFlowModel(requestId: "tsr_x", transport: transport, generation: 0)

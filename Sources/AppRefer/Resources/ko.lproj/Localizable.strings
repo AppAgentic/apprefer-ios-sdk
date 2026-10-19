@@ -296,10 +296,10 @@
 "support.testimonial.cameraDenied" = "카메라 접근이 꺼져 있어요. 대신 보관함에서 선택할 수 있어요.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "다른 항목 선택";
-/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
 "support.testimonial.publish" = "공개 사용 허용";
-/* Hint under the public-use switch (which starts off). */
-"support.testimonial.publishHint" = "선택 사항이며 직접 켜기 전까지는 꺼져 있어요. 어느 쪽이든 보상은 같고, 나중에 철회할 수도 있어요.";
+/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
+"support.testimonial.publishHint" = "직접 끄지 않으면 켜져 있어요. 어느 쪽이든 보상은 같고, 나중에 철회할 수도 있어요.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "공유";
 /* Progress while uploading. {percent} = 0-100. */

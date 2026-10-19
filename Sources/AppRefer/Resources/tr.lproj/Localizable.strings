@@ -298,10 +298,10 @@
 "support.testimonial.cameraDenied" = "Kamera erişimi kapalı. Bunun yerine arşivinden seçebilirsin.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Başkasını seç";
-/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
 "support.testimonial.publish" = "Herkese açık kullanıma izin ver";
-/* Hint under the public-use switch (which starts off). */
-"support.testimonial.publishHint" = "İsteğe bağlıdır ve sen açmadıkça kapalıdır. Ödül her iki durumda da aynıdır ve izni daha sonra geri çekebilirsin.";
+/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
+"support.testimonial.publishHint" = "Sen kapatmadıkça açıktır. Ödül her iki durumda da aynıdır ve izni daha sonra geri çekebilirsin.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Paylaş";
 /* Progress while uploading. {percent} = 0-100. */

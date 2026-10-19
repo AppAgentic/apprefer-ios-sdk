@@ -296,10 +296,10 @@
 "support.testimonial.cameraDenied" = "相机访问已关闭。你可以改为从相册中选择。";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "换一个";
-/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
 "support.testimonial.publish" = "允许公开使用";
-/* Hint under the public-use switch (which starts off). */
-"support.testimonial.publishHint" = "可选，除非你打开，否则保持关闭。两种情况下奖励相同，之后也可以撤回。";
+/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
+"support.testimonial.publishHint" = "默认开启，你可以关闭。两种情况下奖励相同，之后也可以撤回。";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "分享";
 /* Progress while uploading. {percent} = 0-100. */

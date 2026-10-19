@@ -300,10 +300,10 @@
 "support.testimonial.cameraDenied" = "L’accès à l’appareil photo est désactivé. Vous pouvez choisir dans votre photothèque.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "En choisir une autre";
-/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
 "support.testimonial.publish" = "Autoriser l’utilisation publique";
-/* Hint under the public-use switch (which starts off). */
-"support.testimonial.publishHint" = "Facultatif et désactivé tant que vous ne l’activez pas. La récompense est la même dans les deux cas, et vous pourrez retirer votre accord plus tard.";
+/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
+"support.testimonial.publishHint" = "Activé tant que vous ne le désactivez pas. La récompense est la même dans les deux cas, et vous pourrez retirer votre accord plus tard.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Partager";
 /* Progress while uploading. {percent} = 0-100. */

@@ -622,8 +622,8 @@ from the App Store id your app already has in AppRefer (Billing or the store URL
 Ask a signed-in customer for a photo or a short video and give them the reward your campaign sets,
 from your own screens, from your coach/assistant, from a Support reply, or automatically after
 real usage. One native capture screen does it everywhere: what's asked, the reward, the system photo
-picker (no photo-library permission needed) or the camera, a preview, an optional **Allow public use** switch with your exact permission
-text, upload progress, then the result.
+picker (no photo-library permission needed) or the camera, a preview, an **Allow public use** switch with your exact permission
+text (on unless the customer turns it off, and it says so), upload progress, then the result.
 
 1. Your backend registers campaigns (`PUT /api/v1/apps/{appId}/support/testimonials/campaigns`,
    private key with `support:testimonials`). A company admin switches each one on in AppRefer
@@ -654,7 +654,9 @@ AppRefer.support.testimonials.present(requestId: requestId) { result in
   (`verifyIdentity`); otherwise requests read as unavailable. A reset or account switch
   cancels a capture in progress; nothing is shared for another account.
 - Taking part earns the reward whatever the customer says and whether or not the media is ever
-  used. Public use is a separate, optional yes/no, revocable later
+  used. Public use is a separate yes/no: the switch starts on with your campaign's permission text
+  and the customer can turn it off; only their final Share records the choice (with the text's
+  version), opening or cancelling records nothing, and it is revocable later
   (`withdrawPublication(requestId)`); the reward is never taken back.
 - Photos are re-encoded as JPEG (≤ 2048 px, no location or other metadata); videos are exported as
   MP4 without metadata and refused when longer than the campaign allows. Limits: 15 MB per photo,

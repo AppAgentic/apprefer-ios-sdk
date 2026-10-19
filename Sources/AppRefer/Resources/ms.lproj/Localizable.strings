@@ -296,10 +296,10 @@
 "support.testimonial.cameraDenied" = "Akses kamera dimatikan. Anda boleh memilih daripada pustaka anda.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Pilih yang lain";
-/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
 "support.testimonial.publish" = "Benarkan penggunaan awam";
-/* Hint under the public-use switch (which starts off). */
-"support.testimonial.publishHint" = "Pilihan dan dimatikan melainkan anda menghidupkannya. Ganjarannya sama dalam kedua-dua keadaan, dan anda boleh menariknya balik kemudian.";
+/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
+"support.testimonial.publishHint" = "Dihidupkan melainkan anda mematikannya. Ganjarannya sama dalam kedua-dua keadaan, dan anda boleh menariknya balik kemudian.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Kongsi";
 /* Progress while uploading. {percent} = 0-100. */

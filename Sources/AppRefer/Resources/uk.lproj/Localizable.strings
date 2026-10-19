@@ -302,10 +302,10 @@
 "support.testimonial.cameraDenied" = "Доступ до камери вимкнено. Натомість можна вибрати з медіатеки.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Вибрати інше";
-/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
 "support.testimonial.publish" = "Дозволити публічне використання";
-/* Hint under the public-use switch (which starts off). */
-"support.testimonial.publishHint" = "Необов’язково й вимкнено, доки ви цього не ввімкнете. Винагорода в обох випадках однакова, а дозвіл можна відкликати пізніше.";
+/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
+"support.testimonial.publishHint" = "Увімкнено, доки ви цього не вимкнете. Винагорода в обох випадках однакова, а дозвіл можна відкликати пізніше.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Поділитися";
 /* Progress while uploading. {percent} = 0-100. */

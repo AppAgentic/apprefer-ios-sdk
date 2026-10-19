@@ -298,10 +298,10 @@
 "support.testimonial.cameraDenied" = "Η πρόσβαση στην κάμερα είναι απενεργοποιημένη. Μπορείς να επιλέξεις από τη βιβλιοθήκη σου.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Επιλογή άλλου";
-/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
 "support.testimonial.publish" = "Να επιτρέπεται η δημόσια χρήση";
-/* Hint under the public-use switch (which starts off). */
-"support.testimonial.publishHint" = "Προαιρετικό και ανενεργό αν δεν το ενεργοποιήσεις. Η ανταμοιβή είναι ίδια σε κάθε περίπτωση και μπορείς να το ανακαλέσεις αργότερα.";
+/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
+"support.testimonial.publishHint" = "Ενεργό, εκτός αν το απενεργοποιήσεις. Η ανταμοιβή είναι ίδια σε κάθε περίπτωση και μπορείς να το ανακαλέσεις αργότερα.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Κοινοποίηση";
 /* Progress while uploading. {percent} = 0-100. */

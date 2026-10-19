@@ -306,10 +306,10 @@
 "support.testimonial.cameraDenied" = "الوصول إلى الكاميرا متوقف. يمكنك الاختيار من مكتبتك بدلًا من ذلك.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "اختر غيرها";
-/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
 "support.testimonial.publish" = "السماح بالاستخدام العام";
-/* Hint under the public-use switch (which starts off). */
-"support.testimonial.publishHint" = "اختياري ومتوقف ما لم تفعّله. المكافأة نفسها في الحالتين، ويمكنك سحب الإذن لاحقًا.";
+/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
+"support.testimonial.publishHint" = "مفعّل ما لم تُوقفه. المكافأة نفسها في الحالتين، ويمكنك سحب الإذن لاحقًا.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "مشاركة";
 /* Progress while uploading. {percent} = 0-100. */

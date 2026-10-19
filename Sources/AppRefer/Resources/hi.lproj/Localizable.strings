@@ -298,10 +298,10 @@
 "support.testimonial.cameraDenied" = "कैमरा ऐक्सेस बंद है। आप इसके बजाय अपनी लाइब्रेरी से चुन सकते हैं।";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "कोई और चुनें";
-/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
 "support.testimonial.publish" = "सार्वजनिक उपयोग की अनुमति दें";
-/* Hint under the public-use switch (which starts off). */
-"support.testimonial.publishHint" = "वैकल्पिक है और जब तक आप चालू न करें, बंद रहता है। इनाम दोनों हालात में एक जैसा है, और आप बाद में यह अनुमति वापस ले सकते हैं।";
+/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
+"support.testimonial.publishHint" = "जब तक आप बंद न करें, यह चालू रहता है। इनाम दोनों हालात में एक जैसा है, और आप बाद में यह अनुमति वापस ले सकते हैं।";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "शेयर करें";
 /* Progress while uploading. {percent} = 0-100. */
