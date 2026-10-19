@@ -282,20 +282,28 @@
 "support.review.a11y.hint.googlePlay" = "Otvara Google Play";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "Za sudjelovanje: {reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "Nagrada ne ovisi o tome što podijelite ni o tome hoće li se upotrijebiti.";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "Dobro, loše ili pomiješano: želimo vaše iskreno mišljenje.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "Dobivate je za sudjelovanje, što god rekli i bez obzira na to dopuštate li ponovnu upotrebu.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Podijelite fotografiju ili video";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "Odaberi iz galerije";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "Upotrijebi kameru";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "Snimi fotografiju";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "Snimi video";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "Pristup kameri je isključen. Možete odabrati iz svoje biblioteke.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Odaberi drugo";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "Dopusti javnu upotrebu";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "Neobavezno. Nagradu dobivate u svakom slučaju, a javnu upotrebu možete kasnije zaustaviti.";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "Neobavezno i isključeno dok to ne uključite. Nagrada je ista u oba slučaja, a dopuštenje možete kasnije povući.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Podijeli";
 /* Progress while uploading. {percent} = 0-100. */
@@ -304,10 +312,16 @@
 "support.testimonial.checking" = "Provjera…";
 /* Title after a successful share. */
 "support.testimonial.done" = "Hvala na dijeljenju!";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "Vaša nagrada stiže.";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "Vaša nagrada je dodana.";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "Zaslužili ste je. Ovdje će se prikazati kao potvrđena nakon što bude primijenjena.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "Vaša je nagrada potvrđena.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "Vaša je nagrada dodana na vaš račun.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "Vaša nagrada još nije potvrđena. Podrška to vidi i može je ponovno poslati.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "Već ste sudjelovali u ovome pa ovaj put nema nove nagrade.";
 /* Button to decline the request. */
 "support.testimonial.decline" = "Ne, hvala";
 /* Button to decline and never be asked again in this app. */
@@ -320,8 +334,8 @@
 "support.testimonial.tooLong" = "Videozapisi mogu trajati do {seconds} s.";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "Datoteka je prevelika za dijeljenje.";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "Dijeljenje nije uspjelo. Provjerite vezu i pokušajte ponovno.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "Dijeljenje nije uspjelo i ništa nije poslano. Provjerite vezu i pokušajte ponovno.";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "Zaustavi javnu upotrebu";
 /* VoiceOver/TalkBack label of the preview. */

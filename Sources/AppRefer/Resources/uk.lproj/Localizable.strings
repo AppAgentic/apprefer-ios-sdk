@@ -284,20 +284,28 @@
 "support.review.a11y.hint.googlePlay" = "Відкриває Google Play";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "За участь: {reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "Винагорода не залежить від того, чим ви поділитеся і чи це буде використано.";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "Добре, погане чи змішане: нам важлива ваша чесна думка.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "Ви отримуєте її за участь, що б ви не сказали і незалежно від того, чи дозволите повторне використання.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Поділитися фото чи відео";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "Вибрати з медіатеки";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "Використати камеру";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "Зробити фото";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "Зняти відео";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "Доступ до камери вимкнено. Натомість можна вибрати з медіатеки.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Вибрати інше";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "Дозволити публічне використання";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "Необов’язково. Винагороду ви отримаєте в будь-якому разі, а публічне використання можна зупинити пізніше.";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "Необов’язково й вимкнено, доки ви цього не ввімкнете. Винагорода в обох випадках однакова, а дозвіл можна відкликати пізніше.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Поділитися";
 /* Progress while uploading. {percent} = 0-100. */
@@ -306,10 +314,16 @@
 "support.testimonial.checking" = "Перевірка…";
 /* Title after a successful share. */
 "support.testimonial.done" = "Дякуємо, що поділилися!";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "Ваша винагорода вже в дорозі.";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "Вашу винагороду додано.";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "Ви її заслужили. Тут вона з’явиться як підтверджена, щойно її нарахують.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "Вашу винагороду підтверджено.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "Вашу винагороду додано до вашого облікового запису.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "Вашу винагороду ще не підтверджено. Підтримка бачить це й може надіслати її повторно.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "Ви вже брали в цьому участь, тож цього разу нової винагороди немає.";
 /* Button to decline the request. */
 "support.testimonial.decline" = "Ні, дякую";
 /* Button to decline and never be asked again in this app. */
@@ -322,8 +336,8 @@
 "support.testimonial.tooLong" = "Відео може тривати до {seconds} с.";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "Файл завеликий, щоб ним поділитися.";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "Не вдалося поділитися. Перевірте з’єднання і спробуйте ще раз.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "Не вдалося поділитися, нічого не надіслано. Перевірте з’єднання та спробуйте ще раз.";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "Зупинити публічне використання";
 /* VoiceOver/TalkBack label of the preview. */

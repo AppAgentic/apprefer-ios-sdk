@@ -278,20 +278,28 @@
 "support.review.a11y.hint.googlePlay" = "เปิด Google Play";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "สำหรับการร่วมแชร์: {reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "รางวัลไม่ขึ้นอยู่กับสิ่งที่คุณแชร์หรือว่าจะถูกนำไปใช้หรือไม่";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "ดี ไม่ดี หรือปนกัน: เราอยากได้ความเห็นที่ตรงไปตรงมาของคุณ";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "คุณได้รับรางวัลนี้จากการร่วมแชร์ ไม่ว่าคุณจะพูดอะไร และไม่ว่าคุณจะอนุญาตให้นำไปใช้ซ้ำหรือไม่";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "แชร์รูปภาพหรือวิดีโอ";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "เลือกจากคลัง";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "ใช้กล้อง";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "ถ่ายรูป";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "อัดวิดีโอ";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "การเข้าถึงกล้องปิดอยู่ คุณเลือกจากคลังภาพแทนได้";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "เลือกอันอื่น";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "อนุญาตให้ใช้แบบสาธารณะ";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "ไม่บังคับ คุณจะได้รับรางวัลไม่ว่าอย่างไร และหยุดการใช้แบบสาธารณะได้ภายหลัง";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "ไม่บังคับ และจะปิดไว้จนกว่าคุณจะเปิด รางวัลเท่ากันทั้งสองกรณี และคุณถอนความยินยอมได้ภายหลัง";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "แชร์";
 /* Progress while uploading. {percent} = 0-100. */
@@ -300,10 +308,16 @@
 "support.testimonial.checking" = "กำลังตรวจสอบ…";
 /* Title after a successful share. */
 "support.testimonial.done" = "ขอบคุณที่แชร์!";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "รางวัลของคุณกำลังมา";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "เพิ่มรางวัลของคุณแล้ว";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "คุณได้รับสิทธิ์แล้ว เมื่อมอบให้แล้วจะแสดงที่นี่ว่ายืนยันแล้ว";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "ยืนยันรางวัลของคุณแล้ว";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "เพิ่มรางวัลลงในบัญชีของคุณแล้ว";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "รางวัลของคุณยังไม่ได้รับการยืนยัน ทีมซัพพอร์ตเห็นเรื่องนี้และส่งให้อีกครั้งได้";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "คุณเคยร่วมกิจกรรมนี้แล้ว ครั้งนี้จึงไม่มีรางวัลใหม่";
 /* Button to decline the request. */
 "support.testimonial.decline" = "ไม่ ขอบคุณ";
 /* Button to decline and never be asked again in this app. */
@@ -316,8 +330,8 @@
 "support.testimonial.tooLong" = "วิดีโอยาวได้สูงสุด {seconds} วินาที";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "ไฟล์นี้ใหญ่เกินกว่าจะแชร์ได้";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "แชร์ไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "แชร์ไม่สำเร็จ ไม่มีอะไรถูกส่ง ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "หยุดการใช้แบบสาธารณะ";
 /* VoiceOver/TalkBack label of the preview. */

@@ -278,20 +278,28 @@
 "support.review.a11y.hint.googlePlay" = "開啟 Google Play";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "參與獎勵：{reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "獎勵與你分享的內容以及是否被使用無關。";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "好評、負評或褒貶不一都可以：我們想聽你的真實想法。";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "只要參與就能獲得，無論你說什麼，也無論是否允許再次使用。";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "分享照片或影片";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "從圖庫選擇";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "使用相機";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "拍照";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "錄製影片";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "相機存取已關閉。你可以改為從相簿中選擇。";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "換一個";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "允許公開使用";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "可選。無論如何你都會獲得獎勵，之後也可以停止公開使用。";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "可選，除非你開啟，否則維持關閉。兩種情況下獎勵相同，之後也可以撤回。";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "分享";
 /* Progress while uploading. {percent} = 0-100. */
@@ -300,10 +308,16 @@
 "support.testimonial.checking" = "正在檢查…";
 /* Title after a successful share. */
 "support.testimonial.done" = "感謝分享！";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "你的獎勵正在發放。";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "你的獎勵已加入。";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "你已獲得獎勵資格。發放後會在這裡顯示為已確認。";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "你的獎勵已確認。";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "你的獎勵已加入帳號中。";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "你的獎勵尚未確認。支援團隊可以看到這個情況，並可重新發放。";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "你已參與過此活動，因此這次沒有新的獎勵。";
 /* Button to decline the request. */
 "support.testimonial.decline" = "不用了，謝謝";
 /* Button to decline and never be asked again in this app. */
@@ -316,8 +330,8 @@
 "support.testimonial.tooLong" = "影片最長 {seconds} 秒。";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "此檔案太大，無法分享。";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "無法分享。請檢查網路連線後再試一次。";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "未能分享，沒有傳送任何內容。請檢查網路連線後再試一次。";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "停止公開使用";
 /* VoiceOver/TalkBack label of the preview. */

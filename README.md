@@ -661,6 +661,18 @@ AppRefer.support.testimonials.present(requestId: requestId) { result in
   150 MB per video. The server checks the stored bytes and video length again.
 - Requests from Support show as a card in the chat ("Share a photo or video"); older SDK versions
   show your text and a line asking the customer to update the app.
+- The Support home shows the newest open request for the verified account as a card each time it
+  opens (never a pop-up). Requests your backend, coach or automation made appear there by
+  themselves; shared, declined, withdrawn or ended ones leave it, and another account's never show.
+- Automated asks (a campaign `automation`, switched on separately in Support): the invitation is that
+  home card. The SDK declares the `testimonials` engagement capability and opens a tapped
+  invitation notification (`/apprefer/testimonials/<requestId>`) as the capture screen itself,
+  never through your notification handler. AppRefer only records push invitations as dry runs in
+  this release: no notification is sent yet.
+- The reward line after sharing is honest about who confirms it: "earned" until your backend
+  reports its receipt; then "added to your account" for credits, coach answers and subscription
+  time, or "confirmed" for anything else (no shipping or email promise); a failed or late one says
+  Support can see it and send it again.
 - Camera (optional): offered only when your app declares `NSCameraUsageDescription` (and, for
   video, `NSMicrophoneUsageDescription`) and the device has a camera. The library uses the
   system photo picker, which needs no permission.

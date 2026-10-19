@@ -280,20 +280,28 @@
 "support.review.a11y.hint.googlePlay" = "Ανοίγει το Google Play";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "Για τη συμμετοχή σου: {reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "Η ανταμοιβή δεν εξαρτάται από το τι μοιράζεσαι ή αν θα χρησιμοποιηθεί.";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "Καλή, κακή ή ανάμεικτη: θέλουμε την ειλικρινή σου γνώμη.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "Την παίρνεις επειδή συμμετέχεις, ό,τι κι αν πεις και είτε επιτρέψεις την επαναχρησιμοποίηση είτε όχι.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Μοιράσου μια φωτογραφία ή ένα βίντεο";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "Επιλογή από τη βιβλιοθήκη";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "Χρήση κάμερας";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "Λήψη φωτογραφίας";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "Εγγραφή βίντεο";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "Η πρόσβαση στην κάμερα είναι απενεργοποιημένη. Μπορείς να επιλέξεις από τη βιβλιοθήκη σου.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Επιλογή άλλου";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "Να επιτρέπεται η δημόσια χρήση";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "Προαιρετικό. Παίρνεις την ανταμοιβή σε κάθε περίπτωση και μπορείς να σταματήσεις τη δημόσια χρήση αργότερα.";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "Προαιρετικό και ανενεργό αν δεν το ενεργοποιήσεις. Η ανταμοιβή είναι ίδια σε κάθε περίπτωση και μπορείς να το ανακαλέσεις αργότερα.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Κοινοποίηση";
 /* Progress while uploading. {percent} = 0-100. */
@@ -302,10 +310,16 @@
 "support.testimonial.checking" = "Γίνεται έλεγχος…";
 /* Title after a successful share. */
 "support.testimonial.done" = "Ευχαριστούμε που το μοιράστηκες!";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "Η ανταμοιβή σου έρχεται.";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "Η ανταμοιβή σου προστέθηκε.";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "Την κέρδισες. Θα εμφανιστεί εδώ ως επιβεβαιωμένη μόλις αποδοθεί.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "Η ανταμοιβή σου επιβεβαιώθηκε.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "Η ανταμοιβή σου προστέθηκε στον λογαριασμό σου.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "Η ανταμοιβή σου δεν έχει επιβεβαιωθεί ακόμη. Η υποστήριξη το βλέπει και μπορεί να τη στείλει ξανά.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "Έχεις ήδη συμμετάσχει σε αυτό, οπότε αυτή τη φορά δεν υπάρχει νέα ανταμοιβή.";
 /* Button to decline the request. */
 "support.testimonial.decline" = "Όχι, ευχαριστώ";
 /* Button to decline and never be asked again in this app. */
@@ -318,8 +332,8 @@
 "support.testimonial.tooLong" = "Τα βίντεο μπορούν να διαρκούν έως {seconds} δευτερόλεπτα.";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "Αυτό το αρχείο είναι πολύ μεγάλο για κοινοποίηση.";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "Δεν ήταν δυνατή η κοινοποίηση. Έλεγξε τη σύνδεσή σου και δοκίμασε ξανά.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "Δεν ήταν δυνατή η κοινοποίηση και δεν στάλθηκε τίποτα. Έλεγξε τη σύνδεσή σου και δοκίμασε ξανά.";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "Διακοπή δημόσιας χρήσης";
 /* VoiceOver/TalkBack label of the preview. */

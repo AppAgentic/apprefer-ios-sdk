@@ -101,7 +101,7 @@ final class SupportTestimonialTests: XCTestCase {
         transport.failSubmitOnce = AppReferSupportError(status: 0, message: "The network connection was lost.")
         await model.submit()
         XCTAssertEqual(model.phase, .failed)
-        XCTAssertEqual(model.notice, "Couldn't share it. Check your connection and try again.")
+        XCTAssertEqual(model.notice, "Couldn't share it, nothing was sent. Check your connection and try again.")
         await model.submit()
         XCTAssertEqual(model.phase, .done)
         XCTAssertEqual(transport.slots, 1, "the file reached storage once; the retry only resubmits")
@@ -173,9 +173,29 @@ final class SupportTestimonialTests: XCTestCase {
         XCTAssertEqual(seen, ["pending", "fulfilled"])
     }
 
+    func testTheRewardLineFollowsTheBackendsReceiptAndTheRewardType() {
+        func line(_ status: String, _ type: String) -> String {
+            var json = FakeTransport.json(status: "submitted", rewardStatus: status)
+            json = json.replacingOccurrences(of: #""type":"credits""#, with: #""type":"\#(type)""#)
+            return SupportStrings.text(FakeTransport.decode(json).rewardStatusKey)
+        }
+        // Earned but unconfirmed: never "added".
+        for status in ["pending", "delivered", "none"] {
+            XCTAssertEqual(line(status, "credits"), "You've earned it. It shows as confirmed here once it has been applied.")
+        }
+        for type in ["credits", "coach_usage", "subscription_time"] {
+            XCTAssertEqual(line("fulfilled", type), "Your reward has been added to your account.")
+        }
+        // Goods, gifts and discounts are handled by the app: confirmed, no shipping or email promise.
+        for type in ["merch", "gift", "discount", "manual"] { XCTAssertEqual(line("fulfilled", type), "Your reward is confirmed.") }
+        XCTAssertEqual(line("failed", "merch"), "Your reward hasn't been confirmed yet. Support can see this and can send it again.")
+        XCTAssertEqual(line("timed_out", "credits"), line("failed", "merch"))
+        XCTAssertEqual(line("not_eligible", "credits"), "You've already taken part in this, so there's no new reward this time.")
+    }
+
     func testEveryLanguageHasTheTestimonialStrings() {
         let keys = SupportStrings.table("en").keys.filter { $0.hasPrefix("support.testimonial.") }
-        XCTAssertEqual(keys.count, 23)
+        XCTAssertEqual(keys.count, 30)
         for language in SupportStrings.supportedLanguages {
             let table = SupportStrings.table(language)
             for key in keys { XCTAssertNotNil(table[key], "\(language) lacks \(key)") }

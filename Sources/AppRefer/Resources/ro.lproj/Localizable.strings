@@ -282,20 +282,28 @@
 "support.review.a11y.hint.googlePlay" = "Deschide Google Play";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "Pentru participare: {reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "Recompensa nu depinde de ce trimiți sau dacă este folosit.";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "Bună, rea sau amestecată: vrem părerea ta sinceră.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "O primești pentru participare, orice ai spune și indiferent dacă permiți sau nu reutilizarea.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Trimite o fotografie sau un videoclip";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "Alege din bibliotecă";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "Folosește camera";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "Fă o fotografie";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "Înregistrează un videoclip";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "Accesul la cameră este dezactivat. Poți alege din biblioteca ta.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Alege altul";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "Permite utilizarea publică";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "Opțional. Primești recompensa oricum și poți opri utilizarea publică mai târziu.";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "Opțional și dezactivat dacă nu îl activezi. Recompensa este aceeași în ambele cazuri și poți retrage acordul mai târziu.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Trimite";
 /* Progress while uploading. {percent} = 0-100. */
@@ -304,10 +312,16 @@
 "support.testimonial.checking" = "Se verifică…";
 /* Title after a successful share. */
 "support.testimonial.done" = "Mulțumim că ai trimis!";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "Recompensa ta e pe drum.";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "Recompensa ta a fost adăugată.";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "Ai câștigat-o. Va apărea aici drept confirmată după ce este aplicată.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "Recompensa ta este confirmată.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "Recompensa ta a fost adăugată în contul tău.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "Recompensa ta nu a fost încă confirmată. Echipa de asistență vede acest lucru și o poate trimite din nou.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "Ai participat deja la asta, așa că de data aceasta nu există o recompensă nouă.";
 /* Button to decline the request. */
 "support.testimonial.decline" = "Nu, mulțumesc";
 /* Button to decline and never be asked again in this app. */
@@ -320,8 +334,8 @@
 "support.testimonial.tooLong" = "Videoclipurile pot avea până la {seconds} secunde.";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "Fișierul e prea mare pentru a fi trimis.";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "Nu s-a putut trimite. Verifică conexiunea și încearcă din nou.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "Nu s-a putut trimite și nu s-a trimis nimic. Verifică-ți conexiunea și încearcă din nou.";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "Oprește utilizarea publică";
 /* VoiceOver/TalkBack label of the preview. */

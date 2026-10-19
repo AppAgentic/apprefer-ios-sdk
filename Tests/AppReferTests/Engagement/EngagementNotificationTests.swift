@@ -131,6 +131,30 @@ final class EngagementNotificationTests: XCTestCase {
         XCTAssertEqual(kinds, ["opened"])
     }
 
+    func testATestimonialInvitationOpensTheSDKCaptureScreenNeverTheAppRouter() async {
+        let rid = "tsr_" + String(repeating: "0a", count: 16)
+        XCTAssertEqual(EngagementNotifications.testimonialRequestId("/apprefer/testimonials/\(rid)"), rid)
+        let others: [String?] = ["/apprefer/testimonials/tsr_x", "/apprefer/testimonials/\(rid)/x",
+                                 "/apprefer/testimonials/tsr_" + String(repeating: "A", count: 32), "/setup", nil]
+        for other in others { XCTAssertNil(EngagementNotifications.testimonialRequestId(other)) }
+        var opened: [String] = []
+        layer.openTestimonial = { opened.append($0) }
+        // No app handler at all: the SDK still owns its destination, once navigation is ready.
+        _ = await respond(EngagementNotifications.defaultAction, info(["dest": "/apprefer/testimonials/\(rid)", "actions": nil]))
+        XCTAssertTrue(opened.isEmpty, "held until navigation is ready")
+        layer.setNavigationReady(true)
+        XCTAssertEqual(opened, [rid])
+        layer.handler = { self.events.append($0) }
+        XCTAssertTrue(events.isEmpty, "never handed to the app")
+        // A tap from before an account change opens nothing.
+        layer.setNavigationReady(false)
+        _ = await respond(EngagementNotifications.defaultAction, info(["dest": "/apprefer/testimonials/\(rid)", "mid": "sparkly_live_tminv_x", "actions": nil]))
+        box.set(EngagementSnapshot(slot: "s", installId: iid, accountEpoch: 3, serial: 2, header: "h", trackedEvents: nil))
+        layer.setNavigationReady(true)
+        XCTAssertEqual(opened, [rid])
+        XCTAssertTrue(events.isEmpty)
+    }
+
     func testDeferredNavigationIsDroppedWhenTheAccountChanges() async {
         layer.handler = { self.events.append($0) }
         _ = await respond(EngagementNotifications.defaultAction)

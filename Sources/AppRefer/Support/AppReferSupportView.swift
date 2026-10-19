@@ -110,6 +110,9 @@ struct SupportHomeScreen: View {
     @State private var error: String?
     /// The same on every retry of this message.
     @State private var clientMessageId = UUID().uuidString
+    /// The invitation whose capture screen is open.
+    @State private var capturing: SupportCaptureTarget?
+    @State private var lastCapture: String?
     @FocusState private var focused: Bool
     private let startsFocused: Bool
 
@@ -132,6 +135,12 @@ struct SupportHomeScreen: View {
                 VStack(alignment: .leading, spacing: 0) {
                     hero
                     VStack(alignment: .leading, spacing: 24) {
+                        if let invite = model.invitations.first {
+                            SupportTestimonialCardView(request: invite, palette: palette) {
+                                lastCapture = invite.requestId
+                                capturing = SupportCaptureTarget(id: invite.requestId)
+                            }
+                        }
                         if let current = model.current { continueCard(current) }
                         if !model.articles.isEmpty {
                             SupportHelpSection(articles: model.articles, palette: palette, prominent: model.current == nil, open: push)
@@ -164,6 +173,12 @@ struct SupportHomeScreen: View {
             }
         }
         .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0.prefix(max(0, 4 - images.count))) } }
+        .sheet(item: $capturing, onDismiss: {
+            // Also after a swipe down: shared, declined or ended requests leave the home.
+            if let id = lastCapture { Task { await model.invitationClosed(id) } }
+        }) { target in
+            AppReferTestimonialView(requestId: target.id) { _ in capturing = nil }
+        }
         .onAppear { if startsFocused { focused = true } }
         .onChange(of: model.compose) { request in
             guard let request else { return }

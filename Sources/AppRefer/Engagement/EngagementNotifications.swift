@@ -246,11 +246,13 @@ final class EngagementNotifications {
     }
 
     private func deliverPending() {
-        guard let handler else { return }
         var keep: [(event: AppReferEngagementNotificationEvent, payload: AppReferEngagementPayload)] = []
         let queued = pending
         pending = []
         for item in queued {
+            // A Support testimonial invitation belongs to the SDK: it opens even with no app handler.
+            let requestId = item.event.isNavigation ? Self.testimonialRequestId(item.event.destination) : nil
+            guard handler != nil || requestId != nil else { keep.append(item); continue }
             // Re-checked with the real clock at delivery: a notification that expired while its
             // event waited (navigation not ready, no handler yet) is dropped, never acted on.
             guard !item.payload.isExpired(at: now()) else { continue }
@@ -260,9 +262,30 @@ final class EngagementNotifications {
                 guard let current = snapshot.get(), current.installId == item.payload.installId,
                       current.accountEpoch == item.payload.accountEpoch else { continue }
             }
-            handler(item.event)
+            if let requestId { openTestimonial(requestId) } else { handler?(item.event) }
         }
         pending = keep + pending
+    }
+
+    /// The request id when `destination` is a Support testimonial invitation
+    /// (`/apprefer/testimonials/<requestId>`): the SDK opens its own capture screen for it and
+    /// never passes it to the app's router.
+    nonisolated static func testimonialRequestId(_ destination: String?) -> String? {
+        let prefix = "/apprefer/testimonials/"
+        guard let destination, destination.hasPrefix(prefix) else { return nil }
+        let id = String(destination.dropFirst(prefix.count))
+        let hex = id.dropFirst(4)
+        guard id.hasPrefix("tsr_"), hex.count == 32, hex.allSatisfy({ "0123456789abcdef".contains($0) }) else { return nil }
+        return id
+    }
+
+    /// Opens the capture screen for a tapped invitation (tests replace it).
+    var openTestimonial: @MainActor (String) -> Void = { requestId in
+        #if os(iOS)
+        AppReferTestimonials.shared.present(requestId: requestId)
+        #else
+        _ = requestId
+        #endif
     }
 }
 

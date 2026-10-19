@@ -278,20 +278,28 @@
 "support.review.a11y.hint.googlePlay" = "Google Playを開きます";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "参加特典：{reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "特典は、共有した内容や使用されるかどうかに関係ありません。";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "良い点も悪い点も、どちらとも言えない点も。正直なご意見をお聞かせください。";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "内容にかかわらず、また再利用を許可するかどうかにかかわらず、参加いただくと受け取れます。";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "写真や動画を共有";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "ライブラリから選択";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "カメラを使う";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "写真を撮る";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "動画を撮る";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "カメラへのアクセスがオフになっています。代わりにライブラリから選べます。";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "別のものを選ぶ";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "公開利用を許可";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "任意です。どちらでも特典を受け取れ、公開利用は後から停止できます。";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "任意です。オンにしない限りオフのままです。どちらでも特典は同じで、あとから取り消すこともできます。";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "共有";
 /* Progress while uploading. {percent} = 0-100. */
@@ -300,10 +308,16 @@
 "support.testimonial.checking" = "確認中…";
 /* Title after a successful share. */
 "support.testimonial.done" = "共有していただきありがとうございます！";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "特典をお届けしています。";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "特典が追加されました。";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "特典の対象です。付与されると、ここに確認済みと表示されます。";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "特典が確認されました。";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "特典がアカウントに追加されました。";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "特典はまだ確認されていません。サポートが状況を確認でき、再送することもできます。";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "すでにご参加いただいているため、今回は新しい特典はありません。";
 /* Button to decline the request. */
 "support.testimonial.decline" = "今回はやめておく";
 /* Button to decline and never be asked again in this app. */
@@ -316,8 +330,8 @@
 "support.testimonial.tooLong" = "動画は最長{seconds}秒です。";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "このファイルは大きすぎて共有できません。";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "共有できませんでした。接続を確認してもう一度お試しください。";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "共有できませんでした。何も送信されていません。接続を確認して、もう一度お試しください。";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "公開利用を停止";
 /* VoiceOver/TalkBack label of the preview. */

@@ -278,20 +278,28 @@
 "support.review.a11y.hint.googlePlay" = "Google Play 열기";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "참여 보상: {reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "보상은 공유한 내용이나 사용 여부와 관계없이 드려요.";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "좋든 나쁘든, 반반이든: 솔직한 의견을 들려주세요.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "어떤 내용을 말하든, 재사용을 허용하든 안 하든 참여만 하면 받을 수 있어요.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "사진 또는 영상 공유하기";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "보관함에서 선택";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "카메라 사용";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "사진 찍기";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "동영상 촬영";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "카메라 접근이 꺼져 있어요. 대신 보관함에서 선택할 수 있어요.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "다른 항목 선택";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "공개 사용 허용";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "선택 사항이에요. 어느 쪽이든 보상을 받으며, 공개 사용은 나중에 중단할 수 있어요.";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "선택 사항이며 직접 켜기 전까지는 꺼져 있어요. 어느 쪽이든 보상은 같고, 나중에 철회할 수도 있어요.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "공유";
 /* Progress while uploading. {percent} = 0-100. */
@@ -300,10 +308,16 @@
 "support.testimonial.checking" = "확인 중…";
 /* Title after a successful share. */
 "support.testimonial.done" = "공유해 주셔서 감사해요!";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "보상이 곧 지급돼요.";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "보상이 추가되었어요.";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "보상을 받을 자격이 생겼어요. 지급되면 여기에 확인됨으로 표시돼요.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "보상이 확인되었어요.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "보상이 계정에 추가되었어요.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "보상이 아직 확인되지 않았어요. 지원팀이 이를 확인할 수 있고 다시 보낼 수 있어요.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "이미 참여하셨기 때문에 이번에는 새 보상이 없어요.";
 /* Button to decline the request. */
 "support.testimonial.decline" = "괜찮아요";
 /* Button to decline and never be asked again in this app. */
@@ -316,8 +330,8 @@
 "support.testimonial.tooLong" = "영상은 최대 {seconds}초까지 가능해요.";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "파일이 너무 커서 공유할 수 없어요.";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "공유하지 못했어요. 연결을 확인하고 다시 시도해 주세요.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "공유하지 못했고 아무것도 전송되지 않았어요. 연결을 확인한 후 다시 시도해 주세요.";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "공개 사용 중단";
 /* VoiceOver/TalkBack label of the preview. */

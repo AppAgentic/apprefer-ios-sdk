@@ -282,20 +282,28 @@
 "support.review.a11y.hint.googlePlay" = "פותח את Google Play";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "על ההשתתפות: {reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "התגמול לא תלוי במה שתשתפו או בשימוש בו.";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "טוב, רע או מעורב: אנחנו רוצים את דעתכם הכנה.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "מקבלים אותו על ההשתתפות, לא משנה מה תגידו ואם תאשרו שימוש חוזר או לא.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "שיתוף תמונה או סרטון";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "בחירה מהספרייה";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "שימוש במצלמה";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "צלמו תמונה";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "צלמו סרטון";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "הגישה למצלמה כבויה. אפשר לבחור מהספרייה במקום.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "בחירה אחרת";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "לאפשר שימוש פומבי";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "אופציונלי. תקבלו את התגמול בכל מקרה, ואפשר להפסיק את השימוש הפומבי בהמשך.";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "אופציונלי וכבוי אלא אם תפעילו אותו. התגמול זהה בכל מקרה, ואפשר לבטל את ההסכמה בהמשך.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "שיתוף";
 /* Progress while uploading. {percent} = 0-100. */
@@ -304,10 +312,16 @@
 "support.testimonial.checking" = "בודק…";
 /* Title after a successful share. */
 "support.testimonial.done" = "תודה על השיתוף!";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "התגמול שלכם בדרך.";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "התגמול שלכם נוסף.";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "הרווחתם אותו. הוא יופיע כאן כמאושר אחרי שיוחל.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "התגמול שלכם אושר.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "התגמול נוסף לחשבון שלכם.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "התגמול שלכם עדיין לא אושר. צוות התמיכה רואה זאת ויכול לשלוח אותו שוב.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "כבר השתתפתם בזה, ולכן הפעם אין תגמול חדש.";
 /* Button to decline the request. */
 "support.testimonial.decline" = "לא, תודה";
 /* Button to decline and never be asked again in this app. */
@@ -320,8 +334,8 @@
 "support.testimonial.tooLong" = "סרטונים יכולים להיות באורך של עד {seconds} שניות.";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "הקובץ גדול מדי לשיתוף.";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "לא הצלחנו לשתף. בדקו את החיבור ונסו שוב.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "השיתוף נכשל ושום דבר לא נשלח. בדקו את החיבור ונסו שוב.";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "הפסקת שימוש פומבי";
 /* VoiceOver/TalkBack label of the preview. */

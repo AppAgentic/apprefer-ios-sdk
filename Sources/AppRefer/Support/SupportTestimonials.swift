@@ -47,6 +47,20 @@ public struct AppReferTestimonialRequest: Hashable, Sendable, Decodable {
     public var isOpen: Bool { status == "open" }
     public var allowsImages: Bool { media?.contains("image") ?? false }
     public var allowsVideos: Bool { media?.contains("video") ?? false }
+
+    /// The table key for the reward line after sharing. Confirmed only once the app's backend
+    /// reported its receipt (`fulfilled`); in-account rewards say "added to your account", anything
+    /// else just "confirmed" (no delivery or email promise).
+    var rewardStatusKey: String {
+        switch rewardStatus {
+        case "fulfilled":
+            return ["credits", "coach_usage", "subscription_time"].contains(reward?.type ?? "")
+                ? "support.testimonial.rewardDone.account" : "support.testimonial.rewardDone"
+        case "failed", "timed_out": return "support.testimonial.rewardDelayed"
+        case "not_eligible": return "support.testimonial.rewardNotEligible"
+        default: return "support.testimonial.rewardPending"
+        }
+    }
 }
 
 /// How a capture screen ended, and the reward's state then.
@@ -422,6 +436,7 @@ struct TestimonialScreen: View {
     @ViewBuilder private func form(_ r: AppReferTestimonialRequest) -> some View {
         Text(r.title ?? SupportStrings.text("support.testimonial.open")).font(.system(size: 26, weight: .bold)).accessibilityAddTraits(.isHeader)
         if let prompt = r.prompt { Text(prompt).font(.system(size: 16)).foregroundStyle(.primary.opacity(0.85)).fixedSize(horizontal: false, vertical: true) }
+        Text(SupportStrings.text("support.testimonial.honest")).font(.system(size: 14)).foregroundStyle(SupportColors.muted).fixedSize(horizontal: false, vertical: true)
         if let reward = r.reward?.description { rewardBox(reward) }
         if let file = model.file {
             TestimonialPreview(file: file).frame(maxWidth: .infinity).frame(height: 300)
@@ -463,10 +478,10 @@ struct TestimonialScreen: View {
         VStack(alignment: .leading, spacing: 14) {
             Image(systemName: "checkmark.circle.fill").font(.system(size: 44)).foregroundStyle(palette.accent).accessibilityHidden(true)
             Text(SupportStrings.text("support.testimonial.done")).font(.system(size: 26, weight: .bold)).accessibilityAddTraits(.isHeader)
-            if let reward = model.request?.reward?.description {
-                let confirmed = model.request?.rewardStatus == "fulfilled"
+            if let request = model.request, let reward = request.reward?.description {
                 rewardBox(reward)
-                Text(SupportStrings.text(confirmed ? "support.testimonial.rewardDone" : "support.testimonial.rewardPending")).font(.system(size: 15)).foregroundStyle(.primary.opacity(0.85))
+                Text(SupportStrings.text(request.rewardStatusKey)).font(.system(size: 15)).foregroundStyle(.primary.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             primary(SupportStrings.text("support.a11y.close"), action: finish)
         }
@@ -573,6 +588,7 @@ struct SupportTestimonialCardView: View {
             }
             if request.isOpen {
                 if let prompt = request.prompt { Text(prompt).font(.system(size: 14.5)).foregroundStyle(.primary.opacity(0.85)).fixedSize(horizontal: false, vertical: true) }
+                Text(SupportStrings.text("support.testimonial.honest")).font(.system(size: 13)).foregroundStyle(SupportColors.muted).fixedSize(horizontal: false, vertical: true)
                 if let reward = request.reward?.description {
                     Text(SupportStrings.text("support.testimonial.reward", ["reward": reward])).font(.system(size: 13.5, weight: .semibold)).foregroundStyle(palette.accent)
                 }

@@ -280,20 +280,28 @@
 "support.review.a11y.hint.googlePlay" = "Google Play खोलता है";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "भाग लेने के लिए: {reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "इनाम इस पर निर्भर नहीं करता कि आप क्या शेयर करते हैं या उसका उपयोग होता है या नहीं।";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "अच्छी, बुरी या मिली-जुली: हमें आपकी ईमानदार राय चाहिए।";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "यह आपको हिस्सा लेने के लिए मिलता है, चाहे आप कुछ भी कहें और दोबारा इस्तेमाल की अनुमति दें या न दें।";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "फ़ोटो या वीडियो शेयर करें";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "लाइब्रेरी से चुनें";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "कैमरा इस्तेमाल करें";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "फ़ोटो लें";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "वीडियो रिकॉर्ड करें";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "कैमरा ऐक्सेस बंद है। आप इसके बजाय अपनी लाइब्रेरी से चुन सकते हैं।";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "कोई और चुनें";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "सार्वजनिक उपयोग की अनुमति दें";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "वैकल्पिक। इनाम आपको हर हाल में मिलेगा, और आप बाद में सार्वजनिक उपयोग रोक सकते हैं।";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "वैकल्पिक है और जब तक आप चालू न करें, बंद रहता है। इनाम दोनों हालात में एक जैसा है, और आप बाद में यह अनुमति वापस ले सकते हैं।";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "शेयर करें";
 /* Progress while uploading. {percent} = 0-100. */
@@ -302,10 +310,16 @@
 "support.testimonial.checking" = "जाँच हो रही है…";
 /* Title after a successful share. */
 "support.testimonial.done" = "शेयर करने के लिए धन्यवाद!";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "आपका इनाम रास्ते में है।";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "आपका इनाम जोड़ दिया गया है।";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "आपने इसे कमा लिया है। लागू होते ही यह यहाँ पुष्टि के साथ दिखेगा।";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "आपके इनाम की पुष्टि हो गई है।";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "आपका इनाम आपके खाते में जोड़ दिया गया है।";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "आपके इनाम की अभी पुष्टि नहीं हुई है। सपोर्ट टीम इसे देख सकती है और दोबारा भेज सकती है।";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "आप इसमें पहले ही हिस्सा ले चुके हैं, इसलिए इस बार कोई नया इनाम नहीं है।";
 /* Button to decline the request. */
 "support.testimonial.decline" = "नहीं, धन्यवाद";
 /* Button to decline and never be asked again in this app. */
@@ -318,8 +332,8 @@
 "support.testimonial.tooLong" = "वीडियो अधिकतम {seconds} सेकंड के हो सकते हैं।";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "यह फ़ाइल शेयर करने के लिए बहुत बड़ी है।";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "शेयर नहीं हो सका। अपना कनेक्शन जाँचें और फिर से कोशिश करें।";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "शेयर नहीं हो पाया, कुछ भी नहीं भेजा गया। अपना कनेक्शन जाँचें और फिर से कोशिश करें।";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "सार्वजनिक उपयोग रोकें";
 /* VoiceOver/TalkBack label of the preview. */

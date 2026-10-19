@@ -282,20 +282,28 @@
 "support.review.a11y.hint.googlePlay" = "Abre Google Play";
 /* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
 "support.testimonial.reward" = "Por participar: {reward}";
-/* Small reassurance under the reward line. Honest participation earns the reward. */
-"support.testimonial.rewardNote" = "La recompensa no depende de lo que compartas ni de si se usa.";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "Buena, mala o regular: queremos tu opinión sincera.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
+"support.testimonial.rewardNote" = "La recibes por participar, digas lo que digas y permitas o no reutilizarlo.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Comparte una foto o un vídeo";
 /* Button: pick an existing photo or video from the device's library. */
 "support.testimonial.choose" = "Elegir de la fototeca";
 /* Button: take a photo or record a video now. */
 "support.testimonial.camera" = "Usar la cámara";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "Hacer una foto";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "Grabar un vídeo";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "El acceso a la cámara está desactivado. Puedes elegir de tu biblioteca.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Elegir otro";
 /* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
 "support.testimonial.publish" = "Permitir uso público";
-/* Hint under the public-use switch. */
-"support.testimonial.publishHint" = "Opcional. Recibes la recompensa igualmente y puedes detener el uso público más adelante.";
+/* Hint under the public-use switch (which starts off). */
+"support.testimonial.publishHint" = "Opcional y desactivado salvo que lo actives. La recompensa es la misma en ambos casos y puedes retirarlo más adelante.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Compartir";
 /* Progress while uploading. {percent} = 0-100. */
@@ -304,10 +312,16 @@
 "support.testimonial.checking" = "Comprobando…";
 /* Title after a successful share. */
 "support.testimonial.done" = "¡Gracias por compartir!";
-/* After sharing, while the app hasn't confirmed the reward yet. */
-"support.testimonial.rewardPending" = "Tu recompensa está en camino.";
-/* After the app confirmed the reward. */
-"support.testimonial.rewardDone" = "Se ha añadido tu recompensa.";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "Te la has ganado. Aparecerá aquí como confirmada cuando se haya aplicado.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "Tu recompensa está confirmada.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "Tu recompensa se ha añadido a tu cuenta.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "Tu recompensa aún no está confirmada. El equipo de soporte lo ve y puede volver a enviarla.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "Ya has participado en esto, así que esta vez no hay una recompensa nueva.";
 /* Button to decline the request. */
 "support.testimonial.decline" = "No, gracias";
 /* Button to decline and never be asked again in this app. */
@@ -320,8 +334,8 @@
 "support.testimonial.tooLong" = "Los vídeos pueden durar hasta {seconds} segundos.";
 /* Error when the chosen file is over the size limit. */
 "support.testimonial.tooLarge" = "Este archivo es demasiado grande para compartirlo.";
-/* Error when the upload or share failed. Nothing was shared. */
-"support.testimonial.failed" = "No se ha podido compartir. Revisa tu conexión e inténtalo de nuevo.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "No se pudo compartir y no se envió nada. Revisa tu conexión y vuelve a intentarlo.";
 /* Button after sharing to withdraw permission for public use. */
 "support.testimonial.withdraw" = "Detener el uso público";
 /* VoiceOver/TalkBack label of the preview. */
