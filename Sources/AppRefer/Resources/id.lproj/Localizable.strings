@@ -214,3 +214,33 @@
 "engagement.channel.reminders" = "Pengingat";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Akun dan tagihan";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "Penawaran untukmu";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "Lihat penawaran";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "Paket saat ini";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "Kamu sudah punya ini";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Penawaran ini sudah tidak tersedia";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "Penawaran ini tidak bisa dibuka di versi aplikasi ini";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "Mingguan";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "Bulanan";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 bulan";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 bulan";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 bulan";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "Tahunan";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "Seumur hidup";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "Pilihan";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "Membuka paket aplikasi";

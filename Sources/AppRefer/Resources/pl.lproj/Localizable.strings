@@ -220,3 +220,33 @@
 "engagement.channel.reminders" = "Przypomnienia";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Konto i płatności";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "Oferta dla Ciebie";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "Zobacz ofertę";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "Obecny plan";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "Masz już to";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Ta oferta nie jest już dostępna";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "Tej oferty nie można otworzyć w tej wersji aplikacji";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "Tygodniowo";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "Miesięcznie";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 miesiące";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 miesiące";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 miesięcy";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "Rocznie";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "Dożywotnio";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "Opcja";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "Otwiera plany w aplikacji";

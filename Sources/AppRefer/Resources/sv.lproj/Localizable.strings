@@ -216,3 +216,33 @@
 "engagement.channel.reminders" = "Påminnelser";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Konto och betalning";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "Ett erbjudande till dig";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "Visa erbjudandet";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "Nuvarande abonnemang";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "Det här har du redan";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Erbjudandet är inte längre tillgängligt";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "Erbjudandet kan inte öppnas i den här versionen av appen";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "Veckovis";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "Månadsvis";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 månader";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 månader";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 månader";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "Årsvis";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "Livstid";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "Alternativ";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "Öppnar appens abonnemang";

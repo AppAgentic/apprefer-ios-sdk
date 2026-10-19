@@ -214,3 +214,33 @@
 "engagement.channel.reminders" = "提醒";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "账户与账单";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "为你推荐的方案";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "查看方案";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "当前方案";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "你已拥有";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "此推荐已失效";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "此版本的应用无法打开此推荐";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "每周";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "每月";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 个月";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 个月";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 个月";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "每年";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "永久";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "选项";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "打开应用的方案页面";

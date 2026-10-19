@@ -474,6 +474,8 @@ actor SupportAPI {
         req.httpMethod = method
         req.setValue(apiKey, forHTTPHeaderField: "X-AppRefer-Key")
         if let sessionToken { req.setValue(sessionToken, forHTTPHeaderField: "X-AppRefer-Support-Session") }
+        // This chat draws offer cards; with `onOffer` set the app also opens its paywall from them.
+        req.setValue(SupportOfferHandlerFlag.shared.header, forHTTPHeaderField: "X-AppRefer-Support-Features")
         if let body {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -504,6 +506,11 @@ actor SupportAPI {
         }
     }
 
+    /// A session request for the other Support files (offer cards).
+    func sessionCall(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> Data {
+        try await call(method, path, body: body)
+    }
+
     // MARK: - Endpoints
 
     func conversations() async throws -> [AppReferSupportConversation] {
@@ -520,8 +527,9 @@ actor SupportAPI {
     }
 
     func thread(_ id: String, after: String?) async throws -> SupportThread {
-        var path = "/api/support/v1/conversations/\(id.urlPathEscaped)"
-        if let after, let q = after.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) { path += "?after=\(q)" }
+        // The platform picks which store's products an offer card lists.
+        var path = "/api/support/v1/conversations/\(id.urlPathEscaped)?platform=ios"
+        if let after, let q = after.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) { path += "&after=\(q)" }
         let thread = try JSONDecoder().decode(SupportThread.self, from: try await call("GET", path))
         persona = thread.persona
         return thread

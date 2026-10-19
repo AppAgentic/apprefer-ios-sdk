@@ -216,3 +216,33 @@
 "engagement.channel.reminders" = "Hatırlatıcılar";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Hesap ve faturalandırma";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "Sana özel bir teklif";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "Teklifi gör";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "Mevcut plan";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "Buna zaten sahipsin";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Bu teklif artık geçerli değil";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "Bu teklif uygulamanın bu sürümünde açılamıyor";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "Haftalık";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "Aylık";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 ay";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 ay";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 ay";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "Yıllık";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "Ömür boyu";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "Seçenek";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "Uygulamanın planlarını açar";

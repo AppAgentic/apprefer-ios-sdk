@@ -36,6 +36,8 @@ public struct AppReferSupportMessage: Identifiable, Hashable, Sendable, Decodabl
     public let attachments: [AppReferSupportAttachment]
     /// The AI assistant's note that it passed the conversation to a person.
     public let handoff: Bool?
+    /// An offer card sent with this reply: one of the app's offerings, with its state when read.
+    public let offer: AppReferSupportOfferCard?
 
     public var isFromCustomer: Bool { from == "customer" }
     public var isHandoff: Bool { handoff == true }

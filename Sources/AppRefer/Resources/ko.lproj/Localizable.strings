@@ -214,3 +214,33 @@
 "engagement.channel.reminders" = "리마인더";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "계정 및 결제";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "회원님을 위한 오퍼";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "오퍼 보기";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "현재 플랜";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "이미 보유하고 있어요";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "이 오퍼는 더 이상 이용할 수 없어요";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "이 버전의 앱에서는 이 오퍼를 열 수 없어요";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "주간";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "월간";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2개월";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3개월";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6개월";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "연간";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "평생";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "옵션";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "앱의 플랜을 열어요";

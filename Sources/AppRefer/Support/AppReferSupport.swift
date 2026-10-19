@@ -73,12 +73,34 @@ public final class AppReferSupport {
     /// The environment `registerDeviceToken` and `status().pushReady` use.
     public var effectivePushEnvironment: AppReferPushEnvironment { PushEnvironmentSetting.shared.effective }
 
+    /// Opens your app's own paywall when the customer taps an offer card your team (or AI
+    /// assistant) sent in the chat. Set it once at launch:
+    ///
+    /// ```swift
+    /// AppRefer.support.onOffer = { offer in
+    ///     paywall.present(offeringId: offer.offeringId, packageId: offer.packageId)
+    /// }
+    /// ```
+    ///
+    /// The card shows your offering's packages with the store's own prices; the SDK never shows
+    /// a paywall or starts a purchase itself. Without `onOffer`, cards say they can't be opened
+    /// in this version of the app. With `closesChatOnOffer` (the default), the chat opened with
+    /// `open()`/`compose()` closes first and `onOffer` runs once it has gone.
+    public var onOffer: (@MainActor (AppReferSupportOffer) -> Void)? {
+        didSet { SupportOfferHandlerFlag.shared.set(onOffer != nil) }
+    }
+    /// Close the chat before `onOffer` runs (default true). Set false if your paywall can
+    /// present over the chat sheet, or when you embed `AppReferSupportView` yourself.
+    public var closesChatOnOffer = true
+
     private weak var presented: UIViewController?
 
     private var activationObserver: NSObjectProtocol?
     private init() {
         activationObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil) { _ in
             Task { await SupportAPI.shared.retryRevocations() }
+            // Offer-card receipts made offline go out when the app is back.
+            Task { await SupportAPI.shared.flushOfferReceipts() }
         }
     }
 
@@ -90,6 +112,8 @@ public final class AppReferSupport {
     func dismissForReset() {
         SupportAccountState.shared.reset()
         SupportPersonaStore.shared.clear()
+        // Receipts belong to the session being retired; they're never sent for another account.
+        SupportOfferReceipts.shared.clear()
         presented?.dismiss(animated: false)
         presented = nil
     }
@@ -186,6 +210,20 @@ public final class AppReferSupport {
         }
         presented = host
         top.present(host, animated: true)
+    }
+
+    /// Hands a tapped offer card to `onOffer`, closing the chat first when it was opened by the
+    /// SDK and `closesChatOnOffer` is on. Returns false when the app set no `onOffer`.
+    @discardableResult
+    func deliver(_ offer: AppReferSupportOffer) -> Bool {
+        guard let handler = onOffer else { return false }
+        if closesChatOnOffer, let presented, presented.presentingViewController != nil {
+            presented.dismiss(animated: true) { handler(offer) }
+            self.presented = nil
+        } else {
+            handler(offer)
+        }
+        return true
     }
 
     /// Pass the APNs device token from `application(_:didRegisterForRemoteNotificationsWithDeviceToken:)`.

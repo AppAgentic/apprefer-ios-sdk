@@ -216,3 +216,33 @@
 "engagement.channel.reminders" = "Υπενθυμίσεις";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Λογαριασμός και χρεώσεις";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "Μια προσφορά για σένα";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "Δες την προσφορά";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "Τρέχον πρόγραμμα";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "Το έχεις ήδη";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Αυτή η προσφορά δεν είναι πλέον διαθέσιμη";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "Αυτή η προσφορά δεν ανοίγει σε αυτή την έκδοση της εφαρμογής";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "Εβδομαδιαίο";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "Μηνιαίο";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 μήνες";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 μήνες";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 μήνες";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "Ετήσιο";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "Εφ’ όρου ζωής";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "Επιλογή";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "Ανοίγει τα προγράμματα της εφαρμογής";

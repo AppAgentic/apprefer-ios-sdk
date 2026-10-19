@@ -216,3 +216,33 @@
 "engagement.channel.reminders" = "Muistutukset";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Tili ja laskutus";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "Tarjous sinulle";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "Näytä tarjous";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "Nykyinen tilaus";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "Sinulla on jo tämä";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Tämä tarjous ei ole enää saatavilla";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "Tarjousta ei voi avata tässä sovellusversiossa";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "Viikoittain";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "Kuukausittain";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 kuukautta";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 kuukautta";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 kuukautta";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "Vuosittain";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "Elinikäinen";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "Vaihtoehto";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "Avaa sovelluksen tilaukset";

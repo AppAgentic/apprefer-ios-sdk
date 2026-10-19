@@ -214,3 +214,33 @@
 "engagement.channel.reminders" = "การแจ้งเตือนความจำ";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "บัญชีและการเรียกเก็บเงิน";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "ข้อเสนอสำหรับคุณ";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "ดูข้อเสนอ";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "แพ็กเกจปัจจุบัน";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "คุณมีสิ่งนี้อยู่แล้ว";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "ข้อเสนอนี้ไม่มีให้ใช้แล้ว";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "ไม่สามารถเปิดข้อเสนอนี้ในแอปเวอร์ชันนี้ได้";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "รายสัปดาห์";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "รายเดือน";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 เดือน";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 เดือน";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 เดือน";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "รายปี";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "ตลอดชีพ";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "ตัวเลือก";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "เปิดแพ็กเกจของแอป";

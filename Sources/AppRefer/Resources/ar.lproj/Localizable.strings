@@ -224,3 +224,33 @@
 "engagement.channel.reminders" = "التذكيرات";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "الحساب والفوترة";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "عرض لك";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "عرض العرض";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "خطتك الحالية";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "لديك هذا بالفعل";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "لم يعد هذا العرض متاحًا";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "لا يمكن فتح هذا العرض في هذا الإصدار من التطبيق";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "أسبوعي";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "شهري";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "شهران";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 أشهر";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 أشهر";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "سنوي";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "مدى الحياة";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "خيار";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "يفتح خطط التطبيق";

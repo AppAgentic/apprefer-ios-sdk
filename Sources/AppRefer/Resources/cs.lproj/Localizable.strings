@@ -218,3 +218,33 @@
 "engagement.channel.reminders" = "Připomínky";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Účet a platby";
+/* Small heading on an offer card in the chat. The team or assistant attached one of the app's plans. Never imply a discount. */
+"support.offer.title" = "Nabídka pro vás";
+/* Button on an offer card that opens the app's own plans screen. Short. */
+"support.offer.open" = "Zobrazit nabídku";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "Aktuální předplatné";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "Tohle už máte";
+/* Shown on an offer card that was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Tato nabídka už není dostupná";
+/* Shown on an offer card when the app hasn't connected its plans screen to the chat. */
+"support.offer.unsupported" = "Tuto nabídku nelze v této verzi aplikace otevřít";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "Týdně";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "Měsíčně";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 měsíce";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 měsíce";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 měsíců";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "Ročně";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "Doživotně";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "Možnost";
+/* VoiceOver/TalkBack hint on the offer card's button. */
+"support.offer.a11y.hint" = "Otevře předplatné v aplikaci";

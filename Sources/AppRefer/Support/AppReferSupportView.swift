@@ -679,8 +679,19 @@ struct SupportThreadScreen: View {
             // is usually hosted by UIKit, where scenePhase isn't reliable.
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 4_000_000_000)
-                if UIApplication.shared.applicationState == .active { await model.poll() }
+                if UIApplication.shared.applicationState == .active {
+                    await model.poll()
+                    await model.refreshOffersIfDue()
+                }
             }
+        }
+        // Offer cards follow purchases, restores and sign-ins as Billing reports them.
+        .task {
+            guard AppReferBilling.isConfigured else { return }
+            for await _ in AppReferBilling.customerInfoStream { await model.refreshOffers() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            Task { await model.refreshOffers() }
         }
     }
 
@@ -720,6 +731,26 @@ struct SupportThreadScreen: View {
 
     @ViewBuilder
     private func message(_ i: Int, _ m: AppReferSupportMessage) -> some View {
+        if let card = model.card(m) {
+            VStack(alignment: .leading, spacing: 8) {
+                if !m.text.isEmpty { bubble(i, m) }
+                SupportOfferCardView(
+                    card: card, prices: model.prices[card.offeringId] ?? [:], palette: palette,
+                    hasHandler: support.onOffer != nil, opening: model.opening == card.cardId,
+                    open: { SupportAccountState.shared.run { await model.open(card, generation: $0) } }
+                )
+                .frame(maxWidth: 340, alignment: .leading)
+                .padding(.leading, 38)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onAppear { model.cardShown(card) }
+            }
+        } else {
+            bubble(i, m)
+        }
+    }
+
+    @ViewBuilder
+    private func bubble(_ i: Int, _ m: AppReferSupportMessage) -> some View {
         let lastOfGroup = i == model.messages.count - 1 || !sameSide(i, i + 1) || showsTime(i + 1)
         if m.isFromCustomer {
             SupportCustomerBubble(message: m, palette: palette, tail: lastOfGroup, view: { viewing = $0 })
