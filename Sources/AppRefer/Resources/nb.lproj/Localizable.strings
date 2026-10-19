@@ -216,3 +216,65 @@
 "engagement.channel.reminders" = "Påminnelser";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Konto og betaling";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "Alternativer for deg";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "Se alternativer";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "Nåværende abonnement";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "Kjøpt";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "Dette har du allerede";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Disse alternativene er ikke lenger tilgjengelige";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "Oppdater appen for å åpne dette";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "Ukentlig";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "Månedlig";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 måneder";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 måneder";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 måneder";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "Årlig";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "Livstid";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "Alternativ";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "Åpner disse alternativene i appen";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/uke";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "{price} hver 4. uke";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/måned";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "{price} annenhver måned";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "{price} hver 3. måned";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "{price} hver 6. måned";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/år";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "Del opplevelsen din";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "Hvis du vil, kan du skrive en anmeldelse på App Store.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "Hvis du vil, kan du skrive en anmeldelse på Google Play.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "Skriv en anmeldelse";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "Denne anmeldelseslenken er ikke lenger tilgjengelig";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "Det finnes ingen butikkside for denne enheten";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "Åpner App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Åpner Google Play";

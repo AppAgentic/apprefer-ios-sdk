@@ -214,3 +214,65 @@
 "engagement.channel.reminders" = "리마인더";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "계정 및 결제";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "나를 위한 옵션";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "옵션 보기";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "현재 플랜";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "구매함";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "이미 보유하고 있어요";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "이 옵션은 더 이상 이용할 수 없어요";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "열려면 앱을 업데이트하세요";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "주간";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "월간";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2개월";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3개월";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6개월";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "연간";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "평생";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "옵션";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "앱에서 이 옵션을 엽니다";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/주";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "4주마다 {price}";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/월";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "2개월마다 {price}";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "3개월마다 {price}";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "6개월마다 {price}";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/년";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "사용 경험을 공유해 주세요";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "원하시면 App Store에서 리뷰를 작성할 수 있어요.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "원하시면 Google Play에서 리뷰를 작성할 수 있어요.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "리뷰 작성";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "이 리뷰 링크는 더 이상 사용할 수 없어요";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "이 기기용 스토어 페이지가 없어요";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "App Store 열기";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Google Play 열기";

@@ -224,3 +224,65 @@
 "engagement.channel.reminders" = "التذكيرات";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "الحساب والفوترة";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "خيارات لك";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "عرض الخيارات";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "خطتك الحالية";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "تم الشراء";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "لديك هذا بالفعل";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "لم تعد هذه الخيارات متاحة";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "حدّث التطبيق لفتح هذا";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "أسبوعي";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "شهري";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "شهران";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 أشهر";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 أشهر";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "سنوي";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "مدى الحياة";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "خيار";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "يفتح هذه الخيارات في التطبيق";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/أسبوع";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "{price} كل 4 أسابيع";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/شهر";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "{price} كل شهرين";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "{price} كل 3 أشهر";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "{price} كل 6 أشهر";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/سنة";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "شارك تجربتك";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "إذا أردت، يمكنك كتابة مراجعة على App Store.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "إذا أردت، يمكنك كتابة مراجعة على Google Play.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "اكتب مراجعة";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "رابط المراجعة هذا لم يعد متاحًا";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "لا توجد صفحة متجر لهذا الجهاز";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "يفتح App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "يفتح Google Play";

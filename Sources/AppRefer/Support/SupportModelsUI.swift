@@ -125,10 +125,131 @@ final class SupportThreadModel: ObservableObject {
             messages = t.messages
             lastSeen = t.messages.last?.createdAt
             error = nil
+            absorbOffers(t.messages)
+            absorbReviews(t.messages)
         } catch {
             self.error = SupportStrings.errorText(error)
         }
         loaded = true
+        await SupportAPI.shared.flushOfferReceipts()
+    }
+
+    // MARK: Offer cards
+
+    /// Each card's latest state by card id (a message keeps the state it was first read with).
+    @Published var offers: [String: AppReferSupportOfferCard] = [:]
+    /// Store prices by offering, then package.
+    @Published var prices: [String: [String: SupportOfferPrice]] = [:]
+    /// The card being opened (its button shows progress).
+    @Published var opening: String?
+    private var shownSent: Set<String> = []
+    private var lastOfferRefresh = Date.distantPast
+    var opener = SupportOfferOpener()
+
+    func card(_ m: AppReferSupportMessage) -> AppReferSupportOfferCard? {
+        guard let offer = m.offer else { return nil }
+        return offers[offer.cardId] ?? offer
+    }
+
+    private func absorbOffers(_ incoming: [AppReferSupportMessage]) {
+        let cards = incoming.compactMap(\.offer)
+        guard !cards.isEmpty else { return }
+        for c in cards { offers[c.cardId] = c }
+        Task { await loadPrices() }
+    }
+
+    func loadPrices() async {
+        let ids = Set(offers.values.map(\.offeringId))
+        let loaded = await SupportOfferPrices.load(ids)
+        if loaded != prices { prices = loaded }
+    }
+
+    /// Fresh states for every card here, after a purchase, restore, sign-in, catalogue change
+    /// or coming back to the app; also re-reads store prices.
+    func refreshOffers() async {
+        guard !offers.isEmpty, let cards = try? await SupportAPI.shared.offerCards(id) else { return }
+        lastOfferRefresh = Date()
+        for c in cards { offers[c.cardId] = c }
+        await loadPrices()
+    }
+
+    /// While the chat is open, card states are re-read every 30 seconds.
+    func refreshOffersIfDue() async {
+        guard !offers.isEmpty || !reviews.isEmpty, Date().timeIntervalSince(lastOfferRefresh) > 30 else { return }
+        lastOfferRefresh = Date()
+        await refreshOffers()
+        await refreshReviews()
+    }
+
+    /// Once per card per launch (and stored once per card on the server).
+    func cardShown(_ card: AppReferSupportOfferCard) {
+        guard !shownSent.contains(card.cardId) else { return }
+        shownSent.insert(card.cardId)
+        opener.queue.enqueue(SupportOfferReceipt(conversationId: id, cardId: card.cardId, kind: "shown",
+                                                 clientEventId: supportOfferShownId(card.cardId), occurredAt: SupportOfferClock.iso(Date())))
+        Task { await SupportAPI.shared.flushOfferReceipts(opener.queue) }
+    }
+
+    /// The customer tapped "View offer": checked with the server, then handed to the app's paywall.
+    func open(_ card: AppReferSupportOfferCard, generation epoch: Int) async {
+        guard opening == nil, card.isAvailable, SupportOfferHandlerFlag.shared.isSet else { return }
+        opening = card.cardId
+        defer { opening = nil }
+        let outcome = await opener.check(opener.receipt(for: card, conversationId: id))
+        guard epoch == SupportAPI.shared.actionGeneration, !Task.isCancelled else { return }
+        switch outcome {
+        case .refused:
+            await refreshOffers()
+            return
+        case .recorded(let fresh):
+            if let fresh { offers[fresh.cardId] = fresh }
+        case .offline:
+            break
+        }
+        AppReferSupport.shared.deliver(AppReferSupportOffer(cardId: card.cardId, conversationId: id, offeringId: card.offeringId, packageId: card.packageId))
+    }
+
+    // MARK: Review cards
+
+    /// Each review card's latest state by card id.
+    @Published var reviews: [String: AppReferSupportReviewCard] = [:]
+
+    func reviewCard(_ m: AppReferSupportMessage) -> AppReferSupportReviewCard? {
+        guard let review = m.review else { return nil }
+        return reviews[review.cardId] ?? review
+    }
+
+    private func absorbReviews(_ incoming: [AppReferSupportMessage]) {
+        for c in incoming.compactMap(\.review) { reviews[c.cardId] = c }
+    }
+
+    /// Fresh states (withdrawn, expired, store page changed) alongside the offer refresh.
+    func refreshReviews() async {
+        guard !reviews.isEmpty, let cards = try? await SupportAPI.shared.reviewCards(id) else { return }
+        for c in cards { reviews[c.cardId] = c }
+    }
+
+    func reviewShown(_ card: AppReferSupportReviewCard) {
+        guard !shownSent.contains(card.cardId) else { return }
+        shownSent.insert(card.cardId)
+        opener.queue.enqueue(SupportOfferReceipt(conversationId: id, cardId: card.cardId, kind: "shown",
+                                                 clientEventId: supportReviewShownId(card.cardId), occurredAt: SupportOfferClock.iso(Date())))
+        Task { await SupportAPI.shared.flushOfferReceipts(opener.queue) }
+    }
+
+    /// The customer tapped "Write a review": checked with the server (at most 3 s), then the store
+    /// page opens. A withdrawn or changed card redraws instead; no answer opens it anyway.
+    func openReview(_ card: AppReferSupportReviewCard, generation epoch: Int) async {
+        guard opening == nil, case .open(let url) = SupportReviewLook.of(card) else { return }
+        opening = card.cardId
+        defer { opening = nil }
+        let outcome = await opener.check(opener.receipt(cardId: card.cardId, conversationId: id))
+        guard epoch == SupportAPI.shared.actionGeneration, !Task.isCancelled else { return }
+        if outcome == .refused {
+            await refreshReviews()
+            return
+        }
+        SupportReviewOpener.openURL(url)
     }
 
     /// New messages since the last poll. Runs only while the chat is open and active.
@@ -137,6 +258,8 @@ final class SupportThreadModel: ObservableObject {
         // A persona switched on, changed or off shows while the chat is open.
         await SupportPersonaStore.shared.refresh()
         merge(t.messages)
+        absorbOffers(t.messages)
+        absorbReviews(t.messages)
         // Only polls move the cursor: a team reply that landed just before our own
         // send is then still fetched.
         if let newest = t.messages.last?.createdAt { lastSeen = newest }
@@ -163,6 +286,7 @@ final class SupportThreadModel: ObservableObject {
             let sent = try await SupportAPI.shared.send(id, text: p.text, attachmentIds: ids, clientMessageId: p.id, generation: epoch)
             pending.removeAll { $0.id == p.id }
             merge([sent])
+            await refreshOffersIfDue()
         } catch {
             if let i = pending.firstIndex(where: { $0.id == p.id }) { pending[i].failed = true }
             self.error = SupportStrings.errorText(error)

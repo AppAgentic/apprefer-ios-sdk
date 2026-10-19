@@ -214,3 +214,65 @@
 "engagement.channel.reminders" = "การแจ้งเตือนความจำ";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "บัญชีและการเรียกเก็บเงิน";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "ตัวเลือกสำหรับคุณ";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "ดูตัวเลือก";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "แพ็กเกจปัจจุบัน";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "ซื้อแล้ว";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "คุณมีสิ่งนี้อยู่แล้ว";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "ตัวเลือกเหล่านี้ไม่พร้อมใช้งานแล้ว";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "อัปเดตแอปเพื่อเปิดรายการนี้";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "รายสัปดาห์";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "รายเดือน";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 เดือน";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 เดือน";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 เดือน";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "รายปี";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "ตลอดชีพ";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "ตัวเลือก";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "เปิดตัวเลือกเหล่านี้ในแอป";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/สัปดาห์";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "{price} ทุก 4 สัปดาห์";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/เดือน";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "{price} ทุก 2 เดือน";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "{price} ทุก 3 เดือน";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "{price} ทุก 6 เดือน";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/ปี";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "แบ่งปันประสบการณ์ของคุณ";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "หากต้องการ คุณสามารถเขียนรีวิวได้ที่ App Store";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "หากต้องการ คุณสามารถเขียนรีวิวได้ที่ Google Play";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "เขียนรีวิว";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "ลิงก์รีวิวนี้ใช้ไม่ได้แล้ว";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "ไม่มีหน้าร้านค้าสำหรับอุปกรณ์นี้";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "เปิด App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "เปิด Google Play";

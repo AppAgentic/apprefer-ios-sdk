@@ -214,3 +214,65 @@
 "engagement.channel.reminders" = "提醒";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "账户与账单";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "为你准备的选项";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "查看选项";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "当前方案";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "已购买";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "你已拥有";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "这些选项已不再提供";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "请更新应用后打开";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "每周";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "每月";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 个月";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 个月";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 个月";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "每年";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "永久";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "选项";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "在应用中打开这些选项";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/周";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "每 4 周 {price}";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/月";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "每 2 个月 {price}";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "每 3 个月 {price}";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "每 6 个月 {price}";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/年";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "分享你的使用体验";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "如果愿意，你可以在 App Store 上写一条评论。";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "如果愿意，你可以在 Google Play 上写一条评论。";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "写评论";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "此评论链接已不可用";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "此设备没有对应的商店页面";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "打开 App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "打开 Google Play";

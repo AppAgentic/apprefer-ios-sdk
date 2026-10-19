@@ -216,3 +216,65 @@
 "engagement.channel.reminders" = "Muistutukset";
 /* Android notification category name for account and subscription notices (billing problems, renewals). */
 "engagement.channel.service" = "Tili ja laskutus";
+/* Small heading on a card in the chat holding one or more of the app's plans, credit packs or one-off purchases the team or assistant attached. Neutral: these are normal prices, so never imply a discount, deal or special offer. */
+"support.offer.title" = "Vaihtoehtoja sinulle";
+/* Button on that card that opens the app's own screen listing these options. Short. Never imply a discount. */
+"support.offer.open" = "Näytä vaihtoehdot";
+/* Tag next to a plan on an offer card that the customer already has. */
+"support.offer.current" = "Nykyinen tilaus";
+/* Tag next to a one-off purchase on the card that the customer already owns (subscriptions use 'Current plan'). */
+"support.offer.purchased" = "Ostettu";
+/* Shown on an offer card when every plan in it is one the customer already has. */
+"support.offer.owned" = "Sinulla on jo tämä";
+/* Shown on the card when it was withdrawn, expired or changed. */
+"support.offer.unavailable" = "Nämä vaihtoehdot eivät ole enää saatavilla";
+/* Shown on the card when this version of the app can't open it yet. */
+"support.offer.unsupported" = "Päivitä sovellus avataksesi tämän";
+/* Plan length label on an offer card. */
+"support.offer.package.weekly" = "Viikoittain";
+/* Plan length label on an offer card. */
+"support.offer.package.monthly" = "Kuukausittain";
+/* Plan length label on an offer card. */
+"support.offer.package.twoMonth" = "2 kuukautta";
+/* Plan length label on an offer card. */
+"support.offer.package.threeMonth" = "3 kuukautta";
+/* Plan length label on an offer card. */
+"support.offer.package.sixMonth" = "6 kuukautta";
+/* Plan length label on an offer card. */
+"support.offer.package.annual" = "Vuosittain";
+/* Label for a one-time, never-expiring purchase on an offer card. */
+"support.offer.package.lifetime" = "Elinikäinen";
+/* Label for a plan with no standard length on an offer card, when the app gave it no name. */
+"support.offer.package.custom" = "Vaihtoehto";
+/* VoiceOver/TalkBack hint on the card's button. */
+"support.offer.a11y.hint" = "Avaa nämä vaihtoehdot sovelluksessa";
+/* Regular store price of a weekly subscription. {price} = the store's formatted price, e.g. £2.99. Short, like a price tag. */
+"support.offer.price.week" = "{price}/viikko";
+/* Regular store price of a subscription billed every 4 weeks. {price} = the store's formatted price. */
+"support.offer.price.fourWeeks" = "{price} 4 viikon välein";
+/* Regular store price of a monthly subscription. {price} = the store's formatted price, e.g. £4.99. Short, like a price tag. */
+"support.offer.price.month" = "{price}/kuukausi";
+/* Regular store price of a subscription billed every 2 months. {price} = the store's formatted price. */
+"support.offer.price.twoMonths" = "{price} 2 kuukauden välein";
+/* Regular store price of a subscription billed every 3 months. {price} = the store's formatted price. */
+"support.offer.price.threeMonths" = "{price} 3 kuukauden välein";
+/* Regular store price of a subscription billed every 6 months. {price} = the store's formatted price. */
+"support.offer.price.sixMonths" = "{price} 6 kuukauden välein";
+/* Regular store price of a yearly subscription. {price} = the store's formatted price, e.g. £29.99. Short, like a price tag. */
+"support.offer.price.year" = "{price}/vuosi";
+/* Small heading on an optional review card in the chat. Neutral: never ask for stars or a good rating, never promise anything. */
+"support.review.title" = "Kerro kokemuksestasi";
+/* Text on the review card. Store: App Store (brand name, never translated). */
+"support.review.body.appStore" = "Halutessasi voit kirjoittaa arvostelun: App Store.";
+/* Text on the review card. Store: Google Play (brand name, never translated). */
+"support.review.body.googlePlay" = "Halutessasi voit kirjoittaa arvostelun: Google Play.";
+/* Button on the review card that opens the app's store page. Short. */
+"support.review.open" = "Kirjoita arvostelu";
+/* Shown on a review card that was withdrawn, expired or changed. */
+"support.review.unavailable" = "Tämä arvostelulinkki ei ole enää käytettävissä";
+/* Shown on a review card when the app has no store page for this platform. */
+"support.review.unsupported" = "Tälle laitteelle ei ole kauppasivua";
+/* VoiceOver/TalkBack hint on the review card's button. Store: App Store (brand name, never translated). */
+"support.review.a11y.hint.appStore" = "Avaa: App Store";
+/* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
+"support.review.a11y.hint.googlePlay" = "Avaa: Google Play";
