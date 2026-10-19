@@ -1,3 +1,8 @@
+## 0.11.2 (unreleased)
+
+- Support: `.plain` header style now also draws the avatar on the home's Continue card (the chat icon, or the first team member's initial) in the header's neutral greys (`#6B6B6B` to `#3A3A3A`, white glyph ≥ 5:1) instead of the accent's neighbours, which were pale mint for a white accent. The AI persona's portrait still covers it. No new API; the default accent style is unchanged, and the help tiles, conversation list and chat are untouched.
+- Version 0.11.2. No other change.
+
 ## 0.11.1 (unreleased)
 
 - Support: `AppRefer.support.headerStyle` (`AppReferSupportHeaderStyle.accent` default, `.plain`). `.plain` draws the help home's header as one flat neutral grey (dark `#1C1C1C`, light `#EBEBEB`) with white / near-black text: no accent fill, no radial glows, neutral presence pill, close button, initials tile and presence avatars (the AI portrait still shows). For apps whose design has no colour accents, where even a white `accentColor` gave the hero tinted glows. `.accent` is unchanged; bubbles, buttons and the rest of the chat keep `accentColor` in both.

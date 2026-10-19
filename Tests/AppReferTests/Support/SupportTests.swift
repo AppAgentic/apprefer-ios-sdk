@@ -124,6 +124,43 @@ final class SupportTests: XCTestCase {
         }
     }
 
+    func testContinueCardAvatarFollowsHeaderStyle() {
+        func conv(_ lastFrom: String) -> AppReferSupportConversation {
+            try! JSONDecoder().decode(AppReferSupportConversation.self, from: Data("""
+            {"id":"a","subject":"s","status":"open","preview":"p","lastMessageAt":"2026-10-19T10:00:00Z","lastFrom":"\(lastFrom)","unread":0}
+            """.utf8))
+        }
+        let persona = try! JSONDecoder().decode(AppReferSupportPersona.self, from: Data(#"{"name":"Riley","avatarUrl":"https://example.com/riley.png"}"#.utf8))
+        let p = SupportPalette(.white)
+        for dark in [true, false] {
+            let accent = SupportHeaderLook(.accent, palette: p, dark: dark)
+            let plain = SupportHeaderLook(.plain, palette: p, dark: dark)
+            // No team names: the chat symbol, in the accent's neighbours (unchanged) or neutral greys.
+            let symbolAccent = SupportContinueAvatar(conv("customer"), persona: persona, teamNames: [], look: accent, palette: p)
+            XCTAssertEqual(symbolAccent.colors, [p.warm, p.hot])
+            XCTAssertFalse(symbolAccent.colors.allSatisfy(isNeutral), "white accent's avatar is tinted (the reported mint)")
+            XCTAssertEqual(symbolAccent.symbol, "bubble.left.and.bubble.right.fill")
+            let symbolPlain = SupportContinueAvatar(conv("customer"), persona: persona, teamNames: [], look: plain, palette: p)
+            XCTAssertEqual(symbolPlain.colors, plain.avatars)
+            XCTAssertTrue(symbolPlain.colors.allSatisfy(isNeutral))
+            for c in symbolPlain.colors { XCTAssertGreaterThanOrEqual(contrast(.white, c), 4.5) }
+            XCTAssertEqual(symbolPlain.symbol, "bubble.left.and.bubble.right.fill")
+            XCTAssertNil(symbolPlain.image)
+            // Team member: their initial on the same fill.
+            let team = SupportContinueAvatar(conv("team"), persona: persona, teamNames: ["Jay"], look: plain, palette: p)
+            XCTAssertEqual(team.name, "Jay")
+            XCTAssertNil(team.symbol)
+            XCTAssertTrue(team.colors.allSatisfy(isNeutral))
+            // The AI answered last: its portrait is kept in both styles.
+            for look in [accent, plain] {
+                let bot = SupportContinueAvatar(conv("bot"), persona: persona, teamNames: ["Jay"], look: look, palette: p)
+                XCTAssertEqual(bot.image, URL(string: "https://example.com/riley.png"))
+                XCTAssertEqual(bot.name, "Riley")
+                XCTAssertNil(bot.symbol)
+            }
+        }
+    }
+
     @MainActor
     func testContinueCardPicksUnreadThenNewestOpen() {
         func conv(_ id: String, _ status: String, _ at: String, unread: Int = 0) -> AppReferSupportConversation {

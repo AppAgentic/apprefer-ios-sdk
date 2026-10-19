@@ -509,7 +509,7 @@ AppRefer.support.open()
 // Optional
 AppRefer.support.identify(name: "María", email: "maria@example.com") // the app user id from setUserId is sent automatically
 AppRefer.support.accentColor = .purple                  // text on a bright accent turns dark automatically
-AppRefer.support.headerStyle = .plain                   // 0.11.1: flat neutral grey header, no accent or glow (default .accent)
+AppRefer.support.headerStyle = .plain                   // 0.11.1: flat neutral grey header, no accent or glow (default .accent); 0.11.2: Continue card avatar too
 AppRefer.support.teamNames = ["Jay", "Ana"]             // "Jay and the team · usually under an hour"
 AppRefer.support.replyTime = "under an hour"
 AppRefer.support.topics = [.billing, .bug, .idea,       // quick-help tiles; [] hides them
