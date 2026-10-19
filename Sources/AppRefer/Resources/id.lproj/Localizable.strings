@@ -302,6 +302,10 @@
 "support.testimonial.publishHint" = "Aktif kecuali kamu menonaktifkannya. Hadiahnya sama dalam kedua kasus, dan kamu bisa menariknya nanti.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Bagikan";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Kirim dan izinkan dibagikan";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Kirim secara pribadi";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Mengunggah… {percent}%";
 /* Shown after the upload while the server checks the file. */

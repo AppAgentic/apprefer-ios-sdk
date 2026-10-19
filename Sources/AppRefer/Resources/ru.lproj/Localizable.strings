@@ -308,6 +308,10 @@
 "support.testimonial.publishHint" = "Включено, пока вы это не выключите. Награда в обоих случаях одинаковая, а разрешение можно отозвать позже.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Поделиться";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Отправить и разрешить публикацию";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Отправить приватно";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Загрузка… {percent} %";
 /* Shown after the upload while the server checks the file. */

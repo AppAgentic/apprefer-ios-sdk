@@ -312,6 +312,10 @@
 "support.testimonial.publishHint" = "مفعّل ما لم تُوقفه. المكافأة نفسها في الحالتين، ويمكنك سحب الإذن لاحقًا.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "مشاركة";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "إرسال مع السماح بالمشاركة";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "إرسال بشكل خاص";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "جارٍ الرفع… {percent}%";
 /* Shown after the upload while the server checks the file. */

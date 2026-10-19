@@ -302,6 +302,10 @@
 "support.testimonial.publishHint" = "預設開啟，你可以關閉。兩種情況下獎勵相同，之後也可以撤回。";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "分享";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "傳送並允許分享";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "私密傳送";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "正在上傳… {percent}%";
 /* Shown after the upload while the server checks the file. */

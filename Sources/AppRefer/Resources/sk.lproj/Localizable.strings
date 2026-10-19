@@ -306,6 +306,10 @@
 "support.testimonial.publishHint" = "Zapnuté, kým to nevypnete. Odmena je v oboch prípadoch rovnaká a súhlas môžete neskôr odvolať.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Zdieľať";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Odoslať a povoliť zdieľanie";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Odoslať súkromne";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Nahrávanie… {percent} %";
 /* Shown after the upload while the server checks the file. */

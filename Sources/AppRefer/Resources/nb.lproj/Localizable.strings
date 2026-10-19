@@ -304,6 +304,10 @@
 "support.testimonial.publishHint" = "På med mindre du slår det av. Belønningen er den samme uansett, og du kan trekke det tilbake senere.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Del";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Send og tillat deling";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Send privat";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Laster opp … {percent} %";
 /* Shown after the upload while the server checks the file. */

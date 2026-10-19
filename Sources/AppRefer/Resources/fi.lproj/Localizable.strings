@@ -304,6 +304,10 @@
 "support.testimonial.publishHint" = "Päällä, ellet laita sitä pois. Palkkio on sama kummassakin tapauksessa, ja voit perua luvan myöhemmin.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Jaa";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Lähetä ja salli jakaminen";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Lähetä yksityisesti";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Ladataan… {percent} %";
 /* Shown after the upload while the server checks the file. */

@@ -308,6 +308,10 @@
 "support.testimonial.publishHint" = "Włączone, dopóki tego nie wyłączysz. Nagroda jest taka sama w obu przypadkach, a zgodę możesz później wycofać.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Udostępnij";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Wyślij i zezwól na udostępnianie";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Wyślij prywatnie";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Przesyłanie… {percent}%";
 /* Shown after the upload while the server checks the file. */

@@ -302,6 +302,10 @@
 "support.testimonial.publishHint" = "オフにしない限りオンのままです。どちらでも特典は同じで、あとから取り消すこともできます。";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "共有";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "送信して共有を許可";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "非公開で送信";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "アップロード中… {percent}%";
 /* Shown after the upload while the server checks the file. */

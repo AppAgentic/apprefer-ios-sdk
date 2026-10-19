@@ -304,6 +304,10 @@
 "support.testimonial.publishHint" = "Ενεργό, εκτός αν το απενεργοποιήσεις. Η ανταμοιβή είναι ίδια σε κάθε περίπτωση και μπορείς να το ανακαλέσεις αργότερα.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Κοινοποίηση";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Αποστολή με άδεια κοινοποίησης";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Ιδιωτική αποστολή";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Γίνεται μεταφόρτωση… {percent}%";
 /* Shown after the upload while the server checks the file. */

@@ -655,8 +655,8 @@ AppRefer.support.testimonials.present(requestId: requestId) { result in
   cancels a capture in progress; nothing is shared for another account.
 - Taking part earns the reward whatever the customer says and whether or not the media is ever
   used. Public use is a separate yes/no: the switch starts on with your campaign's permission text
-  and the customer can turn it off; only their final Share records the choice (with the text's
-  version), opening or cancelling records nothing, and it is revocable later
+  and the customer can turn it off; only their final button records the choice ("Send and allow
+  sharing" while on, "Send privately" while off; with the text's version), opening or cancelling records nothing, and it is revocable later
   (`withdrawPublication(requestId)`); the reward is never taken back.
 - Photos are re-encoded as JPEG (≤ 2048 px, no location or other metadata); videos are exported as
   MP4 without metadata and refused when longer than the campaign allows. Limits: 15 MB per photo,

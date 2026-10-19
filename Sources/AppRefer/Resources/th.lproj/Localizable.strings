@@ -302,6 +302,10 @@
 "support.testimonial.publishHint" = "เปิดไว้จนกว่าคุณจะปิด รางวัลเท่ากันทั้งสองกรณี และคุณถอนความยินยอมได้ภายหลัง";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "แชร์";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "ส่งและอนุญาตให้แชร์";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "ส่งแบบส่วนตัว";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "กำลังอัปโหลด… {percent}%";
 /* Shown after the upload while the server checks the file. */

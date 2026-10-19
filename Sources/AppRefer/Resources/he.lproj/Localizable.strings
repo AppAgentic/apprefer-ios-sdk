@@ -306,6 +306,10 @@
 "support.testimonial.publishHint" = "מופעל אלא אם תכבו אותו. התגמול זהה בכל מקרה, ואפשר לבטל את ההסכמה בהמשך.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "שיתוף";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "שליחה ואישור שיתוף";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "שליחה באופן פרטי";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "מעלה… {percent}%";
 /* Shown after the upload while the server checks the file. */

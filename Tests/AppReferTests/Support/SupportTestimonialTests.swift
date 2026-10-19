@@ -137,12 +137,33 @@ final class SupportTestimonialTests: XCTestCase {
         XCTAssertNil(result.publication, "declining sends no permission answer")
     }
 
+    func testTheSubmitButtonSaysWhetherItAllowsSharing() async throws {
+        let transport = FakeTransport(FakeTransport.decode(FakeTransport.json()))
+        transport.failSubmitOnce = AppReferSupportError(status: 0, message: "The network connection was lost.")
+        let model = TestimonialFlowModel(requestId: "tsr_0123456789abcdef0123456789abcdef", transport: transport, generation: 0)
+        await model.load()
+        model.picked(.success(try jpegFile()))
+        XCTAssertEqual(model.submitLabelKey, "support.testimonial.submitPublic")
+        XCTAssertEqual(SupportStrings.text(model.submitLabelKey), "Send and allow sharing")
+        model.publish = false
+        XCTAssertEqual(SupportStrings.text(model.submitLabelKey), "Send privately")
+        await model.submit()
+        XCTAssertEqual(model.phase, .failed)
+        XCTAssertEqual(SupportStrings.text(model.submitLabelKey), "Send privately", "a retry still names what it sends")
+        await model.submit()
+        XCTAssertEqual(transport.submits.map(\.publication), [false, false], "the label matches the answer sent")
+        SupportStrings.forcedLanguage = "de"
+        XCTAssertEqual(SupportStrings.text("support.testimonial.submitPublic"), "Senden und Teilen erlauben")
+        XCTAssertEqual(SupportStrings.text("support.testimonial.submitPrivate"), "Privat senden")
+    }
+
     func testARequestWithoutPermissionTextIsNeverSubmittedWithAnAssumedAnswer() async throws {
         let old = FakeTransport.json().replacingOccurrences(of: #""permission":{"text":"You may show this in the app.","scopes":["in_app"],"version":"0123456789abcdef"},"#, with: "")
         let transport = FakeTransport(FakeTransport.decode(old))
         let model = TestimonialFlowModel(requestId: "tsr_x", transport: transport, generation: 0)
         await model.load()
         XCTAssertNil(model.request?.permission)
+        XCTAssertEqual(model.submitLabelKey, "support.testimonial.submit", "no switch, so the button claims neither sharing nor privacy")
         model.picked(.success(try jpegFile()))
         await model.submit()
         XCTAssertTrue(transport.submits.isEmpty, "no permission text means no answer is sent or inferred")

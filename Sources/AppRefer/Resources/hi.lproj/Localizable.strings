@@ -304,6 +304,10 @@
 "support.testimonial.publishHint" = "जब तक आप बंद न करें, यह चालू रहता है। इनाम दोनों हालात में एक जैसा है, और आप बाद में यह अनुमति वापस ले सकते हैं।";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "शेयर करें";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "भेजें और शेयर करने की अनुमति दें";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "निजी रूप से भेजें";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "अपलोड हो रहा है… {percent}%";
 /* Shown after the upload while the server checks the file. */

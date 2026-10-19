@@ -304,6 +304,10 @@
 "support.testimonial.publishHint" = "Aan, tenzij je het uitzet. De beloning is in beide gevallen hetzelfde, en je kunt dit later intrekken.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Delen";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Versturen en delen toestaan";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Privé versturen";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Uploaden… {percent}%";
 /* Shown after the upload while the server checks the file. */

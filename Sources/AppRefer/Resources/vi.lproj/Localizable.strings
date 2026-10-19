@@ -302,6 +302,10 @@
 "support.testimonial.publishHint" = "Bật trừ khi bạn tắt. Phần thưởng như nhau trong cả hai trường hợp, và bạn có thể rút lại sau.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Chia sẻ";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Gửi và cho phép chia sẻ";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Gửi riêng tư";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Đang tải lên… {percent}%";
 /* Shown after the upload while the server checks the file. */

@@ -304,6 +304,10 @@
 "support.testimonial.publishHint" = "Bekapcsolva marad, amíg ki nem kapcsolod. A jutalom mindkét esetben ugyanaz, és később visszavonhatod.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Megosztás";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Küldés és megosztás engedélyezése";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Küldés privát módon";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Feltöltés… {percent}%";
 /* Shown after the upload while the server checks the file. */

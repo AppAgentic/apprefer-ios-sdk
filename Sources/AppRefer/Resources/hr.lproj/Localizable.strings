@@ -306,6 +306,10 @@
 "support.testimonial.publishHint" = "Uključeno dok to ne isključite. Nagrada je ista u oba slučaja, a dopuštenje možete kasnije povući.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Podijeli";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Pošalji i dopusti dijeljenje";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Pošalji privatno";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Prijenos… {percent} %";
 /* Shown after the upload while the server checks the file. */

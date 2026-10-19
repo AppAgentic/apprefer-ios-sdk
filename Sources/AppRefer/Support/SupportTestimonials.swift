@@ -6,7 +6,8 @@ import Foundation
 // verified for (`AppRefer.support.verifyIdentity`). The reward and the publication permission
 // text come from the request: the SDK never chooses a reward and never ties it to what is said.
 // Taking part earns the reward; public use is a separate switch that starts on and the customer
-// can turn off. Only the final Share sends its value, with the permission version shown.
+// can turn off. Only the final button sends its value ("Send and allow sharing" / "Send
+// privately"), with the permission version shown.
 
 /// A photo/video request as the server sends it.
 public struct AppReferTestimonialRequest: Hashable, Sendable, Decodable {
@@ -225,6 +226,13 @@ final class TestimonialFlowModel: ObservableObject {
     /// (opening, picking or cancelling sends no answer), and a request without permission text
     /// (an older server) can't be submitted, so no permission is ever assumed.
     @Published var publish = true
+    /// The final button says what it sends: "Send and allow sharing" while the switch is on,
+    /// "Send privately" while it is off (also on retry). Without permission text there is no
+    /// switch and nothing can be submitted, so it keeps the plain label.
+    var submitLabelKey: String {
+        guard request?.permission != nil else { return "support.testimonial.submit" }
+        return publish ? "support.testimonial.submitPublic" : "support.testimonial.submitPrivate"
+    }
     /// The localized message for the last problem (nil when none).
     @Published private(set) var notice: String?
 
@@ -468,7 +476,7 @@ struct TestimonialScreen: View {
             HStack(spacing: 8) { ProgressView(); Text(SupportStrings.text("support.testimonial.checking")).foregroundStyle(SupportColors.muted) }
         default:
             if model.file != nil {
-                primary(model.phase == .failed ? SupportStrings.text("support.action.tryAgain") : SupportStrings.text("support.testimonial.submit")) { Task { await model.submit() } }
+                primary(SupportStrings.text(model.submitLabelKey)) { Task { await model.submit() } }
             }
             HStack(spacing: 18) {
                 Button(SupportStrings.text("support.testimonial.decline")) { decline(false) }

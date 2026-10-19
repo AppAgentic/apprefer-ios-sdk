@@ -302,6 +302,10 @@
 "support.testimonial.publishHint" = "직접 끄지 않으면 켜져 있어요. 어느 쪽이든 보상은 같고, 나중에 철회할 수도 있어요.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "공유";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "보내고 공유 허용";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "비공개로 보내기";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "업로드 중… {percent}%";
 /* Shown after the upload while the server checks the file. */

@@ -308,6 +308,10 @@
 "support.testimonial.publishHint" = "Увімкнено, доки ви цього не вимкнете. Винагорода в обох випадках однакова, а дозвіл можна відкликати пізніше.";
 /* Primary button that uploads and shares the selected photo or video. */
 "support.testimonial.submit" = "Поділитися";
+/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
+"support.testimonial.submitPublic" = "Надіслати й дозволити публікацію";
+/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
+"support.testimonial.submitPrivate" = "Надіслати приватно";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Завантаження… {percent}%";
 /* Shown after the upload while the server checks the file. */
