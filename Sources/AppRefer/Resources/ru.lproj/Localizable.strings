@@ -282,3 +282,49 @@
 "support.review.a11y.hint.appStore" = "Открывает App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Открывает Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "За участие: {reward}";
+/* Small reassurance under the reward line. Honest participation earns the reward. */
+"support.testimonial.rewardNote" = "Награда не зависит от того, чем вы поделитесь и будет ли это использовано.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Поделиться фото или видео";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Выбрать из медиатеки";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Использовать камеру";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Выбрать другое";
+/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+"support.testimonial.publish" = "Разрешить публичное использование";
+/* Hint under the public-use switch. */
+"support.testimonial.publishHint" = "Необязательно. Награду вы получите в любом случае, а публичное использование можно остановить позже.";
+/* Primary button that uploads and shares the selected photo or video. */
+"support.testimonial.submit" = "Поделиться";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Загрузка… {percent} %";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Проверка…";
+/* Title after a successful share. */
+"support.testimonial.done" = "Спасибо, что поделились!";
+/* After sharing, while the app hasn't confirmed the reward yet. */
+"support.testimonial.rewardPending" = "Ваша награда уже в пути.";
+/* After the app confirmed the reward. */
+"support.testimonial.rewardDone" = "Ваша награда начислена.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Нет, спасибо";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Больше не спрашивать";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Отмена";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Этот запрос больше недоступен";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Видео может длиться до {seconds} с.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Файл слишком большой, чтобы им поделиться.";
+/* Error when the upload or share failed. Nothing was shared. */
+"support.testimonial.failed" = "Не удалось поделиться. Проверьте подключение и попробуйте снова.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Остановить публичное использование";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Выбранное фото или видео";

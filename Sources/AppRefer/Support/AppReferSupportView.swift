@@ -610,6 +610,9 @@ struct SupportThreadScreen: View {
     @State private var picking = false
     @State private var viewing: SupportViewedImage?
     @State private var notice: SupportReplyNotice = .push
+    /// The photo/video request whose capture screen is open.
+    @State private var capturing: SupportCaptureTarget?
+    @State private var lastCapture: String?
     @FocusState private var focused: Bool
 
     init(id: String, subject: String, palette: SupportPalette, back: @escaping () -> Void) {
@@ -669,6 +672,12 @@ struct SupportThreadScreen: View {
             }
         }
         .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0.prefix(max(0, 4 - images.count))) } }
+        .sheet(item: $capturing, onDismiss: {
+            // Also after a swipe down: the request may have been shared before the sheet closed.
+            if let id = lastCapture { Task { await model.refreshTestimonial(id) } }
+        }) { target in
+            AppReferTestimonialView(requestId: target.id) { _ in capturing = nil }
+        }
         .supportImageViewer($viewing)
         .task { await model.load() }
         // How the reply will reach them: notification, email or only here.
@@ -743,6 +752,17 @@ struct SupportThreadScreen: View {
                 .padding(.leading, 38)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .onAppear { model.cardShown(card) }
+            }
+        } else if let request = model.testimonial(m) {
+            VStack(alignment: .leading, spacing: 8) {
+                if !m.text.isEmpty { bubble(i, m) }
+                SupportTestimonialCardView(request: request, palette: palette) {
+                    lastCapture = request.requestId
+                    capturing = SupportCaptureTarget(id: request.requestId)
+                }
+                    .frame(maxWidth: 340, alignment: .leading)
+                    .padding(.leading, 38)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else if let review = model.reviewCard(m) {
             VStack(alignment: .leading, spacing: 8) {

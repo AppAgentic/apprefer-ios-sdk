@@ -484,10 +484,27 @@ actor SupportAPI {
         guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
-            let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
-            throw AppReferSupportError(status: status, message: message ?? "Something went wrong (\(status))")
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let message = json?["error"] as? String
+            throw AppReferSupportError(status: status, message: message ?? "Something went wrong (\(status))", code: json?["code"] as? String)
         }
         return data
+    }
+
+    /// PUTs a file to a presigned storage URL (testimonial uploads); returns the HTTP status.
+    func putFile(_ file: URL, to url: URL, headers: [String: String], size: Int, generation expected: Int, progress: @escaping @Sendable (Double) -> Void) async throws -> Int {
+        guard expected == generation, !Task.isCancelled else { throw CancellationError() }
+        #if os(iOS)
+        let status = try await TestimonialUploader(progress: progress).put(file, to: url, headers: headers, size: size)
+        #else
+        var req = URLRequest(url: url, timeoutInterval: 300)
+        req.httpMethod = "PUT"
+        for (k, v) in headers { req.setValue(v, forHTTPHeaderField: k) }
+        let (_, response) = try await session.upload(for: req, fromFile: file)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        #endif
+        guard expected == generation, !Task.isCancelled else { throw CancellationError() }
+        return status
     }
 
     /// A request with the session; a session the server no longer knows is replaced once.
@@ -509,6 +526,11 @@ actor SupportAPI {
     /// A session request for the other Support files (offer cards).
     func sessionCall(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> Data {
         try await call(method, path, body: body)
+    }
+
+    /// The same, pinned to an account generation (a reset or account switch cancels it).
+    func sessionCall(_ method: String, _ path: String, body: [String: Any]? = nil, generation epoch: Int) async throws -> Data {
+        try await call(method, path, body: body, expectedGeneration: epoch)
     }
 
     // MARK: - Endpoints

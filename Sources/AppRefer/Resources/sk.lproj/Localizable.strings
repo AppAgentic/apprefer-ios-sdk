@@ -280,3 +280,49 @@
 "support.review.a11y.hint.appStore" = "Otvorí App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Otvorí Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "Za účasť: {reward}";
+/* Small reassurance under the reward line. Honest participation earns the reward. */
+"support.testimonial.rewardNote" = "Odmena nezávisí od toho, čo zdieľate, ani od toho, či sa to použije.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Zdieľať fotku alebo video";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Vybrať z knižnice";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Použiť fotoaparát";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Vybrať iné";
+/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+"support.testimonial.publish" = "Povoliť verejné použitie";
+/* Hint under the public-use switch. */
+"support.testimonial.publishHint" = "Voliteľné. Odmenu dostanete tak či tak a verejné použitie môžete neskôr zastaviť.";
+/* Primary button that uploads and shares the selected photo or video. */
+"support.testimonial.submit" = "Zdieľať";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Nahrávanie… {percent} %";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Kontrola…";
+/* Title after a successful share. */
+"support.testimonial.done" = "Ďakujeme za zdieľanie!";
+/* After sharing, while the app hasn't confirmed the reward yet. */
+"support.testimonial.rewardPending" = "Vaša odmena je na ceste.";
+/* After the app confirmed the reward. */
+"support.testimonial.rewardDone" = "Vaša odmena bola pridaná.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Nie, ďakujem";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Už sa ma nepýtajte";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Zrušiť";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Táto žiadosť už nie je k dispozícii";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Videá môžu mať najviac {seconds} s.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Tento súbor je príliš veľký na zdieľanie.";
+/* Error when the upload or share failed. Nothing was shared. */
+"support.testimonial.failed" = "Zdieľanie sa nepodarilo. Skontrolujte pripojenie a skúste to znova.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Zastaviť verejné použitie";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Vybraná fotka alebo video";

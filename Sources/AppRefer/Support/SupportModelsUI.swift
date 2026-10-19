@@ -127,6 +127,7 @@ final class SupportThreadModel: ObservableObject {
             error = nil
             absorbOffers(t.messages)
             absorbReviews(t.messages)
+            absorbTestimonials(t.messages)
         } catch {
             self.error = SupportStrings.errorText(error)
         }
@@ -252,6 +253,26 @@ final class SupportThreadModel: ObservableObject {
         SupportReviewOpener.openURL(url)
     }
 
+    // MARK: Testimonial requests
+
+    /// Each photo/video request's latest state by request id.
+    @Published var testimonials: [String: AppReferTestimonialRequest] = [:]
+
+    func testimonial(_ m: AppReferSupportMessage) -> AppReferTestimonialRequest? {
+        guard let t = m.testimonial else { return nil }
+        return testimonials[t.requestId] ?? t
+    }
+
+    private func absorbTestimonials(_ incoming: [AppReferSupportMessage]) {
+        for t in incoming.compactMap(\.testimonial) { testimonials[t.requestId] = t }
+    }
+
+    /// After the capture screen closes: the request's state now (shared, declined, reward).
+    func refreshTestimonial(_ requestId: String) async {
+        guard let fresh = try? await AppReferTestimonials.shared.request(requestId) else { return }
+        testimonials[requestId] = fresh
+    }
+
     /// New messages since the last poll. Runs only while the chat is open and active.
     func poll() async {
         guard loaded, let t = try? await SupportAPI.shared.thread(id, after: lastSeen) else { return }
@@ -260,6 +281,7 @@ final class SupportThreadModel: ObservableObject {
         merge(t.messages)
         absorbOffers(t.messages)
         absorbReviews(t.messages)
+        absorbTestimonials(t.messages)
         // Only polls move the cursor: a team reply that landed just before our own
         // send is then still fetched.
         if let newest = t.messages.last?.createdAt { lastSeen = newest }

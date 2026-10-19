@@ -286,3 +286,49 @@
 "support.review.a11y.hint.appStore" = "يفتح App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "يفتح Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "مقابل مشاركتك: {reward}";
+/* Small reassurance under the reward line. Honest participation earns the reward. */
+"support.testimonial.rewardNote" = "لا تعتمد المكافأة على ما تشاركه أو على استخدامه.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "شارك صورة أو فيديو";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "اختر من المكتبة";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "استخدم الكاميرا";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "اختر غيرها";
+/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+"support.testimonial.publish" = "السماح بالاستخدام العام";
+/* Hint under the public-use switch. */
+"support.testimonial.publishHint" = "اختياري. تحصل على المكافأة في كل الأحوال، ويمكنك إيقاف الاستخدام العام لاحقًا.";
+/* Primary button that uploads and shares the selected photo or video. */
+"support.testimonial.submit" = "مشاركة";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "جارٍ الرفع… {percent}%";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "جارٍ التحقق…";
+/* Title after a successful share. */
+"support.testimonial.done" = "شكرًا على المشاركة!";
+/* After sharing, while the app hasn't confirmed the reward yet. */
+"support.testimonial.rewardPending" = "مكافأتك في الطريق.";
+/* After the app confirmed the reward. */
+"support.testimonial.rewardDone" = "أُضيفت مكافأتك.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "لا، شكرًا";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "لا تسألني مرة أخرى";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "إلغاء";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "هذا الطلب لم يعد متاحًا";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "يمكن أن يصل طول الفيديو إلى {seconds} ثانية.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "هذا الملف كبير جدًا لمشاركته.";
+/* Error when the upload or share failed. Nothing was shared. */
+"support.testimonial.failed" = "تعذّرت المشاركة. تحقق من اتصالك وحاول مرة أخرى.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "إيقاف الاستخدام العام";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "الصورة أو الفيديو الذي اخترته";

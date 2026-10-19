@@ -278,3 +278,49 @@
 "support.review.a11y.hint.appStore" = "Ανοίγει το App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Ανοίγει το Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "Για τη συμμετοχή σου: {reward}";
+/* Small reassurance under the reward line. Honest participation earns the reward. */
+"support.testimonial.rewardNote" = "Η ανταμοιβή δεν εξαρτάται από το τι μοιράζεσαι ή αν θα χρησιμοποιηθεί.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Μοιράσου μια φωτογραφία ή ένα βίντεο";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Επιλογή από τη βιβλιοθήκη";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Χρήση κάμερας";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Επιλογή άλλου";
+/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+"support.testimonial.publish" = "Να επιτρέπεται η δημόσια χρήση";
+/* Hint under the public-use switch. */
+"support.testimonial.publishHint" = "Προαιρετικό. Παίρνεις την ανταμοιβή σε κάθε περίπτωση και μπορείς να σταματήσεις τη δημόσια χρήση αργότερα.";
+/* Primary button that uploads and shares the selected photo or video. */
+"support.testimonial.submit" = "Κοινοποίηση";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Γίνεται μεταφόρτωση… {percent}%";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Γίνεται έλεγχος…";
+/* Title after a successful share. */
+"support.testimonial.done" = "Ευχαριστούμε που το μοιράστηκες!";
+/* After sharing, while the app hasn't confirmed the reward yet. */
+"support.testimonial.rewardPending" = "Η ανταμοιβή σου έρχεται.";
+/* After the app confirmed the reward. */
+"support.testimonial.rewardDone" = "Η ανταμοιβή σου προστέθηκε.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Όχι, ευχαριστώ";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Μη με ξαναρωτήσεις";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Ακύρωση";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Αυτό το αίτημα δεν είναι πια διαθέσιμο";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Τα βίντεο μπορούν να διαρκούν έως {seconds} δευτερόλεπτα.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Αυτό το αρχείο είναι πολύ μεγάλο για κοινοποίηση.";
+/* Error when the upload or share failed. Nothing was shared. */
+"support.testimonial.failed" = "Δεν ήταν δυνατή η κοινοποίηση. Έλεγξε τη σύνδεσή σου και δοκίμασε ξανά.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Διακοπή δημόσιας χρήσης";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Η φωτογραφία ή το βίντεο που επέλεξες";

@@ -278,3 +278,49 @@
 "support.review.a11y.hint.appStore" = "Öppnar App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Öppnar Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "För att du deltar: {reward}";
+/* Small reassurance under the reward line. Honest participation earns the reward. */
+"support.testimonial.rewardNote" = "Belöningen beror inte på vad du delar eller om det används.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Dela en bild eller video";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Välj från biblioteket";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Använd kameran";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Välj en annan";
+/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+"support.testimonial.publish" = "Tillåt offentlig användning";
+/* Hint under the public-use switch. */
+"support.testimonial.publishHint" = "Valfritt. Du får belöningen ändå och kan stoppa offentlig användning senare.";
+/* Primary button that uploads and shares the selected photo or video. */
+"support.testimonial.submit" = "Dela";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Laddar upp … {percent} %";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Kontrollerar …";
+/* Title after a successful share. */
+"support.testimonial.done" = "Tack för att du delade!";
+/* After sharing, while the app hasn't confirmed the reward yet. */
+"support.testimonial.rewardPending" = "Din belöning är på väg.";
+/* After the app confirmed the reward. */
+"support.testimonial.rewardDone" = "Din belöning har lagts till.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Nej tack";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Fråga inte igen";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Avbryt";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Den här förfrågan är inte längre tillgänglig";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Videor kan vara upp till {seconds} sekunder.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Filen är för stor för att delas.";
+/* Error when the upload or share failed. Nothing was shared. */
+"support.testimonial.failed" = "Det gick inte att dela. Kontrollera anslutningen och försök igen.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Stoppa offentlig användning";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Din valda bild eller video";

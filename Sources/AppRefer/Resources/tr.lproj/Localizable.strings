@@ -278,3 +278,49 @@
 "support.review.a11y.hint.appStore" = "App Store uygulamasını açar";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Google Play uygulamasını açar";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "Katılımın için: {reward}";
+/* Small reassurance under the reward line. Honest participation earns the reward. */
+"support.testimonial.rewardNote" = "Ödül, ne paylaştığına veya kullanılıp kullanılmadığına bağlı değildir.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Fotoğraf veya video paylaş";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Arşivden seç";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Kamerayı kullan";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Başkasını seç";
+/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+"support.testimonial.publish" = "Herkese açık kullanıma izin ver";
+/* Hint under the public-use switch. */
+"support.testimonial.publishHint" = "İsteğe bağlı. Ödülü her durumda alırsın ve herkese açık kullanımı daha sonra durdurabilirsin.";
+/* Primary button that uploads and shares the selected photo or video. */
+"support.testimonial.submit" = "Paylaş";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Yükleniyor… %{percent}";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Kontrol ediliyor…";
+/* Title after a successful share. */
+"support.testimonial.done" = "Paylaştığın için teşekkürler!";
+/* After sharing, while the app hasn't confirmed the reward yet. */
+"support.testimonial.rewardPending" = "Ödülün yolda.";
+/* After the app confirmed the reward. */
+"support.testimonial.rewardDone" = "Ödülün eklendi.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Hayır, teşekkürler";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Bir daha sorma";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Vazgeç";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Bu istek artık kullanılamıyor";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Videolar en fazla {seconds} saniye olabilir.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Bu dosya paylaşmak için çok büyük.";
+/* Error when the upload or share failed. Nothing was shared. */
+"support.testimonial.failed" = "Paylaşılamadı. Bağlantını kontrol edip tekrar dene.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Herkese açık kullanımı durdur";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Seçtiğin fotoğraf veya video";

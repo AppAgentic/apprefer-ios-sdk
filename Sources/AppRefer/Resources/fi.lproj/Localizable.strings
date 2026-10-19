@@ -278,3 +278,49 @@
 "support.review.a11y.hint.appStore" = "Avaa: App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Avaa: Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "Osallistumisesta: {reward}";
+/* Small reassurance under the reward line. Honest participation earns the reward. */
+"support.testimonial.rewardNote" = "Palkkio ei riipu siitä, mitä jaat tai käytetäänkö sitä.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Jaa kuva tai video";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Valitse kirjastosta";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Käytä kameraa";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Valitse toinen";
+/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+"support.testimonial.publish" = "Salli julkinen käyttö";
+/* Hint under the public-use switch. */
+"support.testimonial.publishHint" = "Valinnainen. Saat palkkion joka tapauksessa, ja voit lopettaa julkisen käytön myöhemmin.";
+/* Primary button that uploads and shares the selected photo or video. */
+"support.testimonial.submit" = "Jaa";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Ladataan… {percent} %";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Tarkistetaan…";
+/* Title after a successful share. */
+"support.testimonial.done" = "Kiitos jakamisesta!";
+/* After sharing, while the app hasn't confirmed the reward yet. */
+"support.testimonial.rewardPending" = "Palkkiosi on tulossa.";
+/* After the app confirmed the reward. */
+"support.testimonial.rewardDone" = "Palkkiosi on lisätty.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Ei kiitos";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Älä kysy uudelleen";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Peruuta";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Tämä pyyntö ei ole enää saatavilla";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Videot voivat olla enintään {seconds} sekuntia.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Tiedosto on liian suuri jaettavaksi.";
+/* Error when the upload or share failed. Nothing was shared. */
+"support.testimonial.failed" = "Jakaminen ei onnistunut. Tarkista yhteys ja yritä uudelleen.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Lopeta julkinen käyttö";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Valitsemasi kuva tai video";

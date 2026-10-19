@@ -40,6 +40,8 @@ public struct AppReferSupportMessage: Identifiable, Hashable, Sendable, Decodabl
     public let offer: AppReferSupportOfferCard?
     /// An optional review card sent with this reply: a link to the app's own store page.
     public let review: AppReferSupportReviewCard?
+    /// A photo/video request sent with this reply (0.13.0), with its state when read.
+    public let testimonial: AppReferTestimonialRequest?
 
     public var isFromCustomer: Bool { from == "customer" }
     public var isHandoff: Bool { handoff == true }
@@ -105,5 +107,7 @@ public struct AppReferSupportError: LocalizedError, Sendable {
     /// What kind of failure, so the chat can explain it in the customer's language.
     enum Reason: Sendable { case server, locked, upload, unavailable }
     var reason: Reason = .server
+    /// The server's error code when it sent one (e.g. `IDENTITY_REQUIRED`, `VIDEO_TOO_LONG`).
+    public internal(set) var code: String? = nil
     public var errorDescription: String? { message }
 }

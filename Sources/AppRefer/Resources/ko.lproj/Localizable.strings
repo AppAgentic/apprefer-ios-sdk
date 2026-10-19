@@ -276,3 +276,49 @@
 "support.review.a11y.hint.appStore" = "App Store 열기";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Google Play 열기";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "참여 보상: {reward}";
+/* Small reassurance under the reward line. Honest participation earns the reward. */
+"support.testimonial.rewardNote" = "보상은 공유한 내용이나 사용 여부와 관계없이 드려요.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "사진 또는 영상 공유하기";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "보관함에서 선택";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "카메라 사용";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "다른 항목 선택";
+/* Label of the optional switch that allows the app to use the photo/video publicly (the app's own permission text is shown under it). */
+"support.testimonial.publish" = "공개 사용 허용";
+/* Hint under the public-use switch. */
+"support.testimonial.publishHint" = "선택 사항이에요. 어느 쪽이든 보상을 받으며, 공개 사용은 나중에 중단할 수 있어요.";
+/* Primary button that uploads and shares the selected photo or video. */
+"support.testimonial.submit" = "공유";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "업로드 중… {percent}%";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "확인 중…";
+/* Title after a successful share. */
+"support.testimonial.done" = "공유해 주셔서 감사해요!";
+/* After sharing, while the app hasn't confirmed the reward yet. */
+"support.testimonial.rewardPending" = "보상이 곧 지급돼요.";
+/* After the app confirmed the reward. */
+"support.testimonial.rewardDone" = "보상이 추가되었어요.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "괜찮아요";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "다시 묻지 않기";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "취소";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "이 요청은 더 이상 사용할 수 없어요";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "영상은 최대 {seconds}초까지 가능해요.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "파일이 너무 커서 공유할 수 없어요.";
+/* Error when the upload or share failed. Nothing was shared. */
+"support.testimonial.failed" = "공유하지 못했어요. 연결을 확인하고 다시 시도해 주세요.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "공개 사용 중단";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "선택한 사진 또는 영상";

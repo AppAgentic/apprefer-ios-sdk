@@ -114,9 +114,16 @@ public final class AppReferSupport {
         SupportPersonaStore.shared.clear()
         // Receipts belong to the session being retired; they're never sent for another account.
         SupportOfferReceipts.shared.clear()
+        // A capture screen belongs to the account being retired: close it (its calls are cancelled too).
+        AppReferTestimonials.shared.reset()
         presented?.dismiss(animated: false)
         presented = nil
     }
+
+    /// Photo/video testimonials: show a request your backend (or its coach tool) made with
+    /// `present(requestId:)`, list open ones with `pending()`, and refresh credits in
+    /// `onRewardUpdate` once your backend confirms the reward.
+    public var testimonials: AppReferTestimonials { .shared }
 
     /// Removes the account from Support without a full reset, e.g. when the user withdraws
     /// consent: forgets the name, email and app user id, revokes the current Support session
