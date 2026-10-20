@@ -280,8 +280,8 @@
 "support.testimonial.reward" = "参加特典：{reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "良い点も悪い点も、どちらとも言えない点も。正直なご意見をお聞かせください。";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "内容にかかわらず、また再利用を許可するかどうかにかかわらず、参加いただくと受け取れます。";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "内容にかかわらず、また私たちが使用するかどうかにかかわらず、参加いただくと受け取れます。";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "写真や動画を共有";
 /* Button: pick an existing photo or video from the device's library. */
@@ -296,16 +296,12 @@
 "support.testimonial.cameraDenied" = "カメラへのアクセスがオフになっています。代わりにライブラリから選べます。";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "別のものを選ぶ";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "公開利用を許可";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "オフにしない限りオンのままです。どちらでも特典は同じで、あとから取り消すこともできます。";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "共有";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "送信して共有を許可";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "非公開で送信";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "送信すると、これらの条件に同意したことになります。";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "条件が変更されました。内容を確認してから、もう一度送信してください。";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "送信";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "アップロード中… {percent}%";
 /* Shown after the upload while the server checks the file. */

@@ -4,10 +4,9 @@ import Foundation
 // something the app trusts (its backend, its coach tool, a person in Support, the AI within the
 // app's policy, or automation); this SDK only answers one, for the account the support session is
 // verified for (`AppRefer.support.verifyIdentity`). The reward and the publication permission
-// text come from the request: the SDK never chooses a reward and never ties it to what is said.
-// Taking part earns the reward; public use is a separate switch that starts on and the customer
-// can turn off. Only the final button sends its value ("Send and allow sharing" / "Send
-// privately"), with the permission version shown.
+// text come from the request: the SDK never chooses a reward and never ties it to what is said or
+// to later use. The app's usage terms are shown word for word above a plain Submit ("By submitting,
+// you agree to these terms."); only that Submit sends the agreement, with the terms version shown.
 
 /// A photo/video request as the server sends it.
 public struct AppReferTestimonialRequest: Hashable, Sendable, Decodable {
@@ -18,7 +17,7 @@ public struct AppReferTestimonialRequest: Hashable, Sendable, Decodable {
         public let description: String?
     }
     public struct Permission: Hashable, Sendable, Decodable {
-        /// Exactly what a "yes" to public use allows, shown word for word.
+        /// The app's usage terms, shown word for word; submitting agrees to them.
         public let text: String
         public let scopes: [String]
         /// Sent back with the answer so the server knows which text was shown.
@@ -222,17 +221,13 @@ final class TestimonialFlowModel: ObservableObject {
     @Published private(set) var phase: Phase = .loading
     @Published private(set) var request: AppReferTestimonialRequest?
     @Published private(set) var file: TestimonialFile?
-    /// Public use starts on; the customer can turn it off. Nothing is recorded until `submit()`
-    /// (opening, picking or cancelling sends no answer), and a request without permission text
-    /// (an older server) can't be submitted, so no permission is ever assumed.
-    @Published var publish = true
-    /// The final button says what it sends: "Send and allow sharing" while the switch is on,
-    /// "Send privately" while it is off (also on retry). Without permission text there is no
-    /// switch and nothing can be submitted, so it keeps the plain label.
-    var submitLabelKey: String {
-        guard request?.permission != nil else { return "support.testimonial.submit" }
-        return publish ? "support.testimonial.submitPublic" : "support.testimonial.submitPrivate"
-    }
+    /// The app's usage terms are shown word for word above Submit, and submitting is the agreement:
+    /// `submit()` sends `publication: true` with the version of the terms on screen. Opening,
+    /// picking, cancelling and declining send no answer, and a request without terms (an older
+    /// server) can't be submitted at all, so agreement is never assumed.
+    var hasTerms: Bool { request?.permission != nil }
+    /// Submit is offered only with a file picked and the terms on screen.
+    var canSubmit: Bool { hasTerms && file != nil }
     /// The localized message for the last problem (nil when none).
     @Published private(set) var notice: String?
 
@@ -253,7 +248,7 @@ final class TestimonialFlowModel: ObservableObject {
         do {
             let r = try await transport.request(requestId, generation: generation)
             request = r
-            phase = r.isOpen ? .ready : r.status == "submitted" ? .done : .unavailable
+            phase = r.isOpen ? (hasTerms ? .ready : .unavailable) : r.status == "submitted" ? .done : .unavailable
             if r.status == "submitted" { AppReferTestimonials.shared.note(requestId: requestId, rewardStatus: r.rewardStatus ?? "none") }
         } catch {
             notice = Self.message(for: error)
@@ -279,7 +274,10 @@ final class TestimonialFlowModel: ObservableObject {
         }
     }
 
-    /// Uploads (unless this file already reached storage) and shares. Safe to call again after a failure.
+    /// The customer's Submit: agrees to the terms on screen, uploads (unless this file already
+    /// reached storage) and shares. Safe to call again after a failure. If the terms changed in the
+    /// meantime nothing is shared: the new terms are loaded and shown, and only another Submit
+    /// agrees to them.
     func submit() async {
         guard let request, let file, let version = request.permission?.version else { return }
         notice = nil
@@ -300,7 +298,7 @@ final class TestimonialFlowModel: ObservableObject {
                 uploadId = slot.uploadId
             }
             phase = .checking
-            let r = try await transport.submit(requestId, uploadId: uploadId, clientSubmissionId: clientSubmissionId, publication: publish, version: version, generation: generation)
+            let r = try await transport.submit(requestId, uploadId: uploadId, clientSubmissionId: clientSubmissionId, publication: true, version: version, generation: generation)
             self.request = r
             phase = .done
             discardFile(keepUpload: true)
@@ -309,6 +307,7 @@ final class TestimonialFlowModel: ObservableObject {
             phase = .unavailable
         } catch {
             let code = (error as? AppReferSupportError)?.code
+            if code == "TERMS_CHANGED" { await reloadTerms(); return }
             // The file itself was refused: a new file is needed, so a retry must upload again.
             if ["TYPE_MISMATCH", "UNREADABLE_VIDEO", "VIDEO_TOO_LONG", "UPLOAD_INCOMPLETE", "UPLOAD_CHANGED", "UNKNOWN_UPLOAD"].contains(code ?? "") { uploaded = nil }
             if ["REQUEST_CLOSED", "CAMPAIGN_ENDED", "IDENTITY_REQUIRED", "ALREADY_SUBMITTED"].contains(code ?? "") || (error as? AppReferSupportError)?.status == 404 {
@@ -319,6 +318,25 @@ final class TestimonialFlowModel: ObservableObject {
                     : code == "TOO_LARGE" ? SupportStrings.text("support.testimonial.tooLarge") : SupportStrings.text("support.testimonial.failed")
                 phase = .failed
             }
+        }
+    }
+
+    /// The terms changed before the server took the answer: show the current ones and wait for the
+    /// next Submit (the upload is kept).
+    private func reloadTerms() async {
+        do {
+            let fresh = try await transport.request(requestId, generation: generation)
+            request = fresh
+            if fresh.isOpen && hasTerms {
+                notice = SupportStrings.text("support.testimonial.termsChanged")
+                phase = .ready
+            } else {
+                notice = SupportStrings.text("support.testimonial.unavailable")
+                phase = .unavailable
+            }
+        } catch {
+            notice = SupportStrings.text("support.testimonial.failed")
+            phase = .failed
         }
     }
 
@@ -356,8 +374,8 @@ final class TestimonialFlowModel: ObservableObject {
     }
 }
 
-/// The capture screen: what's asked, the reward, pick or record, preview, the public-use switch
-/// (on unless the customer turns it off) with the app's exact permission text, honest progress, then the result. Embed it, or let
+/// The capture screen: what's asked, the reward, pick or record, preview, the app's exact usage
+/// terms above Submit, honest progress, then the result. Embed it, or let
 /// `AppRefer.support.testimonials.present(requestId:)` show it.
 public struct AppReferTestimonialView: View {
     @StateObject private var model: TestimonialFlowModel
@@ -455,7 +473,7 @@ struct TestimonialScreen: View {
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .accessibilityLabel(SupportStrings.text("support.testimonial.a11y.preview"))
             if !busy { secondary(SupportStrings.text("support.testimonial.retake")) { pick(false) } }
-            if let permission = r.permission { publishToggle(permission) }
+            if let permission = r.permission { terms(permission) }
         } else {
             VStack(spacing: 10) {
                 primary(SupportStrings.text("support.testimonial.choose"), symbol: "photo.on.rectangle") { pick(false) }
@@ -475,8 +493,8 @@ struct TestimonialScreen: View {
         case .checking:
             HStack(spacing: 8) { ProgressView(); Text(SupportStrings.text("support.testimonial.checking")).foregroundStyle(SupportColors.muted) }
         default:
-            if model.file != nil {
-                primary(SupportStrings.text(model.submitLabelKey)) { Task { await model.submit() } }
+            if model.canSubmit {
+                primary(SupportStrings.text("support.testimonial.submit")) { Task { await model.submit() } }
             }
             HStack(spacing: 18) {
                 Button(SupportStrings.text("support.testimonial.decline")) { decline(false) }
@@ -509,13 +527,14 @@ struct TestimonialScreen: View {
         .background(SupportColors.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func publishToggle(_ p: AppReferTestimonialRequest.Permission) -> some View {
+    private func terms(_ p: AppReferTestimonialRequest.Permission) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Toggle(SupportStrings.text("support.testimonial.publish"), isOn: $model.publish).font(.system(size: 15, weight: .semibold)).tint(palette.accent).disabled(busy)
+            Text(SupportStrings.text("support.testimonial.termsAgree")).font(.system(size: 15, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
             Text(p.text).font(.system(size: 13.5)).foregroundStyle(.primary.opacity(0.8)).fixedSize(horizontal: false, vertical: true)
-            Text(SupportStrings.text("support.testimonial.publishHint")).font(.system(size: 12.5)).foregroundStyle(SupportColors.muted).fixedSize(horizontal: false, vertical: true)
         }
-        .padding(14).background(SupportColors.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+        .background(SupportColors.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 
     private func info(_ text: String, symbol: String) -> some View {

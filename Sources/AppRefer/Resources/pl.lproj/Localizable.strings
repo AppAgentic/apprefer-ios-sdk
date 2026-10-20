@@ -286,8 +286,8 @@
 "support.testimonial.reward" = "Za udział: {reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "Dobra, zła czy mieszana: chcemy poznać Twoją szczerą opinię.";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "Dostajesz ją za udział, niezależnie od tego, co powiesz i czy zezwolisz na ponowne użycie.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Dostajesz ją za udział, niezależnie od tego, co powiesz i czy to wykorzystamy.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Udostępnij zdjęcie lub film";
 /* Button: pick an existing photo or video from the device's library. */
@@ -302,16 +302,12 @@
 "support.testimonial.cameraDenied" = "Dostęp do aparatu jest wyłączony. Możesz zamiast tego wybrać z biblioteki.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Wybierz inne";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "Zezwól na publiczne użycie";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "Włączone, dopóki tego nie wyłączysz. Nagroda jest taka sama w obu przypadkach, a zgodę możesz później wycofać.";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "Udostępnij";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "Wyślij i zezwól na udostępnianie";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "Wyślij prywatnie";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Wysyłając, akceptujesz te warunki.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Warunki się zmieniły. Przeczytaj je i wyślij ponownie.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Wyślij";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Przesyłanie… {percent}%";
 /* Shown after the upload while the server checks the file. */

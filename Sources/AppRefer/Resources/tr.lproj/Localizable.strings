@@ -282,8 +282,8 @@
 "support.testimonial.reward" = "Katılımın için: {reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "İyi, kötü ya da karışık: dürüst fikrini istiyoruz.";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "Ne söylersen söyle ve yeniden kullanıma izin versen de vermesen de katıldığın için alırsın.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Ne söylersen söyle ve biz kullansak da kullanmasak da katıldığın için alırsın.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Fotoğraf veya video paylaş";
 /* Button: pick an existing photo or video from the device's library. */
@@ -298,16 +298,12 @@
 "support.testimonial.cameraDenied" = "Kamera erişimi kapalı. Bunun yerine arşivinden seçebilirsin.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Başkasını seç";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "Herkese açık kullanıma izin ver";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "Sen kapatmadıkça açıktır. Ödül her iki durumda da aynıdır ve izni daha sonra geri çekebilirsin.";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "Paylaş";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "Gönder ve paylaşıma izin ver";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "Özel olarak gönder";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Göndererek bu koşulları kabul etmiş olursun.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Koşullar değişti. Lütfen okuyup yeniden gönder.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Gönder";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Yükleniyor… %{percent}";
 /* Shown after the upload while the server checks the file. */

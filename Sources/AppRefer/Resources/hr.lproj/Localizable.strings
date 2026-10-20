@@ -284,8 +284,8 @@
 "support.testimonial.reward" = "Za sudjelovanje: {reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "Dobro, loše ili pomiješano: želimo vaše iskreno mišljenje.";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "Dobivate je za sudjelovanje, što god rekli i bez obzira na to dopuštate li ponovnu upotrebu.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Dobivate je za sudjelovanje, što god rekli i bez obzira na to hoćemo li to upotrijebiti.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Podijelite fotografiju ili video";
 /* Button: pick an existing photo or video from the device's library. */
@@ -300,16 +300,12 @@
 "support.testimonial.cameraDenied" = "Pristup kameri je isključen. Možete odabrati iz svoje biblioteke.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Odaberi drugo";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "Dopusti javnu upotrebu";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "Uključeno dok to ne isključite. Nagrada je ista u oba slučaja, a dopuštenje možete kasnije povući.";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "Podijeli";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "Pošalji i dopusti dijeljenje";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "Pošalji privatno";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Slanjem prihvaćate ove uvjete.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Uvjeti su se promijenili. Pročitajte ih pa pošaljite ponovno.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Pošalji";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Prijenos… {percent} %";
 /* Shown after the upload while the server checks the file. */

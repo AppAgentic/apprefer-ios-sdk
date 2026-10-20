@@ -282,8 +282,8 @@
 "support.testimonial.reward" = "Osallistumisesta: {reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "Hyvää, huonoa tai jotain siltä väliltä: haluamme rehellisen mielipiteesi.";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "Saat sen osallistumisesta, sanoit mitä tahansa ja sallitpa uudelleenkäytön tai et.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Saat sen osallistumisesta, sanoit mitä tahansa ja käytämmepä sitä tai emme.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Jaa kuva tai video";
 /* Button: pick an existing photo or video from the device's library. */
@@ -298,16 +298,12 @@
 "support.testimonial.cameraDenied" = "Kameran käyttö on pois päältä. Voit valita kirjastostasi.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Valitse toinen";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "Salli julkinen käyttö";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "Päällä, ellet laita sitä pois. Palkkio on sama kummassakin tapauksessa, ja voit perua luvan myöhemmin.";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "Jaa";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "Lähetä ja salli jakaminen";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "Lähetä yksityisesti";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Lähettämällä hyväksyt nämä ehdot.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Ehdot ovat muuttuneet. Lue ne ja lähetä uudelleen.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Lähetä";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Ladataan… {percent} %";
 /* Shown after the upload while the server checks the file. */

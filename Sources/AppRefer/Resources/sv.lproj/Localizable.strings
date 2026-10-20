@@ -282,8 +282,8 @@
 "support.testimonial.reward" = "För att du deltar: {reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "Bra, dåligt eller blandat: vi vill ha din ärliga åsikt.";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "Du får den för att du deltar, oavsett vad du säger och om du tillåter återanvändning eller inte.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Du får den för att du deltar, oavsett vad du säger och om vi använder det eller inte.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Dela en bild eller video";
 /* Button: pick an existing photo or video from the device's library. */
@@ -298,16 +298,12 @@
 "support.testimonial.cameraDenied" = "Kameraåtkomst är avstängd. Du kan välja från ditt bibliotek i stället.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Välj en annan";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "Tillåt offentlig användning";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "På om du inte stänger av det. Belöningen är densamma i båda fallen, och du kan dra tillbaka det senare.";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "Dela";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "Skicka och tillåt delning";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "Skicka privat";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Genom att skicka godkänner du de här villkoren.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Villkoren har ändrats. Läs dem och skicka igen.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Skicka";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Laddar upp … {percent} %";
 /* Shown after the upload while the server checks the file. */

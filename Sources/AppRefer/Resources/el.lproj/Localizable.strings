@@ -282,8 +282,8 @@
 "support.testimonial.reward" = "Για τη συμμετοχή σου: {reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "Καλή, κακή ή ανάμεικτη: θέλουμε την ειλικρινή σου γνώμη.";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "Την παίρνεις επειδή συμμετέχεις, ό,τι κι αν πεις και είτε επιτρέψεις την επαναχρησιμοποίηση είτε όχι.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Την παίρνεις επειδή συμμετέχεις, ό,τι κι αν πεις και είτε το χρησιμοποιήσουμε είτε όχι.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Μοιράσου μια φωτογραφία ή ένα βίντεο";
 /* Button: pick an existing photo or video from the device's library. */
@@ -298,16 +298,12 @@
 "support.testimonial.cameraDenied" = "Η πρόσβαση στην κάμερα είναι απενεργοποιημένη. Μπορείς να επιλέξεις από τη βιβλιοθήκη σου.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Επιλογή άλλου";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "Να επιτρέπεται η δημόσια χρήση";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "Ενεργό, εκτός αν το απενεργοποιήσεις. Η ανταμοιβή είναι ίδια σε κάθε περίπτωση και μπορείς να το ανακαλέσεις αργότερα.";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "Κοινοποίηση";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "Αποστολή με άδεια κοινοποίησης";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "Ιδιωτική αποστολή";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Με την υποβολή, συμφωνείς με αυτούς τους όρους.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Οι όροι άλλαξαν. Διάβασέ τους και υπόβαλε ξανά.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Υποβολή";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Γίνεται μεταφόρτωση… {percent}%";
 /* Shown after the upload while the server checks the file. */

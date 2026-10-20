@@ -280,8 +280,8 @@
 "support.testimonial.reward" = "Untuk partisipasimu: {reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "Bagus, buruk, atau campuran: kami ingin pendapat jujurmu.";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "Kamu mendapatkannya karena ikut serta, apa pun yang kamu katakan dan apakah kamu mengizinkan penggunaan ulang atau tidak.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Kamu mendapatkannya karena ikut serta, apa pun yang kamu katakan dan entah kami menggunakannya atau tidak.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Bagikan foto atau video";
 /* Button: pick an existing photo or video from the device's library. */
@@ -296,16 +296,12 @@
 "support.testimonial.cameraDenied" = "Akses kamera nonaktif. Kamu bisa memilih dari galerimu.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Pilih yang lain";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "Izinkan penggunaan publik";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "Aktif kecuali kamu menonaktifkannya. Hadiahnya sama dalam kedua kasus, dan kamu bisa menariknya nanti.";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "Bagikan";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "Kirim dan izinkan dibagikan";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "Kirim secara pribadi";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Dengan mengirim, kamu menyetujui ketentuan ini.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Ketentuannya berubah. Baca dulu, lalu kirim lagi.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Kirim";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Mengunggah… {percent}%";
 /* Shown after the upload while the server checks the file. */

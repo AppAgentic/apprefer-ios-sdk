@@ -282,8 +282,8 @@
 "support.testimonial.reward" = "भाग लेने के लिए: {reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "अच्छी, बुरी या मिली-जुली: हमें आपकी ईमानदार राय चाहिए।";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "यह आपको हिस्सा लेने के लिए मिलता है, चाहे आप कुछ भी कहें और दोबारा इस्तेमाल की अनुमति दें या न दें।";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "यह आपको हिस्सा लेने के लिए मिलता है, चाहे आप कुछ भी कहें और चाहे हम इसका इस्तेमाल करें या न करें।";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "फ़ोटो या वीडियो शेयर करें";
 /* Button: pick an existing photo or video from the device's library. */
@@ -298,16 +298,12 @@
 "support.testimonial.cameraDenied" = "कैमरा ऐक्सेस बंद है। आप इसके बजाय अपनी लाइब्रेरी से चुन सकते हैं।";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "कोई और चुनें";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "सार्वजनिक उपयोग की अनुमति दें";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "जब तक आप बंद न करें, यह चालू रहता है। इनाम दोनों हालात में एक जैसा है, और आप बाद में यह अनुमति वापस ले सकते हैं।";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "शेयर करें";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "भेजें और शेयर करने की अनुमति दें";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "निजी रूप से भेजें";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "सबमिट करके आप इन शर्तों से सहमत होते हैं।";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "शर्तें बदल गई हैं। कृपया इन्हें पढ़ें, फिर दोबारा सबमिट करें।";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "सबमिट करें";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "अपलोड हो रहा है… {percent}%";
 /* Shown after the upload while the server checks the file. */

@@ -284,8 +284,8 @@
 "support.testimonial.reward" = "Za účasť: {reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "Dobré, zlé alebo zmiešané: chceme váš úprimný názor.";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "Dostanete ju za účasť, nech poviete čokoľvek a či opätovné použitie povolíte, alebo nie.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Dostanete ju za účasť, nech poviete čokoľvek a či to použijeme, alebo nie.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "Zdieľať fotku alebo video";
 /* Button: pick an existing photo or video from the device's library. */
@@ -300,16 +300,12 @@
 "support.testimonial.cameraDenied" = "Prístup k fotoaparátu je vypnutý. Môžete vybrať z knižnice.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "Vybrať iné";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "Povoliť verejné použitie";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "Zapnuté, kým to nevypnete. Odmena je v oboch prípadoch rovnaká a súhlas môžete neskôr odvolať.";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "Zdieľať";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "Odoslať a povoliť zdieľanie";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "Odoslať súkromne";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Odoslaním súhlasíte s týmito podmienkami.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Podmienky sa zmenili. Prečítajte si ich a odošlite znova.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Odoslať";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "Nahrávanie… {percent} %";
 /* Shown after the upload while the server checks the file. */

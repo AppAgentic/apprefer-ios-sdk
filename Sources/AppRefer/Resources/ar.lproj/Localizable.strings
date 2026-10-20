@@ -290,8 +290,8 @@
 "support.testimonial.reward" = "مقابل مشاركتك: {reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "جيد أو سيئ أو بين بين: نريد رأيك الصادق.";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "تحصل عليها مقابل المشاركة، مهما قلت وسواء سمحت بإعادة الاستخدام أم لا.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "تحصل عليها مقابل المشاركة، مهما قلت وسواء استخدمناها أم لا.";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "شارك صورة أو فيديو";
 /* Button: pick an existing photo or video from the device's library. */
@@ -306,16 +306,12 @@
 "support.testimonial.cameraDenied" = "الوصول إلى الكاميرا متوقف. يمكنك الاختيار من مكتبتك بدلًا من ذلك.";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "اختر غيرها";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "السماح بالاستخدام العام";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "مفعّل ما لم تُوقفه. المكافأة نفسها في الحالتين، ويمكنك سحب الإذن لاحقًا.";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "مشاركة";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "إرسال مع السماح بالمشاركة";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "إرسال بشكل خاص";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "بالإرسال، فإنك توافق على هذه الشروط.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "تغيّرت الشروط. يُرجى قراءتها ثم الإرسال مرة أخرى.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "إرسال";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "جارٍ الرفع… {percent}%";
 /* Shown after the upload while the server checks the file. */

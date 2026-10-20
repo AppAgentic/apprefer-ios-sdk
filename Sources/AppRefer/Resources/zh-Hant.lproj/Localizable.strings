@@ -280,8 +280,8 @@
 "support.testimonial.reward" = "參與獎勵：{reward}";
 /* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
 "support.testimonial.honest" = "好評、負評或褒貶不一都可以：我們想聽你的真實想法。";
-/* Small reassurance under the reward line. The reward never depends on what is said or on allowing reuse. */
-"support.testimonial.rewardNote" = "只要參與就能獲得，無論你說什麼，也無論是否允許再次使用。";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "只要參與就能獲得，無論你說什麼，也無論我們是否使用。";
 /* Button on the request card that opens the capture screen. Short. */
 "support.testimonial.open" = "分享照片或影片";
 /* Button: pick an existing photo or video from the device's library. */
@@ -296,16 +296,12 @@
 "support.testimonial.cameraDenied" = "相機存取已關閉。你可以改為從相簿中選擇。";
 /* Button under the preview to replace the selected photo or video. */
 "support.testimonial.retake" = "換一個";
-/* Label of the public-use switch, which starts on; the customer can turn it off. The app's own permission text is shown under it. */
-"support.testimonial.publish" = "允許公開使用";
-/* Hint under the public-use switch, which starts on. Must say it is on unless turned off, that the reward is the same either way and that permission can be withdrawn later. */
-"support.testimonial.publishHint" = "預設開啟，你可以關閉。兩種情況下獎勵相同，之後也可以撤回。";
-/* Primary button that uploads and shares the selected photo or video. */
-"support.testimonial.submit" = "分享";
-/* Primary button that sends the selected photo/video while the public-use switch is on. Must say it sends and allows sharing (public use). */
-"support.testimonial.submitPublic" = "傳送並允許分享";
-/* Primary button that sends the selected photo/video while the public-use switch is off. Must say it is sent privately (no public use). */
-"support.testimonial.submitPrivate" = "私密傳送";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "提交即表示你同意這些條款。";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "條款已更新。請閱讀後再次提交。";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "提交";
 /* Progress while uploading. {percent} = 0-100. */
 "support.testimonial.uploading" = "正在上傳… {percent}%";
 /* Shown after the upload while the server checks the file. */

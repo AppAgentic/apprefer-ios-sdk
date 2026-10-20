@@ -97,7 +97,6 @@ final class SupportTestimonialTests: XCTestCase {
         await model.load()
         XCTAssertEqual(model.phase, .ready)
         model.picked(.success(try jpegFile()))
-        model.publish = false
         transport.failSubmitOnce = AppReferSupportError(status: 0, message: "The network connection was lost.")
         await model.submit()
         XCTAssertEqual(model.phase, .failed)
@@ -109,64 +108,81 @@ final class SupportTestimonialTests: XCTestCase {
         XCTAssertEqual(transport.submits.count, 2)
         XCTAssertEqual(transport.submits[0].uploadId, transport.submits[1].uploadId)
         XCTAssertEqual(transport.submits[0].client, transport.submits[1].client, "same clientSubmissionId: the server answers the retry with the first result")
-        XCTAssertFalse(transport.submits[1].publication)
+        XCTAssertTrue(transport.submits[1].publication)
         XCTAssertEqual(transport.submits[1].version, "0123456789abcdef")
         XCTAssertEqual(model.result.outcome, .submitted)
         XCTAssertEqual(model.result.rewardStatus, "pending")
     }
 
-    func testPublicUseStartsOnButOnlyTheFinalShareRecordsIt() async throws {
+    func testOnlySubmitAgreesToTheTermsShownAndNothingElseSendsAnAnswer() async throws {
         let transport = FakeTransport(FakeTransport.decode(FakeTransport.json()))
         let model = TestimonialFlowModel(requestId: "tsr_0123456789abcdef0123456789abcdef", transport: transport, generation: 0)
-        XCTAssertTrue(model.publish, "public use starts on")
+        XCTAssertFalse(model.canSubmit)
         await model.load()
+        XCTAssertTrue(model.hasTerms)
+        XCTAssertFalse(model.canSubmit, "nothing picked yet")
         model.picked(.success(try jpegFile()))
-        XCTAssertEqual(model.request?.permission?.text, "You may show this in the app.", "the app's registered text is what the switch shows")
+        XCTAssertTrue(model.canSubmit)
+        XCTAssertEqual(model.request?.permission?.text, "You may show this in the app.", "the app's registered terms are shown as written")
         XCTAssertTrue(transport.submits.isEmpty, "opening and picking record nothing")
+        XCTAssertEqual(transport.slots, 0, "nothing is uploaded before Submit")
         await model.submit()
         XCTAssertEqual(transport.submits.count, 1)
-        XCTAssertTrue(transport.submits[0].publication, "left on: the share says yes, with the version shown")
+        XCTAssertTrue(transport.submits[0].publication, "Submit agrees, with the version shown")
         XCTAssertEqual(transport.submits[0].version, "0123456789abcdef")
         XCTAssertEqual(model.result.publication, "granted")
-        XCTAssertEqual(model.result.rewardStatus, "pending", "same reward path whether on or off")
 
         let declined = TestimonialFlowModel(requestId: "tsr_x", transport: FakeTransport(FakeTransport.decode(FakeTransport.json())), generation: 0)
         await declined.load()
         declined.picked(.success(try jpegFile()))
         let result = await declined.decline(dontAskAgain: false)
-        XCTAssertNil(result.publication, "declining sends no permission answer")
+        XCTAssertNil(result.publication, "declining or cancelling sends no agreement")
     }
 
-    func testTheSubmitButtonSaysWhetherItAllowsSharing() async throws {
+    func testChangedTermsAreShownAgainAndOnlyTheNextSubmitAgreesToThem() async throws {
         let transport = FakeTransport(FakeTransport.decode(FakeTransport.json()))
-        transport.failSubmitOnce = AppReferSupportError(status: 0, message: "The network connection was lost.")
         let model = TestimonialFlowModel(requestId: "tsr_0123456789abcdef0123456789abcdef", transport: transport, generation: 0)
         await model.load()
         model.picked(.success(try jpegFile()))
-        XCTAssertEqual(model.submitLabelKey, "support.testimonial.submitPublic")
-        XCTAssertEqual(SupportStrings.text(model.submitLabelKey), "Send and allow sharing")
-        model.publish = false
-        XCTAssertEqual(SupportStrings.text(model.submitLabelKey), "Send privately")
+        transport.failSubmitOnce = AppReferSupportError(status: 409, message: "changed", code: "TERMS_CHANGED")
+        transport.request = FakeTransport.decode(FakeTransport.json().replacingOccurrences(
+            of: #""permission":{"text":"You may show this in the app.","scopes":["in_app"],"version":"0123456789abcdef"}"#,
+            with: #""permission":{"text":"You may show this in the app and on our website.","scopes":["in_app","website"],"version":"fedcba9876543210"}"#))
         await model.submit()
-        XCTAssertEqual(model.phase, .failed)
-        XCTAssertEqual(SupportStrings.text(model.submitLabelKey), "Send privately", "a retry still names what it sends")
+        XCTAssertEqual(model.phase, .ready)
+        XCTAssertEqual(model.notice, "The terms have changed. Please read them, then submit again.")
+        XCTAssertEqual(model.request?.permission?.text, "You may show this in the app and on our website.")
+        XCTAssertEqual(transport.submits.map(\.version), ["0123456789abcdef"], "the refused answer named the terms that were shown")
+        XCTAssertNil(model.result.publication, "nothing was agreed")
         await model.submit()
-        XCTAssertEqual(transport.submits.map(\.publication), [false, false], "the label matches the answer sent")
-        SupportStrings.forcedLanguage = "de"
-        XCTAssertEqual(SupportStrings.text("support.testimonial.submitPublic"), "Senden und Teilen erlauben")
-        XCTAssertEqual(SupportStrings.text("support.testimonial.submitPrivate"), "Privat senden")
+        XCTAssertEqual(model.phase, .done)
+        XCTAssertEqual(transport.submits.last?.version, "fedcba9876543210")
+        XCTAssertEqual(transport.submits.last?.publication, true)
+        XCTAssertEqual(transport.submits.first?.uploadId, transport.submits.last?.uploadId, "upload kept")
+        XCTAssertEqual(transport.submits.first?.client, transport.submits.last?.client, "same client id")
+        XCTAssertEqual(transport.slots, 1)
     }
 
-    func testARequestWithoutPermissionTextIsNeverSubmittedWithAnAssumedAnswer() async throws {
+    func testTheTermsWrapperSubmitAndNoticeAreTranslated() {
+        XCTAssertEqual(SupportStrings.text("support.testimonial.termsAgree"), "By submitting, you agree to these terms.")
+        XCTAssertEqual(SupportStrings.text("support.testimonial.submit"), "Submit")
+        SupportStrings.forcedLanguage = "de"
+        XCTAssertEqual(SupportStrings.text("support.testimonial.termsAgree"), "Mit dem Senden stimmst du diesen Bedingungen zu.")
+        XCTAssertEqual(SupportStrings.text("support.testimonial.submit"), "Senden")
+        XCTAssertEqual(SupportStrings.text("support.testimonial.termsChanged"), "Die Bedingungen haben sich geändert. Bitte lies sie und sende noch einmal.")
+    }
+
+    func testARequestWithoutTermsCantBeSubmittedAndNothingIsAssumed() async throws {
         let old = FakeTransport.json().replacingOccurrences(of: #""permission":{"text":"You may show this in the app.","scopes":["in_app"],"version":"0123456789abcdef"},"#, with: "")
         let transport = FakeTransport(FakeTransport.decode(old))
         let model = TestimonialFlowModel(requestId: "tsr_x", transport: transport, generation: 0)
         await model.load()
         XCTAssertNil(model.request?.permission)
-        XCTAssertEqual(model.submitLabelKey, "support.testimonial.submit", "no switch, so the button claims neither sharing nor privacy")
+        XCTAssertEqual(model.phase, .unavailable)
         model.picked(.success(try jpegFile()))
+        XCTAssertFalse(model.canSubmit)
         await model.submit()
-        XCTAssertTrue(transport.submits.isEmpty, "no permission text means no answer is sent or inferred")
+        XCTAssertTrue(transport.submits.isEmpty, "no terms means no answer is sent or inferred")
         XCTAssertEqual(transport.slots, 0)
     }
 
@@ -250,7 +266,10 @@ final class SupportTestimonialTests: XCTestCase {
 
     func testEveryLanguageHasTheTestimonialStrings() {
         let keys = SupportStrings.table("en").keys.filter { $0.hasPrefix("support.testimonial.") }
-        XCTAssertEqual(keys.count, 32)
+        XCTAssertEqual(keys.count, 30)
+        for gone in ["publish", "publishHint", "submitPublic", "submitPrivate"] {
+            XCTAssertFalse(keys.contains("support.testimonial.\(gone)"), "the public-use switch and its labels are gone")
+        }
         for language in SupportStrings.supportedLanguages {
             let table = SupportStrings.table(language)
             for key in keys { XCTAssertNotNil(table[key], "\(language) lacks \(key)") }
