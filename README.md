@@ -1,6 +1,6 @@
 # AppRefer iOS SDK
 
-## 0.11.0 (unreleased): lifecycle notifications (engagement)
+## 0.11.0: lifecycle notifications (engagement)
 
 **Not generally available.** AppRefer turns lifecycle engagement on per app; until then every engagement call answers "disabled" quietly and nothing is stored. The server side is dry-run only in this release: no notification is sent to anyone yet. This version is the client contract (wire schema 1) the live sender will use.
 
@@ -54,7 +54,7 @@ final class NotificationService: UNNotificationServiceExtension {
 
 Images: HTTPS, exact allowlisted host names, PNG or JPEG, ≤ 300 KB and 2048 px by default, 8 s; anything else delivers the complete text. Without an App Group the extension can't see the signed-in account, so it fetches only allowlisted generic artwork (it never fetches per-user content). `Samples/EngagementHost` is a working host + extension (`xcodegen generate`). Not supported yet: carousels, video, content extensions, per-notification button titles (labels come from the SDK by kind: Open, View, Start, Remind me later).
 
-## 0.10.0 (unreleased): help centre in the chat; the help chat speaks 35 languages
+## 0.10.0: help centre in the chat; the help chat speaks 35 languages
 
 **Help centre.** When your app has published help articles in AppRefer, the help home
 shows a "Help articles" card (search plus the top articles), with a help centre screen
@@ -682,7 +682,7 @@ AppRefer.support.testimonials.present(requestId: requestId) { result in
   video, `NSMicrophoneUsageDescription`) and the device has a camera. The library uses the
   system photo picker, which needs no permission.
 
-0.13.0 is released. Install it from Git only: Swift Package Manager, `https://github.com/AppAgentic/apprefer-ios-sdk` at the `0.13.0` tag.
+0.13.1 is released. Install it from Git only: Swift Package Manager, `https://github.com/AppAgentic/apprefer-ios-sdk` at the `0.13.1` tag.
 
 ### Languages and your own wording
 
