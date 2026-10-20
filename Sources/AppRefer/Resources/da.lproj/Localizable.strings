@@ -278,3 +278,63 @@
 "support.review.a11y.hint.appStore" = "Åbner App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Åbner Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "For at deltage: {reward}";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "Godt, dårligt eller blandet: vi vil gerne have din ærlige mening.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Du får den for at deltage, uanset hvad du siger, og uanset om vi bruger det.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Del et billede eller en video";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Vælg fra biblioteket";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Brug kameraet";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "Tag et billede";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "Optag en video";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "Adgang til kameraet er slået fra. Du kan vælge fra dit bibliotek i stedet.";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Vælg et andet";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Ved at sende accepterer du disse vilkår.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Vilkårene er ændret. Læs dem, og send igen.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Send";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Uploader… {percent} %";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Tjekker…";
+/* Title after a successful share. */
+"support.testimonial.done" = "Tak, fordi du delte!";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "Du har gjort dig fortjent til den. Den vises her som bekræftet, når den er givet.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "Din belønning er bekræftet.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "Din belønning er lagt på din konto.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "Din belønning er ikke bekræftet endnu. Support kan se det og kan sende den igen.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "Du har allerede deltaget i dette, så der er ingen ny belønning denne gang.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Nej tak";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Spørg mig ikke igen";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Annuller";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Denne anmodning er ikke længere tilgængelig";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Videoer må højst vare {seconds} sekunder.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Filen er for stor til at blive delt.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "Det kunne ikke deles, og intet blev sendt. Tjek din forbindelse, og prøv igen.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Stop offentlig brug";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Dit valgte billede eller din valgte video";

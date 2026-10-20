@@ -617,6 +617,73 @@ from the App Store id your app already has in AppRefer (Billing or the store URL
 
 0.12.0 is unreleased source (not tagged). Once tagged, install it from Git only: Swift Package Manager, `https://github.com/AppAgentic/apprefer-ios-sdk` at the `0.12.0` tag.
 
+### Photo and video testimonials (0.13.0)
+
+Ask a signed-in customer for a photo or a short video and give them the reward your campaign sets,
+from your own screens, from your coach/assistant, from a Support reply, or automatically after
+real usage. One native capture screen does it everywhere: what's asked, the reward, the system photo
+picker (no photo-library permission needed) or the camera, a preview, your campaign's exact usage terms above a
+plain Submit ("By submitting, you agree to these terms."), upload progress, then the result.
+
+1. Your backend registers campaigns (`PUT /api/v1/apps/{appId}/support/testimonials/campaigns`,
+   private key with `support:testimonials`). A company admin switches each one on in AppRefer
+   Support; nothing reaches customers before that.
+2. Your backend asks for one user: `POST /api/v1/apps/{appId}/support/testimonials/requests`
+   `{ campaignId, appUserId, idempotencyKey, source: "host" | "coach" }`. It returns `requestId`.
+   The reward comes from the campaign; the call can't set one.
+3. The app shows it:
+
+```swift
+AppRefer.support.testimonials.onRewardUpdate = { update in
+    if update.rewardStatus == "fulfilled" { Task { await credits.refresh() } }
+}
+let open = try await AppRefer.support.testimonials.pending()      // requests waiting for this account
+AppRefer.support.testimonials.present(requestId: requestId) { result in
+    print(result.outcome, result.rewardStatus ?? "none")          // submitted, declined, cancelled, unavailable
+}
+// Or embed: AppReferTestimonialView(requestId: requestId) { result in … }
+```
+
+4. Your backend applies the reward: `POST …/support/testimonials/rewards/claim` (2-minute leases),
+   applies each `fulfillmentId` at most once in your own system (credits, coach usage,
+   subscription time, a discount, a gift, or a merch order you collect the address for yourself),
+   then `POST …/rewards/{fulfillmentId}/complete` with `status: "fulfilled"` and your own
+   `receiptId`. Only then does the SDK report `fulfilled`.
+
+- The customer's Support session must be verified for the same account
+  (`verifyIdentity`); otherwise requests read as unavailable. A reset or account switch
+  cancels a capture in progress; nothing is shared for another account.
+- Taking part earns the reward whatever the customer says and whether or not the media is ever
+  used. Your campaign's usage terms (`permission.text`, set by your backend or by a company admin
+  in AppRefer Support) are shown word for word under "By submitting, you agree to these terms."
+  above a plain **Submit**: there is no switch, tick or extra screen. Only Submit records the
+  agreement, with the version of the terms shown; opening, picking, cancelling or declining records
+  nothing, a request without terms can't be submitted, and if the terms changed the screen shows the
+  new ones and waits for another Submit. Customers can withdraw it later
+  (`withdrawPublication(requestId)`); the reward is never taken back.
+- Photos are re-encoded as JPEG (≤ 2048 px, no location or other metadata); videos are exported as
+  MP4 without metadata and refused when longer than the campaign allows. Limits: 15 MB per photo,
+  150 MB per video. The server checks the stored bytes and video length again.
+- Requests from Support show as a card in the chat ("Share a photo or video"); older SDK versions
+  show your text and a line asking the customer to update the app.
+- The Support home shows the newest open request for the verified account as a card each time it
+  opens (never a pop-up). Requests your backend, coach or automation made appear there by
+  themselves; shared, declined, withdrawn or ended ones leave it, and another account's never show.
+- Automated asks (a campaign `automation`, switched on separately in Support): the invitation is that
+  home card. The SDK declares the `testimonials` engagement capability and opens a tapped
+  invitation notification (`/apprefer/testimonials/<requestId>`) as the capture screen itself,
+  never through your notification handler. AppRefer only records push invitations as dry runs in
+  this release: no notification is sent yet.
+- The reward line after sharing is honest about who confirms it: "earned" until your backend
+  reports its receipt; then "added to your account" for credits, coach answers and subscription
+  time, or "confirmed" for anything else (no shipping or email promise); a failed or late one says
+  Support can see it and send it again.
+- Camera (optional): offered only when your app declares `NSCameraUsageDescription` (and, for
+  video, `NSMicrophoneUsageDescription`) and the device has a camera. The library uses the
+  system photo picker, which needs no permission.
+
+0.13.0 is unreleased source (not tagged). Once tagged, install it from Git only: Swift Package Manager, `https://github.com/AppAgentic/apprefer-ios-sdk` at the `0.13.0` tag.
+
 ### Languages and your own wording
 
 The chat ships in 35 languages: ar, ca, cs, da, de, el, en, es, es-MX, fi, fr, he, hi, hr, hu, id, it, ja, ko, ms, nb, nl, pl, pt-BR, pt-PT, ro, ru, sk, sv, th, tr, uk, vi, zh-Hans, zh-Hant. Nothing to set up.

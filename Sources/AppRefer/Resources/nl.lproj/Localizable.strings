@@ -278,3 +278,63 @@
 "support.review.a11y.hint.appStore" = "Opent App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Opent Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "Voor je deelname: {reward}";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "Goed, slecht of gemengd: we willen je eerlijke mening.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Je krijgt hem voor je deelname, wat je ook zegt en of we het nu gebruiken of niet.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Deel een foto of video";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Kies uit bibliotheek";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Gebruik camera";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "Maak een foto";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "Neem een video op";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "Cameratoegang staat uit. Je kunt in plaats daarvan uit je bibliotheek kiezen.";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Kies een andere";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Door te versturen ga je akkoord met deze voorwaarden.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "De voorwaarden zijn gewijzigd. Lees ze en verstuur opnieuw.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Versturen";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Uploaden… {percent}%";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Controleren…";
+/* Title after a successful share. */
+"support.testimonial.done" = "Bedankt voor het delen!";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "Je hebt hem verdiend. Hij staat hier als bevestigd zodra hij is toegekend.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "Je beloning is bevestigd.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "Je beloning is aan je account toegevoegd.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "Je beloning is nog niet bevestigd. Support ziet dit en kan hem opnieuw versturen.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "Je hebt hier al aan meegedaan, dus deze keer is er geen nieuwe beloning.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Nee, bedankt";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Niet meer vragen";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Annuleer";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Dit verzoek is niet meer beschikbaar";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Video’s mogen maximaal {seconds} seconden duren.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Dit bestand is te groot om te delen.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "Delen is niet gelukt, er is niets verstuurd. Controleer je verbinding en probeer het opnieuw.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Openbaar gebruik stoppen";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Je gekozen foto of video";

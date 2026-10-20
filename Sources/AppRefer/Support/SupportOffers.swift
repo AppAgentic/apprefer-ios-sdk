@@ -151,9 +151,10 @@ final class SupportOfferHandlerFlag: @unchecked Sendable {
     var isSet: Bool { lock.lock(); defer { lock.unlock() }; return value }
     func set(_ v: Bool) { lock.lock(); value = v; lock.unlock() }
 
-    /// `offers` (this SDK draws cards), `offer-handler` (the app opens its paywall from them) and
-    /// `reviews` (this SDK draws review cards and opens the store page itself).
-    var header: String { isSet ? "offers, offer-handler, reviews" : "offers, reviews" }
+    /// `offers` (this SDK draws cards), `offer-handler` (the app opens its paywall from them),
+    /// `reviews` (this SDK draws review cards and opens the store page itself) and `testimonials`
+    /// (0.13.0: this SDK draws photo/video request cards and runs the capture screen).
+    var header: String { isSet ? "offers, offer-handler, reviews, testimonials" : "offers, reviews, testimonials" }
 }
 
 /// A receipt the server hasn't confirmed yet. Same id on every retry, so it's stored once.

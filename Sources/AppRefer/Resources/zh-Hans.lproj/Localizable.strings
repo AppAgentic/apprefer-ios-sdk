@@ -276,3 +276,63 @@
 "support.review.a11y.hint.appStore" = "打开 App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "打开 Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "参与奖励：{reward}";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "好评、差评或褒贬不一都可以：我们想听你的真实想法。";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "只要参与就能获得，无论你说什么，也无论我们是否使用。";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "分享照片或视频";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "从图库选择";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "使用相机";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "拍照";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "录制视频";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "相机访问已关闭。你可以改为从相册中选择。";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "换一个";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "提交即表示你同意这些条款。";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "条款已更新。请阅读后再次提交。";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "提交";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "正在上传… {percent}%";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "正在检查…";
+/* Title after a successful share. */
+"support.testimonial.done" = "感谢分享！";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "你已获得奖励资格。发放后会在这里显示为已确认。";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "你的奖励已确认。";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "你的奖励已添加到账户中。";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "你的奖励尚未确认。支持团队可以看到这一情况，并可重新发放。";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "你已参与过此活动，因此这次没有新的奖励。";
+/* Button to decline the request. */
+"support.testimonial.decline" = "不用了，谢谢";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "不再询问";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "取消";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "此请求已不可用";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "视频最长 {seconds} 秒。";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "此文件太大，无法分享。";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "未能分享，没有发送任何内容。请检查网络连接后重试。";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "停止公开使用";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "你选择的照片或视频";

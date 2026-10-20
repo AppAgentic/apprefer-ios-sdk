@@ -278,3 +278,63 @@
 "support.review.a11y.hint.appStore" = "App Store uygulamasını açar";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Google Play uygulamasını açar";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "Katılımın için: {reward}";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "İyi, kötü ya da karışık: dürüst fikrini istiyoruz.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Ne söylersen söyle ve biz kullansak da kullanmasak da katıldığın için alırsın.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Fotoğraf veya video paylaş";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Arşivden seç";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Kamerayı kullan";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "Fotoğraf çek";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "Video kaydet";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "Kamera erişimi kapalı. Bunun yerine arşivinden seçebilirsin.";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Başkasını seç";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Göndererek bu koşulları kabul etmiş olursun.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Koşullar değişti. Lütfen okuyup yeniden gönder.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Gönder";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Yükleniyor… %{percent}";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Kontrol ediliyor…";
+/* Title after a successful share. */
+"support.testimonial.done" = "Paylaştığın için teşekkürler!";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "Bunu hak ettin. Uygulandığında burada onaylandı olarak görünecek.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "Ödülün onaylandı.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "Ödülün hesabına eklendi.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "Ödülün henüz onaylanmadı. Destek ekibi bunu görebilir ve yeniden gönderebilir.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "Buna zaten katıldın, bu yüzden bu kez yeni bir ödül yok.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Hayır, teşekkürler";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Bir daha sorma";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Vazgeç";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Bu istek artık kullanılamıyor";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Videolar en fazla {seconds} saniye olabilir.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Bu dosya paylaşmak için çok büyük.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "Paylaşılamadı, hiçbir şey gönderilmedi. Bağlantını kontrol edip tekrar dene.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Herkese açık kullanımı durdur";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Seçtiğin fotoğraf veya video";

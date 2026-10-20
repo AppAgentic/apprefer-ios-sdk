@@ -412,8 +412,12 @@ actor EngagementClient {
         await serially { await self.syncDevice(force: false) }
     }
 
+    /// `testimonials`: this SDK opens Support testimonial invitations (`/apprefer/testimonials/…`)
+    /// as its own capture screen, so the server may send this install one.
     func capabilities() -> [String: Any] {
-        ["schema": 1, "images": options.notificationServiceExtension, "actions": Self.supportsActions]
+        var out: [String: Any] = ["schema": 1, "images": options.notificationServiceExtension, "actions": Self.supportsActions]
+        if Self.supportsActions { out["testimonials"] = true }
+        return out
     }
     static var supportsActions: Bool {
         #if os(iOS)

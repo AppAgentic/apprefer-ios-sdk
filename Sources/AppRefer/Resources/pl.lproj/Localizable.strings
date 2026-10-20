@@ -282,3 +282,63 @@
 "support.review.a11y.hint.appStore" = "Otwiera App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Otwiera Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "Za udział: {reward}";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "Dobra, zła czy mieszana: chcemy poznać Twoją szczerą opinię.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Dostajesz ją za udział, niezależnie od tego, co powiesz i czy to wykorzystamy.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Udostępnij zdjęcie lub film";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Wybierz z biblioteki";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Użyj aparatu";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "Zrób zdjęcie";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "Nagraj film";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "Dostęp do aparatu jest wyłączony. Możesz zamiast tego wybrać z biblioteki.";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Wybierz inne";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Wysyłając, akceptujesz te warunki.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Warunki się zmieniły. Przeczytaj je i wyślij ponownie.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Wyślij";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Przesyłanie… {percent}%";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Sprawdzanie…";
+/* Title after a successful share. */
+"support.testimonial.done" = "Dziękujemy za udostępnienie!";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "Zasłużyłeś na nią. Gdy zostanie przyznana, pojawi się tutaj jako potwierdzona.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "Twoja nagroda została potwierdzona.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "Twoja nagroda została dodana do Twojego konta.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "Twoja nagroda nie została jeszcze potwierdzona. Zespół wsparcia to widzi i może wysłać ją ponownie.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "Już wziąłeś w tym udział, więc tym razem nie ma nowej nagrody.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Nie, dziękuję";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Nie pytaj ponownie";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Anuluj";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Ta prośba nie jest już dostępna";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Filmy mogą trwać do {seconds} s.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Ten plik jest za duży, aby go udostępnić.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "Nie udało się udostępnić, nic nie zostało wysłane. Sprawdź połączenie i spróbuj ponownie.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Wycofaj publiczne użycie";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Wybrane zdjęcie lub film";

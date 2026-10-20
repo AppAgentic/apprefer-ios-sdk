@@ -54,6 +54,12 @@ final class EngagementClientTests: XCTestCase {
         XCTAssertEqual(patch["notificationPermission"] as? String, "granted")
         XCTAssertEqual(patch["timezone"] as? String, "Europe/London")
         XCTAssertEqual((patch["capabilities"] as? [String: Any])?["images"] as? Bool, true)
+        // Only where the SDK has the Support capture screen does it say it opens testimonial invitations.
+        #if os(iOS)
+        XCTAssertEqual((patch["capabilities"] as? [String: Any])?["testimonials"] as? Bool, true)
+        #else
+        XCTAssertNil((patch["capabilities"] as? [String: Any])?["testimonials"])
+        #endif
         XCTAssertNil(patch["pushToken"])
 
         // A new process with the same Keychain reuses the install: no second registration.

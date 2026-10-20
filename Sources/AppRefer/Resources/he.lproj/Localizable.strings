@@ -280,3 +280,63 @@
 "support.review.a11y.hint.appStore" = "פותח את App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "פותח את Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "על ההשתתפות: {reward}";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "טוב, רע או מעורב: אנחנו רוצים את דעתכם הכנה.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "מקבלים אותו על ההשתתפות, לא משנה מה תגידו ואם נשתמש בזה או לא.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "שיתוף תמונה או סרטון";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "בחירה מהספרייה";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "שימוש במצלמה";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "צלמו תמונה";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "צלמו סרטון";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "הגישה למצלמה כבויה. אפשר לבחור מהספרייה במקום.";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "בחירה אחרת";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "השליחה מהווה הסכמה לתנאים האלה.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "התנאים השתנו. יש לקרוא אותם ולשלוח שוב.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "שליחה";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "מעלה… {percent}%";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "בודק…";
+/* Title after a successful share. */
+"support.testimonial.done" = "תודה על השיתוף!";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "הרווחתם אותו. הוא יופיע כאן כמאושר אחרי שיוחל.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "התגמול שלכם אושר.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "התגמול נוסף לחשבון שלכם.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "התגמול שלכם עדיין לא אושר. צוות התמיכה רואה זאת ויכול לשלוח אותו שוב.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "כבר השתתפתם בזה, ולכן הפעם אין תגמול חדש.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "לא, תודה";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "לא לשאול אותי שוב";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "ביטול";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "הבקשה הזו כבר לא זמינה";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "סרטונים יכולים להיות באורך של עד {seconds} שניות.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "הקובץ גדול מדי לשיתוף.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "השיתוף נכשל ושום דבר לא נשלח. בדקו את החיבור ונסו שוב.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "הפסקת שימוש פומבי";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "התמונה או הסרטון שבחרתם";

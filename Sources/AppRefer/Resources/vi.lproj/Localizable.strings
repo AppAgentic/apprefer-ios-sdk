@@ -276,3 +276,63 @@
 "support.review.a11y.hint.appStore" = "Mở App Store";
 /* VoiceOver/TalkBack hint on the review card's button. Store: Google Play (brand name, never translated). */
 "support.review.a11y.hint.googlePlay" = "Mở Google Play";
+/* Line on the photo/video request card and screen. {reward} = the reward the app set, already in the customer's language (e.g. '50 bonus credits'). Taking part earns it; never imply it depends on praise. */
+"support.testimonial.reward" = "Khi tham gia: {reward}";
+/* Line under the ask on the photo/video request card and screen. Honest participation is what's asked; never imply praise is expected. */
+"support.testimonial.honest" = "Tốt, chưa tốt hay lẫn lộn: chúng tôi muốn nghe ý kiến thật lòng của bạn.";
+/* Small reassurance under the reward line. The reward never depends on what is said or on whether the media is later used. */
+"support.testimonial.rewardNote" = "Bạn nhận được nhờ tham gia, dù bạn nói gì và dù chúng tôi có dùng hay không.";
+/* Button on the request card that opens the capture screen. Short. */
+"support.testimonial.open" = "Chia sẻ ảnh hoặc video";
+/* Button: pick an existing photo or video from the device's library. */
+"support.testimonial.choose" = "Chọn từ thư viện";
+/* Button: take a photo or record a video now. */
+"support.testimonial.camera" = "Dùng máy ảnh";
+/* Button: take a photo now with the camera (Android shows photo and video separately). */
+"support.testimonial.takePhoto" = "Chụp ảnh";
+/* Button: record a video now with the camera (Android shows photo and video separately). */
+"support.testimonial.recordVideo" = "Quay video";
+/* Shown when the customer declined camera access for this app. */
+"support.testimonial.cameraDenied" = "Quyền truy cập máy ảnh đang tắt. Bạn có thể chọn từ thư viện thay thế.";
+/* Button under the preview to replace the selected photo or video. */
+"support.testimonial.retake" = "Chọn cái khác";
+/* Shown directly above the app's own usage terms (shown word for word under it) and the Submit button. Submitting is the agreement; there is no switch or tick. */
+"support.testimonial.termsAgree" = "Khi gửi, bạn đồng ý với các điều khoản này.";
+/* Shown when the app's usage terms changed before the customer submitted. The new terms are shown and nothing was sent. */
+"support.testimonial.termsChanged" = "Các điều khoản đã thay đổi. Vui lòng đọc rồi gửi lại.";
+/* Primary button under the usage terms that uploads and submits the selected photo or video. Submitting means agreeing to the terms shown. */
+"support.testimonial.submit" = "Gửi";
+/* Progress while uploading. {percent} = 0-100. */
+"support.testimonial.uploading" = "Đang tải lên… {percent}%";
+/* Shown after the upload while the server checks the file. */
+"support.testimonial.checking" = "Đang kiểm tra…";
+/* Title after a successful share. */
+"support.testimonial.done" = "Cảm ơn bạn đã chia sẻ!";
+/* After sharing, while the app hasn't confirmed the reward yet. Never promise delivery, shipping or an email. */
+"support.testimonial.rewardPending" = "Bạn đã đủ điều kiện nhận. Phần thưởng sẽ hiện ở đây là đã xác nhận sau khi được áp dụng.";
+/* After the app confirmed the reward (gifts, discounts, merchandise or anything handled by the app). Generic: no shipping or email promise. */
+"support.testimonial.rewardDone" = "Phần thưởng của bạn đã được xác nhận.";
+/* After the app confirmed an in-account reward (credits, coach answers, subscription time). */
+"support.testimonial.rewardDone.account" = "Phần thưởng đã được thêm vào tài khoản của bạn.";
+/* After sharing, when the app's confirmation failed or took too long. The support team can retry it from their inbox. */
+"support.testimonial.rewardDelayed" = "Phần thưởng của bạn chưa được xác nhận. Bộ phận hỗ trợ thấy điều này và có thể gửi lại.";
+/* After sharing, when this customer was already rewarded for this campaign. */
+"support.testimonial.rewardNotEligible" = "Bạn đã tham gia hoạt động này rồi, nên lần này không có phần thưởng mới.";
+/* Button to decline the request. */
+"support.testimonial.decline" = "Không, cảm ơn";
+/* Button to decline and never be asked again in this app. */
+"support.testimonial.dontAsk" = "Đừng hỏi lại";
+/* Closes the capture screen without sharing. */
+"support.testimonial.cancel" = "Hủy";
+/* Shown on a request card or screen that expired, was withdrawn or belongs to another account. */
+"support.testimonial.unavailable" = "Yêu cầu này không còn khả dụng";
+/* Error when the chosen video is too long. {seconds} = a whole number. */
+"support.testimonial.tooLong" = "Video có thể dài tối đa {seconds} giây.";
+/* Error when the chosen file is over the size limit. */
+"support.testimonial.tooLarge" = "Tệp này quá lớn để chia sẻ.";
+/* Error when the upload or share failed. Nothing was shared; the retry button follows. */
+"support.testimonial.failed" = "Không chia sẻ được, chưa có gì được gửi. Hãy kiểm tra kết nối rồi thử lại.";
+/* Button after sharing to withdraw permission for public use. */
+"support.testimonial.withdraw" = "Dừng sử dụng công khai";
+/* VoiceOver/TalkBack label of the preview. */
+"support.testimonial.a11y.preview" = "Ảnh hoặc video bạn đã chọn";
