@@ -48,7 +48,7 @@ struct SupportHelpSection: View {
                 let top = Array(articles.prefix(3))
                 ForEach(top) { article in
                     Button { open(.article(slug: article.slug, title: article.title)) } label: {
-                        SupportArticleRow(article: article, palette: palette, summaryLines: 1)
+                        SupportArticleRow(article: article, palette: palette, summaryLines: SupportLines.homeSummary)
                     }
                     .buttonStyle(.plain)
                     if article.id != top.last?.id { Divider().padding(.leading, 48) }
@@ -81,6 +81,7 @@ struct SupportArticleRow: View {
                 }
                 if !article.summary.isEmpty {
                     Text(article.summary).font(.system(size: 13.5)).foregroundStyle(SupportColors.muted).lineLimit(summaryLines)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .multilineTextAlignment(.leading)

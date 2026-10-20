@@ -125,6 +125,15 @@ enum SupportColors {
     static let shadow = Color(red: 0.16, green: 0.08, blue: 0.35)
 }
 
+/// Line limits on the help home, the same in all four SDKs.
+enum SupportLines {
+    /// An article summary on the home: enough to read on a 320 pt screen, short enough
+    /// that one long summary can't push everything else off the page (the help centre keeps 2).
+    static let homeSummary = 3
+    /// A quick-help tile's subtitle (half-width tiles); both tiles of a row share the height.
+    static let tileSubtitle = 2
+}
+
 /// A bubble with its own radius per corner (iOS 15 has no UnevenRoundedRectangle).
 /// Corners are leading/trailing: in a right-to-left layout the tail moves to the mirrored
 /// corner (a Shape's path is drawn in unflipped coordinates).
