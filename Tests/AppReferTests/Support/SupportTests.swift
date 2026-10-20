@@ -176,4 +176,30 @@ final class SupportTests: XCTestCase {
         XCTAssertEqual(model.current?.id, "d")
     }
     #endif
+
+    #if canImport(UIKit)
+    /// The help home stays at its end when the keyboard opens or the composer grows, but only
+    /// for a customer already at the end; someone reading higher up is never moved.
+    func testHomeAnchorKeepsTheEndOnlyWhenAlreadyThere() {
+        // At the end (page ends at the composer), then the keyboard lifts the composer by 300.
+        let atEnd = SupportHomeAnchor()
+        XCTAssertFalse(atEnd.composerTopChanged(700), "first measurement")
+        atEnd.pageEndChanged(700)
+        XCTAssertTrue(atEnd.composerTopChanged(400))
+        // Within the tolerance still counts as the end; the composer growing again pins again.
+        atEnd.pageEndChanged(420)
+        XCTAssertTrue(atEnd.composerTopChanged(300))
+        // The composer shrinking (keyboard closes) never scrolls.
+        atEnd.pageEndChanged(300)
+        XCTAssertFalse(atEnd.composerTopChanged(700))
+
+        // Reading upper content: the page ends far below the composer. No jump.
+        let reading = SupportHomeAnchor()
+        _ = reading.composerTopChanged(700)
+        reading.pageEndChanged(1500)
+        XCTAssertFalse(reading.composerTopChanged(400))
+        XCTAssertFalse(reading.composerTopChanged(250), "five lines while still reading higher up")
+        XCTAssertFalse(SupportHomeAnchor.atEnd(pageEnd: 700 + SupportHomeAnchor.tolerance + 1, composerTop: 700))
+    }
+    #endif
 }

@@ -114,6 +114,7 @@ struct SupportHomeScreen: View {
     @State private var capturing: SupportCaptureTarget?
     @State private var lastCapture: String?
     @FocusState private var focused: Bool
+    @State private var anchor = SupportHomeAnchor()
     private let startsFocused: Bool
 
     init(model: SupportHomeModel, palette: SupportPalette, draft: String?, close: @escaping () -> Void, push: @escaping (SupportRoute) -> Void) {
@@ -129,47 +130,67 @@ struct SupportHomeScreen: View {
     private var look: SupportHeaderLook { SupportHeaderLook(support.headerStyle, palette: palette, dark: colorScheme == .dark) }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             SupportColors.background.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    hero
-                    VStack(alignment: .leading, spacing: 24) {
-                        if let invite = model.invitations.first {
-                            SupportTestimonialCardView(request: invite, palette: palette) {
-                                lastCapture = invite.requestId
-                                capturing = SupportCaptureTarget(id: invite.requestId)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        hero
+                        VStack(alignment: .leading, spacing: 24) {
+                            if let invite = model.invitations.first {
+                                SupportTestimonialCardView(request: invite, palette: palette) {
+                                    lastCapture = invite.requestId
+                                    capturing = SupportCaptureTarget(id: invite.requestId)
+                                }
+                            }
+                            if let current = model.current { continueCard(current) }
+                            if !model.articles.isEmpty {
+                                SupportHelpSection(articles: model.articles, palette: palette, prominent: model.current == nil, open: push)
+                            }
+                            if !support.topics.isEmpty { quickHelp }
+                            if !model.others.isEmpty { pastConversations }
+                            if !model.loaded && model.conversations.isEmpty {
+                                ProgressView().frame(maxWidth: .infinity)
+                            }
+                            if let error = model.error, model.conversations.isEmpty {
+                                Text(error).font(.footnote).foregroundStyle(SupportColors.muted)
                             }
                         }
-                        if let current = model.current { continueCard(current) }
-                        if !model.articles.isEmpty {
-                            SupportHelpSection(articles: model.articles, palette: palette, prominent: model.current == nil, open: push)
-                        }
-                        if !support.topics.isEmpty { quickHelp }
-                        if !model.others.isEmpty { pastConversations }
-                        if !model.loaded && model.conversations.isEmpty {
-                            ProgressView().frame(maxWidth: .infinity)
-                        }
-                        if let error = model.error, model.conversations.isEmpty {
-                            Text(error).font(.footnote).foregroundStyle(SupportColors.muted)
-                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, -62)
+                        .padding(.bottom, 64)
+                        // The end of the page, where it stays when the composer or keyboard grows.
+                        Color.clear.frame(height: 0).id("homeEnd")
+                            .background(GeometryReader { g in
+                                let y = g.frame(in: .global).maxY
+                                Color.clear.onAppear { anchor.pageEndChanged(y) }.onChange(of: y) { anchor.pageEndChanged($0) }
+                            })
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, -62)
-                    .padding(.bottom, 140)
                 }
-            }
-            .coordinateSpace(name: "home")
-            .supportDismissKeyboardOnScroll()
-
-            VStack(spacing: 8) {
-                if let error { SupportErrorLine(text: error) }
-                if let topic { topicChip(topic) }
-                SupportComposerBar(
-                    text: $text, images: $images, focus: $focused,
-                    placeholder: topic?.prompt ?? personas.persona.map { SupportStrings.text("support.composer.placeholder.persona", ["name": $0.name]) } ?? SupportStrings.text("support.composer.placeholder.home"), leadingSymbol: "camera.fill",
-                    palette: palette, sending: sending, pick: { picking = true }, send: { SupportAccountState.shared.run { await start(generation: $0) } }
-                )
+                .coordinateSpace(name: "home")
+                .supportDismissKeyboardOnScroll()
+                // The page ends above the composer as it really is (a chip, photos, several
+                // lines, large text) and above the keyboard, so the last tiles scroll clear
+                // of it, while the glass bar still floats over the content.
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: 8) {
+                        if let error { SupportErrorLine(text: error) }
+                        if let topic { topicChip(topic) }
+                        SupportComposerBar(
+                            text: $text, images: $images, focus: $focused,
+                            placeholder: topic?.prompt ?? personas.persona.map { SupportStrings.text("support.composer.placeholder.persona", ["name": $0.name]) } ?? SupportStrings.text("support.composer.placeholder.home"), leadingSymbol: "camera.fill",
+                            palette: palette, sending: sending, pick: { picking = true }, send: { SupportAccountState.shared.run { await start(generation: $0) } }
+                        )
+                    }
+                    .background(GeometryReader { g in
+                        let top = g.frame(in: .global).minY
+                        Color.clear.onAppear { _ = anchor.composerTopChanged(top) }.onChange(of: top) { top in
+                            // Already at the end when the keyboard opened or the composer grew: stay
+                            // there, so the last tiles remain above it. Anyone reading higher up isn't moved.
+                            if anchor.composerTopChanged(top) { DispatchQueue.main.async { proxy.scrollTo("homeEnd", anchor: .bottom) } }
+                        }
+                    })
+                }
             }
         }
         .sheet(isPresented: $picking) { SupportPhotoPicker(limit: max(1, 4 - images.count)) { images.append(contentsOf: $0.prefix(max(0, 4 - images.count))) } }
@@ -351,12 +372,22 @@ struct SupportHomeScreen: View {
     private var quickHelp: some View {
         VStack(alignment: .leading, spacing: 10) {
             if model.current != nil || !model.articles.isEmpty { SupportSectionLabel(text: SupportStrings.text("support.home.quickHelp")).padding(.leading, 6) }
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                ForEach(support.topics) { t in
-                    Button { pick(t) } label: { tile(t) }.buttonStyle(SupportPressStyle())
+            // Rows of two; both tiles of a row take the taller one's height (a subtitle may wrap).
+            let topics = support.topics
+            VStack(spacing: 10) {
+                ForEach(Array(stride(from: 0, to: topics.count, by: 2)), id: \.self) { i in
+                    HStack(alignment: .top, spacing: 10) {
+                        tileButton(topics[i])
+                        if i + 1 < topics.count { tileButton(topics[i + 1]) } else { Color.clear.frame(maxWidth: .infinity, maxHeight: 0) }
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
+    }
+
+    private func tileButton(_ t: AppReferSupportTopic) -> some View {
+        Button { pick(t) } label: { tile(t) }.buttonStyle(SupportPressStyle())
     }
 
     private func tile(_ t: AppReferSupportTopic) -> some View {
@@ -367,10 +398,13 @@ struct SupportHomeScreen: View {
                 .background(t.tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                 .padding(.bottom, 10)
             Text(t.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.8)
-            Text(t.subtitle).font(.system(size: 12.5)).foregroundStyle(SupportColors.muted).lineLimit(1)
+            if !t.subtitle.isEmpty {
+                Text(t.subtitle).font(.system(size: 12.5)).foregroundStyle(SupportColors.muted).lineLimit(SupportLines.tileSubtitle)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(SupportColors.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .shadow(color: SupportColors.shadow.opacity(0.07), radius: 10, y: 2)
         .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))

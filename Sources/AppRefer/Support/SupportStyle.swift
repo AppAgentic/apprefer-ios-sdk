@@ -125,6 +125,41 @@ enum SupportColors {
     static let shadow = Color(red: 0.16, green: 0.08, blue: 0.35)
 }
 
+/// Line limits on the help home, the same in all four SDKs.
+enum SupportLines {
+    /// An article summary on the home: enough to read on a 320 pt screen, short enough
+    /// that one long summary can't push everything else off the page (the help centre keeps 2).
+    static let homeSummary = 3
+    /// A quick-help tile's subtitle (half-width tiles); both tiles of a row share the height.
+    static let tileSubtitle = 2
+}
+
+/// Keeps the help home at its end when the space above the composer shrinks (the keyboard
+/// opens, or the composer grows: more lines, a topic chip, photos, an error line, large text),
+/// but only if the customer was already at the end. Someone reading further up never moves.
+/// The same rule in all four SDKs.
+final class SupportHomeAnchor {
+    /// How close to the end still counts as "at the end".
+    static let tolerance: CGFloat = 24
+
+    /// The bottom of the page (global y) and the composer's top (global y), as last laid out.
+    private(set) var pageEnd: CGFloat?
+    private(set) var composerTop: CGFloat?
+
+    /// True when the page ended at (or above) the composer, within the tolerance.
+    static func atEnd(pageEnd: CGFloat, composerTop: CGFloat) -> Bool { pageEnd <= composerTop + tolerance }
+
+    func pageEndChanged(_ y: CGFloat) { pageEnd = y }
+
+    /// Records the composer's new top; returns true when the page should be scrolled back to
+    /// its end (it was at the end and the composer moved up).
+    func composerTopChanged(_ y: CGFloat) -> Bool {
+        defer { composerTop = y }
+        guard let pageEnd, let old = composerTop, y < old - 0.5 else { return false }
+        return Self.atEnd(pageEnd: pageEnd, composerTop: old)
+    }
+}
+
 /// A bubble with its own radius per corner (iOS 15 has no UnevenRoundedRectangle).
 /// Corners are leading/trailing: in a right-to-left layout the tail moves to the mirrored
 /// corner (a Shape's path is drawn in unflipped coordinates).
