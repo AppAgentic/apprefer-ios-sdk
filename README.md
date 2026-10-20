@@ -479,11 +479,8 @@ To receive copies of the winning postbacks in AppRefer, add to your app's Info.p
 ```xml
 <key>NSAdvertisingAttributionReportEndpoint</key>
 <string>https://apprefer.com</string>
-<key>AdAttributionKit</key>
-<dict>
-    <key>AttributionCopyEndpoint</key>
-    <string>https://apprefer.com</string>
-</dict>
+<key>AttributionCopyEndpoint</key>
+<string>https://apprefer.com</string>
 ```
 
 Also add the `SKAdNetworkItems` identifiers your ad networks publish.
