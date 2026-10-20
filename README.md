@@ -615,7 +615,7 @@ from the App Store id your app already has in AppRefer (Billing or the store URL
   device". AppRefer sends at most one card per customer every 120 days (configurable, 30–365).
 - Older SDK versions show your text plus a line asking the customer to update the app.
 
-0.12.0 is unreleased source (not tagged). Once tagged, install it from Git only: Swift Package Manager, `https://github.com/AppAgentic/apprefer-ios-sdk` at the `0.12.0` tag.
+0.12.0 is released. Install it from Git only: Swift Package Manager, `https://github.com/AppAgentic/apprefer-ios-sdk` at the `0.12.0` tag.
 
 ### Photo and video testimonials (0.13.0)
 
@@ -682,7 +682,7 @@ AppRefer.support.testimonials.present(requestId: requestId) { result in
   video, `NSMicrophoneUsageDescription`) and the device has a camera. The library uses the
   system photo picker, which needs no permission.
 
-0.13.0 is unreleased source (not tagged). Once tagged, install it from Git only: Swift Package Manager, `https://github.com/AppAgentic/apprefer-ios-sdk` at the `0.13.0` tag.
+0.13.0 is released. Install it from Git only: Swift Package Manager, `https://github.com/AppAgentic/apprefer-ios-sdk` at the `0.13.0` tag.
 
 ### Languages and your own wording
 
