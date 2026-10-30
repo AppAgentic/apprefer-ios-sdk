@@ -25,6 +25,7 @@ public struct AppReferCustomerInfo: Sendable, Equatable {
         case localFallback
     }
 
+    public let environment: BillingEnvironment?
     public let appUserId: String
     public let entitlements: EntitlementInfos
     /// Product ids of auto-renewing subscriptions that currently grant access.
@@ -38,8 +39,10 @@ public struct AppReferCustomerInfo: Sendable, Equatable {
         entitlements: EntitlementInfos,
         activeSubscriptions: Set<String>,
         requestDate: Date,
-        source: Source
+        source: Source,
+        environment: BillingEnvironment? = nil
     ) {
+        self.environment = environment
         self.appUserId = appUserId
         self.entitlements = entitlements
         self.activeSubscriptions = activeSubscriptions
@@ -56,13 +59,14 @@ public struct AppReferCustomerInfo: Sendable, Equatable {
             entitlements: entitlements,
             activeSubscriptions: activeSubscriptions,
             requestDate: requestDate,
-            source: source
+            source: source,
+            environment: environment
         )
     }
 
     /// Same user, entitlements and subscriptions (ignores request date and source).
     func hasSameContent(as other: AppReferCustomerInfo) -> Bool {
-        appUserId == other.appUserId
+        environment == other.environment && appUserId == other.appUserId
             && entitlements == other.entitlements
             && activeSubscriptions == other.activeSubscriptions
     }
@@ -86,18 +90,20 @@ public struct AppReferCustomerInfo: Sendable, Equatable {
             entitlements: EntitlementInfos(all),
             activeSubscriptions: activeSubs,
             requestDate: now,
-            source: .cache
+            source: .cache,
+            environment: environment
         )
     }
 }
 
 extension AppReferCustomerInfo: Codable {
     enum CodingKeys: String, CodingKey {
-        case appUserId, entitlements, activeSubscriptions, requestDateMs, source
+        case environment, appUserId, entitlements, activeSubscriptions, requestDateMs, source
     }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        environment = try c.decodeIfPresent(BillingEnvironment.self, forKey: .environment)
         appUserId = try c.decode(String.self, forKey: .appUserId)
         entitlements = (try? c.decode(EntitlementInfos.self, forKey: .entitlements)) ?? EntitlementInfos([:])
         activeSubscriptions = Set((try? c.decode([String].self, forKey: .activeSubscriptions)) ?? [])
@@ -108,6 +114,7 @@ extension AppReferCustomerInfo: Codable {
 
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(environment, forKey: .environment)
         try c.encode(appUserId, forKey: .appUserId)
         try c.encode(entitlements, forKey: .entitlements)
         try c.encode(activeSubscriptions.sorted(), forKey: .activeSubscriptions)

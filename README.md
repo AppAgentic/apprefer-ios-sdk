@@ -760,3 +760,13 @@ await AppRefer.setCollectionEnabled(false)
 Call this when collection consent is withdrawn. The choice persists across launches. Disabling cancels in-flight attribution, conversion-value, consent and product-event traffic, clears the durable event queue, and blocks activation/background retries. Configure returns cached attribution (or an unavailable/failed result if none exists) while disabled. Support and Billing continue independently. Call `setCollectionEnabled(true)` and then configure again to resume; enabling alone sends nothing. Calling it with `true` while collection is already on changes nothing (no pause, no queue clear). `configure(userId:)` still stores the user id while collection is off, so Support uses that account. Reset does not change this choice.
 
 Product events include `app_user_id` from the identity set via `setUserId` when tracked. The identity is saved in the queued payload, so retries and relaunches retain the original account even after a user switch. Without an identity the field is omitted. Internal events whose names start with `_` retain their existing payloads.
+
+### Billing environments (0.13.3)
+
+Billing snapshots use one environment. Test SDK keys select sandbox. Live keys automatically retain an owned store context, starting in production when none is known. New sandbox review/test purchases can select sandbox after store verification and a server answer confirming the captured buyer; no host toggle or special review build is required. Apple also uses verified app transaction context when available. Explicit selections remain strict. For controlled sandbox testing with a live key, you can explicitly choose sandbox:
+
+```
+AppReferBilling.configure(apiKey: "pk_live_…", environment: .sandbox)
+```
+
+A test key cannot select production. Do not enable sandbox in your production build. Customer identities are shared, but cached snapshots and offline grants are accepted only for the selected environment. Historic unscoped caches and unknown local proof environments grant nothing until verified. Pending proofs are retained and classified by the server. Only exact proofs authorized by a new caller-initiated purchase may recover automatic selection after an outage or restart; legacy queues, migration and Restore do not change it. Successful recording consumes both proof and originating intent authorization atomically. Other-environment legacy receipts remain queued for that environment.

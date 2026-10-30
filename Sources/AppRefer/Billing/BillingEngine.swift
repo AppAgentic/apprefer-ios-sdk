@@ -19,6 +19,8 @@ actor BillingEngine {
     struct Options: Sendable {
         var productEntitlements: [String: [String]] = [:]
         var defaultEntitlement: String?
+        var environment: (@Sendable () -> BillingEnvironment?)?
+        var automaticScope: AutomaticBillingScope?
         /// How long a server answer counts as fresh for `.cachedOrFetched`.
         var cacheTTL: TimeInterval = 5 * 60
     }
@@ -145,6 +147,7 @@ actor BillingEngine {
             anonymousMintedByLogOut = nil
             return
         }
+        try? options.automaticScope?.setUser(current, invalidate: true)
         storage.resetUser = current
     }
 
@@ -246,7 +249,9 @@ actor BillingEngine {
             guard apply(change) else { return nil }
             pendingIdentityChanges.removeFirst()
         }
-        return storage.currentAppUserId
+        guard let user = storage.currentAppUserId else { return nil }
+        do { try options.automaticScope?.setUser(user, resetMarked: storage.resetMarkerHolds(for: user), resetGeneration: storage.automaticResetGeneration) } catch { return nil }
+        return user
     }
 
     private func apply(_ change: IdentityChange) -> Bool {
@@ -302,6 +307,13 @@ actor BillingEngine {
         for update in await storeKit.unfinishedTransactions() {
             _ = await process(update)
         }
+        // An accepted purchase may already be finished when the process died before
+        // committing its context. Only exact, pre-authorized current proofs recover it.
+        if let user = activeUser(), let automatic = options.automaticScope {
+            for transaction in await storeKit.currentEntitlements() where automatic.recoverProof(user: user, proof: transaction.signedTransaction) != nil {
+                _ = await process(StoreKitUpdate(verified: transaction, transactionId: transaction.id, finish: {}), initiator: user)
+            }
+        }
         clearIntentsLostMarkerIfIdle()
         _ = await customerInfo(policy: .fetchCurrent)
         Task { await self.migrationSync() }
@@ -312,28 +324,31 @@ actor BillingEngine {
     func migrationSync(forUser: String? = nil) async {
         guard let active = activeUser() else { return }
         let user = forUser ?? active
-        guard user == active, !storage.migrationSynced(user),
+        let scope = options.environment?()
+        if options.environment != nil && scope == nil { return }
+        let phase = options.environment == nil ? user : "environment-v3:\(scope!.rawValue):\(user)"
+        guard user == active, !storage.migrationSynced(phase),
               migratingUsers.insert(user).inserted else { return }
         defer { migratingUsers.remove(user) }
         if UUID(uuidString: user) != nil {
             if storage.legacyAccountToken(for: user) == nil { registeredUsers.remove(user) }
             _ = try? await fetchFromServer(user, drain: false)
         }
-        guard activeUser() == user else { return }
+        guard activeUser() == user, options.environment == nil || options.environment?() == scope else { return }
         let open = Set(await storeKit.unfinishedTransactions().map(\.transactionId))
         let transactions = await storeKit.currentEntitlements()
-        guard activeUser() == user else { return }
+        guard activeUser() == user, options.environment == nil || options.environment?() == scope else { return }
         let deviceId = linkableDeviceId(for: user)
         var durable = true
         for transaction in transactions {
-            guard activeUser() == user else { return }
+            guard activeUser() == user, options.environment == nil || options.environment?() == scope else { return }
             if open.contains(transaction.id) { durable = false; continue }
             if let token = transaction.appAccountToken, !ownsAccountToken(token, user: user) {
                 // Backend may not support legacy ownership yet. Retry after it does.
                 if UUID(uuidString: user) == token { durable = false }
                 continue // A foreign or unknown token must never be claimed by this user.
             }
-            let progress = "\(Data(user.utf8).base64EncodedString()):\(transaction.id)"
+            let progress = "\(Data(phase.utf8).base64EncodedString()):\(transaction.id)"
             if storage.isMigrationPurchase(progress) { continue }
             if let existing = queue.entry(transactionId: transaction.id), existing.appUserId == user,
                queue.isDurable(transactionId: transaction.id) {
@@ -358,7 +373,7 @@ actor BillingEngine {
             )
             if !queue.add(entry) || !storage.markMigrationPurchase(progress) { durable = false }
         }
-        if durable { storage.markMigrationSynced(user) }
+        if durable { storage.markMigrationSynced(phase) }
         await drainQueue()
     }
 
@@ -374,7 +389,7 @@ actor BillingEngine {
         if policy == .cachedOrFetched,
            let fetched = lastServerFetch, fetched.appUserId == user,
            now().timeIntervalSince(fetched.at) < options.cacheTTL,
-           let cached = storage.cachedCustomerInfo(), cached.appUserId == user {
+           let cached = scopedCachedInfo(), cached.appUserId == user {
             return publish(await withPendingLocal(cached.reevaluated(at: now())))
         }
         do {
@@ -383,6 +398,13 @@ actor BillingEngine {
             logger.warn("Billing: customer refresh failed (\(error.localizedDescription)); using StoreKit fallback")
             return await localFallback()
         }
+    }
+
+    private func scopedCachedInfo() -> AppReferCustomerInfo? {
+        let info = storage.cachedCustomerInfo()
+        guard let environment = options.environment else { return info }
+        guard let selected = environment(), info?.environment == selected else { return nil }
+        return info
     }
 
     private func fetchFromServer(_ user: String, drain: Bool = true) async throws -> AppReferCustomerInfo {
@@ -406,6 +428,9 @@ actor BillingEngine {
         }
         let info = await accept(response, for: user)
         if drain { await drainQueue() }
+        if options.environment != nil, info.environment != options.environment?(), let current = activeUser() {
+            return try await fetchFromServer(current, drain: false)
+        }
         return info
     }
 
@@ -460,7 +485,7 @@ actor BillingEngine {
     /// purchases. Never the unrestricted device fallback.
     private func reachableAnswer(for user: String) async -> AppReferCustomerInfo {
         if let info = try? await fetchFromServer(user, drain: false) { return info }
-        let cached = storage.cachedCustomerInfo().flatMap { $0.appUserId == user ? $0.reevaluated(at: now()) : nil }
+        let cached = scopedCachedInfo().flatMap { $0.appUserId == user ? $0.reevaluated(at: now()) : nil }
         let merged = mergeLocal(
             into: cached, transactions: await ownedTransactions(user), user: user,
             source: cached?.source ?? .localFallback
@@ -491,7 +516,7 @@ actor BillingEngine {
     func localFallback() async -> AppReferCustomerInfo {
         guard let user = activeUser() else { return await lockedFallback() }
         let transactions = await storeKit.currentEntitlements()
-        let cached = storage.cachedCustomerInfo().flatMap { $0.appUserId == user ? $0.reevaluated(at: now()) : nil }
+        let cached = scopedCachedInfo().flatMap { $0.appUserId == user ? $0.reevaluated(at: now()) : nil }
         let merged = mergeLocal(into: cached, transactions: transactions, user: user, source: .localFallback)
         return publish(merged)
     }
@@ -502,18 +527,29 @@ actor BillingEngine {
         user: String,
         source: AppReferCustomerInfo.Source
     ) -> AppReferCustomerInfo {
+        let selected = options.environment?()
+        let scoped = options.environment == nil ? transactions : transactions.filter { selected != nil && $0.environment == selected }
+        let base = options.environment == nil || (selected != nil && server?.environment == selected) ? server : nil
         let local = LocalEntitlements.compute(
-            transactions: transactions,
+            transactions: scoped,
             configured: options.productEntitlements,
             learned: storage.learnedEntitlements,
             defaultEntitlement: options.defaultEntitlement,
             now: now()
         )
-        return LocalEntitlements.merge(server: server, local: local, appUserId: user, now: now(), source: source)
+        let result = LocalEntitlements.merge(server: base, local: local, appUserId: user, now: now(), source: source)
+        return AppReferCustomerInfo(appUserId: result.appUserId, entitlements: result.entitlements, activeSubscriptions: result.activeSubscriptions, requestDate: result.requestDate, source: result.source, environment: selected ?? base?.environment)
     }
 
     @discardableResult
-    private func publish(_ info: AppReferCustomerInfo) -> AppReferCustomerInfo {
+    private func publish(_ original: AppReferCustomerInfo) -> AppReferCustomerInfo {
+        var info = original
+        if let environment = options.environment {
+            let selected = environment()
+            if selected == nil || info.environment != selected {
+                info = AppReferCustomerInfo(appUserId: info.appUserId, entitlements: EntitlementInfos([:]), activeSubscriptions: [], requestDate: now(), source: info.source, environment: selected)
+            }
+        }
         if lastPublished.map({ !$0.hasSameContent(as: info) }) ?? true {
             onChange(info)
         }
@@ -602,7 +638,7 @@ actor BillingEngine {
         do {
             // Never a restore: purchases and Transaction.updates (renewals included) must
             // not move a purchase owned by another app user to whoever is signed in.
-            let response = try await api.send(.purchase(
+            let endpoint = BillingAPIClient.Endpoint.purchase(
                 appUserId: owner,
                 appreferId: deviceId,
                 signedTransaction: transaction.signedTransaction,
@@ -610,14 +646,24 @@ actor BillingEngine {
                 restore: false,
                 presentedOfferingContext: intent?.presentedOfferingContext,
                 bucketId: intent?.bucketId
-            ))
+            )
+            let automatic = options.automaticScope
+            let ticket = intent.flatMap { automatic?.recoverIntent($0, verified: transaction) }
+                ?? automatic?.recoverProof(user: owner, proof: transaction.signedTransaction)
+            let response: BillingCustomerResponse
+            if let ticket, let environment = transaction.environment {
+                try automatic?.authorizeProof(transaction.signedTransaction, ticket: ticket, intent: intent)
+                response = try await sendAuthorizedPurchase(endpoint, ticket: ticket, verifiedEnvironment: environment, proof: transaction.signedTransaction)
+                storage.recordPurchaseEnvironment(transaction.signedTransaction, environment: environment)
+                try automatic?.forgetProof(transaction.signedTransaction)
+            } else { response = try await api.send(endpoint) }
             storage.clearSentAttributes(attributes)
             await finish(update)
             rejected.remove(transactionId: transaction.id)
             dropIntent(intent)
             let info = await accept(response, for: owner)
             await drainQueue()
-            if owner == user { return info }
+            if owner == activeUser(), options.environment == nil || info.environment == options.environment?() { return info }
             // Someone else's purchase: the signed-in user still gets only their own access.
             guard let current = activeUser() else { return await lockedFallback() }
             return await reachableAnswer(for: current)
@@ -688,7 +734,7 @@ actor BillingEngine {
     }
 
     private func dropIntent(_ intent: PurchaseIntent?) {
-        if let intent { intents.remove(intent) }
+        if let intent { try? options.automaticScope?.forgetIntent(intent.id); intents.remove(intent) }
     }
 
     private func rejectedEntry(from entry: PendingPurchase, reason: String) -> AppReferRejectedPurchase {
@@ -713,7 +759,7 @@ actor BillingEngine {
     /// request; the outage fallback when there is no cached answer.
     private func currentAnswerWithoutNetwork() async -> AppReferCustomerInfo {
         guard let user = activeUser() else { return await lockedFallback() }
-        if lastServerFetch?.appUserId == user, let cached = storage.cachedCustomerInfo(), cached.appUserId == user {
+        if lastServerFetch?.appUserId == user, let cached = scopedCachedInfo(), cached.appUserId == user {
             return publish(await withPendingLocal(cached.reevaluated(at: now())))
         }
         return await localFallback()
@@ -721,7 +767,8 @@ actor BillingEngine {
 
     /// A 401/403/404/409/429 or a server-requested wait doesn't use up a retry.
     private static func countsAsAttempt(_ error: AppReferBillingError) -> Bool {
-        !error.isBackoff && error.retryAfter == nil
+        if case .environmentMismatch = error { return false }
+        return !error.isBackoff && error.retryAfter == nil
     }
 
     /// Pauses the retry queue after a back-off status (doubling from 30 s to 1 h) or for
@@ -833,28 +880,40 @@ actor BillingEngine {
         // Only saved entries are pruned, and their transactions were finished when they
         // saved; an unsaved one stays held until it is saved or AppRefer records it. Each
         // leaves the queue only once its copy is in the rejected list.
-        let dropped = queue.prune(now: now()) { entry in
+        let preserveScopedProofs = options.environment != nil
+        let dropped = queue.prune(now: now(), eligible: { _ in !preserveScopedProofs }) { entry in
             rejected.add(rejectedEntry(from: entry, reason: "not recorded after \(entry.attempts) attempts"))
         }
         for entry in dropped {
             logger.error("Billing: gave up resending transaction \(entry.transactionId) after \(entry.attempts) attempts; kept in the rejected list")
         }
         for entry in queue.entries {
+            let automaticTicket = entry.restore == true || entry.transactionId.hasPrefix("migration:") ? nil
+                : options.automaticScope?.recoverProof(user: entry.appUserId, proof: entry.signedTransaction)
+            if automaticTicket == nil, options.environment != nil, let bound = storage.purchaseEnvironment(entry.signedTransaction), bound != options.environment?() { continue }
             do {
                 // A queued device id is sent only while linking is allowed now (collection
                 // on, configured since the last reset) and only for the current account.
-                let response = try await api.send(.purchase(
+                let endpoint = BillingAPIClient.Endpoint.purchase(
                     appUserId: entry.appUserId, appreferId: linkableDeviceId(for: entry.appUserId) == nil ? nil : entry.appreferId,
                     signedTransaction: entry.signedTransaction, attributes: [:],
                     restore: entry.restore == true,
                     presentedOfferingContext: entry.presentedOfferingContext,
                     bucketId: entry.bucketId
-                ))
+                )
+                let response: BillingCustomerResponse
+                if let automaticTicket {
+                    response = try await sendAuthorizedPurchase(endpoint, ticket: automaticTicket, verifiedEnvironment: storage.purchaseEnvironment(entry.signedTransaction), proof: entry.signedTransaction)
+                    try options.automaticScope?.forgetProof(entry.signedTransaction)
+                } else { response = try await api.send(endpoint) }
                 queue.remove(transactionId: entry.transactionId)
                 drainBackoff = nil
                 // Recorded by AppRefer: safe to finish even if the retry copy never saved.
                 if let held = heldUpdates[entry.transactionId] { await finish(held) }
                 if entry.appUserId == activeUser() { _ = await accept(response, for: entry.appUserId) }
+            } catch AppReferBillingError.environmentMismatch(let actual) {
+                storage.recordPurchaseEnvironment(entry.signedTransaction, environment: actual)
+                continue
             } catch let error as AppReferBillingError where error.isRetryable {
                 pause(after: error)
                 if !Self.countsAsAttempt(error) { return }
@@ -867,6 +926,27 @@ actor BillingEngine {
                 queue.remove(transactionId: entry.transactionId)
             }
         }
+    }
+
+    /// Authorization was persisted before upload. A mismatch may redirect this exact
+    /// request, but only an owned, generation-current answer can change read scope.
+    private func sendAuthorizedPurchase(_ endpoint: BillingAPIClient.Endpoint, ticket: AutomaticBillingScope.Ticket, verifiedEnvironment: BillingEnvironment?, proof: String) async throws -> BillingCustomerResponse {
+        guard options.automaticScope?.isCurrent(ticket) == true else { throw AppReferBillingError.invalidResponse }
+        let response: BillingCustomerResponse
+        if let verifiedEnvironment {
+            response = try await api.sendPurchaseInEnvironment(endpoint, environment: verifiedEnvironment, expectedKey: ticket.key)
+        } else {
+            do {
+                guard let selected = options.environment?() else { throw AppReferBillingError.invalidResponse }
+                response = try await api.sendPurchaseInEnvironment(endpoint, environment: selected, expectedKey: ticket.key)
+            }
+            catch AppReferBillingError.environmentMismatch(let actual) {
+                response = try await api.sendPurchaseInEnvironment(endpoint, environment: actual, expectedKey: ticket.key)
+            }
+        }
+        guard let environment = response.info.environment,
+              try options.automaticScope?.commit(ticket, environment: environment, owner: response.info.appUserId, acceptedProof: proof) == true else { throw AppReferBillingError.invalidResponse }
+        return response
     }
 
     /// Saves retry copies that failed to save before, then finishes their transactions.
@@ -917,13 +997,21 @@ actor BillingEngine {
     /// `purchaseIntentNotSaved` when the intent can't be saved: the sheet must not open.
     func beginPurchase(productId: String, context: PresentedOfferingContext? = nil) async throws -> PurchaseIntent {
         guard let user = activeUser() else { throw AppReferBillingError.purchaseIntentNotSaved }
+        let epoch = accountEpoch()
+        let identity = identityChanges.latestApplied
         if storage.accountToken(for: user) == nil { _ = try? await fetchFromServer(user, drain: false) }
+        _ = await api.awaitKey()
+        guard activeUser() == user, epoch == accountEpoch(), identity == identityChanges.latestApplied else { throw AppReferBillingError.purchaseIntentNotSaved }
         let intent = PurchaseIntent(
             presentedOfferingContext: context, bucketId: context == nil ? nil : storage.offeringsBucketId(), appUserId: user, productId: productId, accountToken: storage.accountToken(for: user), startedAt: now()
         )
         guard intents.add(intent) else {
             logger.error("Billing: couldn't save the purchase intent; not opening the purchase sheet")
             throw AppReferBillingError.purchaseIntentNotSaved
+        }
+        if let ticket = options.automaticScope?.capture(user: user) {
+            do { try options.automaticScope?.authorizeIntent(intent, ticket: ticket) }
+            catch { intents.remove(intent); throw AppReferBillingError.purchaseIntentNotSaved }
         }
         return intent
     }
@@ -949,6 +1037,7 @@ actor BillingEngine {
             throw AppReferBillingError.invalidAppUserId
         }
         // The app is saying who the user is now, even when it is the same id.
+        if let user = storage.currentAppUserId { try options.automaticScope?.setUser(user, invalidate: true) }
         storage.resetUser = nil
         anonymousMintedByLogOut = nil
         mintExemptionUsed = false
@@ -966,6 +1055,7 @@ actor BillingEngine {
 
     func logOut(ticket: Int? = nil) async -> AppReferCustomerInfo {
         let ticket = ticket ?? identityChanges.take()
+        if let user = storage.currentAppUserId { try? options.automaticScope?.setUser(user, invalidate: true) }
         storage.resetUser = nil
         pendingIdentityChanges.append(.logOut)
         _ = activeUser()
@@ -1001,7 +1091,9 @@ actor BillingEngine {
                 // one from before the last reset), so the server never copies the
                 // anonymous customer's install link to the signed-in one.
                 let link = linkAllowed() && !storage.resetMarkerHolds(for: activeUser())
-                _ = try await api.send(.identify(anonymousId: pending.anonymousId, appUserId: pending.appUserId, link: link))
+                let automaticTicket = options.automaticScope?.capture(user: pending.appUserId)
+                let response = try await api.send(.identify(anonymousId: pending.anonymousId, appUserId: pending.appUserId, link: link))
+                if let automaticTicket { try options.automaticScope?.inheritConfirmedAnonymous(pending.anonymousId, ticket: automaticTicket, owner: response.info.appUserId) }
                 storage.removePendingIdentify(pending)
             } catch let error as AppReferBillingError where error.isRetryable {
                 logger.warn("Billing: identify will be retried (\(error.localizedDescription))")

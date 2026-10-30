@@ -143,9 +143,9 @@ final class PendingPurchaseQueue {
     /// that isn't saved yet is kept: its StoreKit transaction is still unfinished, and
     /// dropping it would leave the purchase with neither a retry copy nor a server record.
     @discardableResult
-    func prune(now: Date = Date(), archive: (PendingPurchase) -> Bool) -> [PendingPurchase] {
+    func prune(now: Date = Date(), eligible: (PendingPurchase) -> Bool = { _ in true }, archive: (PendingPurchase) -> Bool) -> [PendingPurchase] {
         let dropped = entries.filter {
-            isDurable(transactionId: $0.transactionId)
+            eligible($0) && isDurable(transactionId: $0.transactionId)
                 && ($0.attempts >= Self.maxAttempts || now.timeIntervalSince($0.enqueuedAt) > Self.maxAge)
                 && archive($0)
         }

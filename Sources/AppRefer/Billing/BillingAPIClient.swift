@@ -12,6 +12,7 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
     case server(status: Int, message: String?, retryAfter: TimeInterval? = nil)
     /// AppRefer answered 2xx with a body the SDK could not read.
     case invalidResponse
+    case environmentMismatch(BillingEnvironment)
     /// StoreKit could not verify the transaction's signature; no access was granted.
     case unverifiedTransaction
     /// App user ids must be 1-256 characters with no whitespace.
@@ -27,6 +28,7 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
         case .missingApiKey: return "AppRefer SDK key missing: call AppRefer.configure(apiKey:) or pass apiKey to AppReferBilling.configure"
         case .network(let detail): return "AppRefer unreachable: \(detail)"
         case .server(let status, let message, _): return "AppRefer error \(status)\(message.map { ": \($0)" } ?? "")"
+        case .environmentMismatch: return "Purchase belongs to another billing environment"
         case .invalidResponse: return "AppRefer returned an unreadable response"
         case .unverifiedTransaction: return "StoreKit could not verify the transaction"
         case .invalidAppUserId: return "Invalid app user id"
@@ -39,7 +41,7 @@ public enum AppReferBillingError: Error, LocalizedError, Sendable, Equatable {
     /// and local verification failures are final.
     var isRetryable: Bool {
         switch self {
-        case .notConfigured, .missingApiKey, .network, .invalidResponse, .storage, .purchaseIntentNotSaved: return true
+        case .notConfigured, .missingApiKey, .network, .invalidResponse, .storage, .purchaseIntentNotSaved, .environmentMismatch: return true
         case .server(let status, _, _): return ![400, 413, 422].contains(status)
         case .unverifiedTransaction, .invalidAppUserId: return false
         }
@@ -132,15 +134,19 @@ struct BillingAPIClient: Sendable {
     let timeout: TimeInterval
     /// 100 ms polls while waiting for the SDK key.
     let keyWaitAttempts: Int
+    let environment: BillingEnvironment?
+    let environmentProvider: (@Sendable () -> BillingEnvironment?)?
 
     init(
         baseURLs: [String],
         apiKey: @escaping @Sendable () -> String?,
         transport: BillingTransport,
         timeout: TimeInterval = 15,
-        keyWaitAttempts: Int = 30
+        keyWaitAttempts: Int = 30,
+        environment: BillingEnvironment? = nil,
+        environmentProvider: (@Sendable () -> BillingEnvironment?)? = nil
     ) {
-        self.init(baseURLProvider: { baseURLs }, apiKey: apiKey, transport: transport, timeout: timeout, keyWaitAttempts: keyWaitAttempts)
+        self.init(baseURLProvider: { baseURLs }, apiKey: apiKey, transport: transport, timeout: timeout, keyWaitAttempts: keyWaitAttempts, environment: environment, environmentProvider: environmentProvider)
     }
 
     init(
@@ -148,13 +154,17 @@ struct BillingAPIClient: Sendable {
         apiKey: @escaping @Sendable () -> String?,
         transport: BillingTransport,
         timeout: TimeInterval = 15,
-        keyWaitAttempts: Int = 30
+        keyWaitAttempts: Int = 30,
+        environment: BillingEnvironment? = nil,
+        environmentProvider: (@Sendable () -> BillingEnvironment?)? = nil
     ) {
         self.baseURLProvider = baseURLProvider
         self.apiKey = apiKey
         self.transport = transport
         self.timeout = timeout
         self.keyWaitAttempts = keyWaitAttempts
+        self.environment = environment
+        self.environmentProvider = environmentProvider
     }
 
     static func makeRequest(_ endpoint: Endpoint, baseURL: String, apiKey: String, timeout: TimeInterval = 15) throws -> URLRequest {
@@ -223,7 +233,7 @@ struct BillingAPIClient: Sendable {
 
     /// `AppRefer.configure` usually runs in a Task started just before
     /// `AppReferBilling.configure`, so give it a moment to register the key.
-    private func resolveApiKey() async -> String? {
+    func awaitKey() async -> String? {
         for attempt in 0...keyWaitAttempts {
             if let key = apiKey(), !key.isEmpty { return key }
             if attempt < keyWaitAttempts { try? await Task.sleep(nanoseconds: 100_000_000) }
@@ -233,16 +243,46 @@ struct BillingAPIClient: Sendable {
 
     /// Sends the request. 5xx and network errors fail over to the next host; 4xx are final.
     func send(_ endpoint: Endpoint) async throws -> BillingCustomerResponse {
-        do { return try JSONDecoder().decode(BillingCustomerResponse.self, from: try await sendRaw(endpoint)) }
+        do {
+            let response = try JSONDecoder().decode(BillingCustomerResponse.self, from: try await sendRaw(endpoint))
+            if environmentProvider != nil || environment != nil {
+                guard let selected = environmentProvider?() ?? environment, response.info.environment == selected else { throw AppReferBillingError.invalidResponse }
+            }
+            return response
+        }
         catch let error as AppReferBillingError { throw error }
         catch { throw AppReferBillingError.invalidResponse }
     }
+    /// A request-local purchase scope. The engine must separately authorize the exact proof
+    /// and commit the owned result; this never changes the default customer-read scope.
+    func sendPurchaseInEnvironment(_ endpoint: Endpoint, environment selected: BillingEnvironment, expectedKey: String) async throws -> BillingCustomerResponse {
+        guard case .purchase = endpoint else { throw AppReferBillingError.invalidResponse }
+        do {
+            let data = try await sendRaw(endpoint, selected: selected, expectedKey: expectedKey)
+            let response = try JSONDecoder().decode(BillingCustomerResponse.self, from: data)
+            guard apiKey() == expectedKey, response.info.environment == selected else { throw AppReferBillingError.invalidResponse }
+            return response
+        } catch let error as AppReferBillingError { throw error }
+        catch { throw AppReferBillingError.invalidResponse }
+    }
+
     func sendRaw(_ endpoint: Endpoint) async throws -> Data {
-        guard let key = await resolveApiKey() else { throw AppReferBillingError.missingApiKey }
+        try await sendRaw(endpoint, selected: nil, expectedKey: nil)
+    }
+
+    private func sendRaw(_ endpoint: Endpoint, selected override: BillingEnvironment?, expectedKey: String?) async throws -> Data {
+        guard let key = await awaitKey() else { throw AppReferBillingError.missingApiKey }
+        if let expectedKey, key != expectedKey { throw AppReferBillingError.invalidResponse }
         var lastError = AppReferBillingError.network("no endpoint")
 
         for baseURL in baseURLs {
-            let request = try Self.makeRequest(endpoint, baseURL: baseURL, apiKey: key, timeout: timeout)
+            if let expectedKey, apiKey() != expectedKey { throw AppReferBillingError.invalidResponse }
+            var request = try Self.makeRequest(endpoint, baseURL: baseURL, apiKey: key, timeout: timeout)
+            if override != nil || environmentProvider != nil || environment != nil {
+                guard let expected = override ?? environmentProvider?() ?? environment else { throw AppReferBillingError.invalidResponse }
+                let selected = try BillingEnvironment.select(apiKey: key, explicit: expected)
+                request.setValue(selected.rawValue, forHTTPHeaderField: "X-AppRefer-Billing-Environment")
+            }
             let response: BillingHTTPResponse
             do {
                 response = try await transport.send(request)
@@ -254,6 +294,7 @@ struct BillingAPIClient: Sendable {
                 continue
             }
 
+            if let expectedKey, apiKey() != expectedKey { throw AppReferBillingError.invalidResponse }
             let (data, status) = (response.data, response.status)
             if (200..<300).contains(status) {
                 if case .purchase = endpoint, !Self.isRecorded(data) {
@@ -265,7 +306,12 @@ struct BillingAPIClient: Sendable {
                 }
                 return data
             }
-            let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
+            let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            if case .purchase = endpoint, status == 400, payload?["code"] as? String == "billing_environment_mismatch",
+               let raw = payload?["environment"] as? String, let actual = BillingEnvironment(rawValue: raw) {
+                throw AppReferBillingError.environmentMismatch(actual)
+            }
+            let message = payload?["error"] as? String
             let error = AppReferBillingError.server(
                 status: status, message: message, retryAfter: Self.parseRetryAfter(response.retryAfter, now: Date())
             )

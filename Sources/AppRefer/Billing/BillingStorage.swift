@@ -238,14 +238,18 @@ final class BillingStorage {
     var resetUser: String? {
         get { if case .user(let marker) = storedResetUser { return marker }; return nil }
         set {
+            if newValue != nil { defaults.set(UUID().uuidString, forKey: "apprefer_billing_automatic_reset_generation") }
             if secure.set(newValue, forKey: Key.resetUser) || newValue == nil { defaults.removeObject(forKey: Key.resetUser) }
             else { defaults.set(newValue, forKey: Key.resetUser) }
         }
     }
 
+    var automaticResetGeneration: String? { defaults.string(forKey: "apprefer_billing_automatic_reset_generation") }
+
     /// Called by reset() when Billing isn't configured in this process: remembers the stored
     /// Billing user (anonymous or not). Nothing is stored when Billing never had a user.
     func recordAccountReset() {
+        defaults.set(UUID().uuidString, forKey: "apprefer_billing_automatic_reset_generation")
         guard let current = storedCurrentAppUserId else { return }
         resetUser = current
     }
@@ -405,6 +409,19 @@ final class BillingStorage {
         guard let data = try? JSONEncoder().encode(value) else { return }
         defaults.set(data, forKey: "apprefer_billing_offerings:" + user)
     }
+    func purchaseEnvironment(_ signedTransaction: String) -> BillingEnvironment? {
+        let key = SHA256.hash(data: Data(signedTransaction.utf8)).map { String(format: "%02x", $0) }.joined()
+        let stored = defaults.dictionary(forKey: "apprefer_billing_proof_environments") as? [String: String] ?? [:]
+        return stored[key].flatMap(BillingEnvironment.init(rawValue:))
+    }
+
+    func recordPurchaseEnvironment(_ signedTransaction: String, environment: BillingEnvironment) {
+        let key = SHA256.hash(data: Data(signedTransaction.utf8)).map { String(format: "%02x", $0) }.joined()
+        var stored = defaults.dictionary(forKey: "apprefer_billing_proof_environments") as? [String: String] ?? [:]
+        stored[key] = environment.rawValue
+        defaults.set(stored, forKey: "apprefer_billing_proof_environments")
+    }
+
     private var customerInfoURL: URL { directory.appendingPathComponent("customer_info.json") }
 
     func cachedCustomerInfo() -> AppReferCustomerInfo? {
