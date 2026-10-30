@@ -144,7 +144,7 @@ final class BillingStorage {
 
     private func migrationURL(_ user: String) -> URL {
         let key = SHA256.hash(data: Data(user.utf8)).map { String(format: "%02x", $0) }.joined()
-        return directory.appendingPathComponent("migration-\(key).flag")
+        return directory.appendingPathComponent("migration-v2-\(key).flag")
     }
 
     // MARK: - Identity
@@ -273,6 +273,15 @@ final class BillingStorage {
 
     // MARK: - Account tokens (Apple appAccountToken per app user)
 
+    func legacyAccountToken(for user: String) -> UUID? {
+        (defaults.dictionary(forKey: "apprefer_billing_legacy_tokens") as? [String: String])?[user].flatMap(UUID.init(uuidString:))
+    }
+    func setLegacyAccountToken(_ token: String?, for user: String) {
+        var all = defaults.dictionary(forKey: "apprefer_billing_legacy_tokens") as? [String: String] ?? [:]
+        all[user] = token.flatMap { UUID(uuidString: $0)?.uuidString }
+        defaults.set(all, forKey: "apprefer_billing_legacy_tokens")
+    }
+
     func accountToken(for appUserId: String) -> UUID? {
         guard let raw = (defaults.dictionary(forKey: Key.accountTokens) as? [String: String])?[appUserId] else { return nil }
         return UUID(uuidString: raw)
@@ -282,6 +291,7 @@ final class BillingStorage {
     func appUserId(forAccountToken token: UUID) -> String? {
         let all = defaults.dictionary(forKey: Key.accountTokens) as? [String: String] ?? [:]
         return all.first { UUID(uuidString: $0.value) == token }?.key
+            ?? (defaults.dictionary(forKey: "apprefer_billing_legacy_tokens") as? [String: String] ?? [:]).first { UUID(uuidString: $0.value) == token }?.key
     }
 
     func setAccountToken(_ token: String, for appUserId: String) {

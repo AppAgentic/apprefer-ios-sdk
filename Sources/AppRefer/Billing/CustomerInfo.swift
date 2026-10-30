@@ -285,8 +285,9 @@ public enum BillingSubscriptionState: String, Sendable, Codable {
 struct BillingCustomerResponse: Decodable, Sendable {
     let info: AppReferCustomerInfo
     let accountToken: String?
+    var legacyAppAccountToken: String? = nil
 
-    private enum Keys: String, CodingKey { case accountToken }
+    private enum Keys: String, CodingKey { case accountToken, legacyAppAccountToken }
 
     init(info: AppReferCustomerInfo, accountToken: String?) {
         self.info = info
@@ -296,5 +297,6 @@ struct BillingCustomerResponse: Decodable, Sendable {
     init(from decoder: Decoder) throws {
         info = try AppReferCustomerInfo(from: decoder).with(source: .server)
         accountToken = try? decoder.container(keyedBy: Keys.self).decode(String.self, forKey: .accountToken)
+        legacyAppAccountToken = try? decoder.container(keyedBy: Keys.self).decode(String.self, forKey: .legacyAppAccountToken)
     }
 }
