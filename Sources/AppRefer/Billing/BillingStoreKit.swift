@@ -40,6 +40,7 @@ struct StoreKitUpdate: Sendable {
 protocol BillingStoreKit: Sendable {
     func products(_ ids: [String]) async throws -> [Product]
     func storefrontCountry() async -> String?
+    func storeEnvironment() async -> BillingEnvironment?
     /// Verified `Transaction.currentEntitlements`.
     func currentEntitlements() async -> [StoreTransaction]
     /// `Transaction.unfinished`, e.g. after a crash between purchase and finish.
@@ -53,8 +54,12 @@ protocol BillingStoreKit: Sendable {
 extension BillingStoreKit {
     func products(_ ids: [String]) async throws -> [Product] { try await Product.products(for: ids) }
     func storefrontCountry() async -> String? { nil }
+    func storeEnvironment() async -> BillingEnvironment? { nil }
 }
 struct LiveBillingStoreKit: BillingStoreKit {
+    func storeEnvironment() async -> BillingEnvironment? {
+        await VerifiedBillingStoreContext.environment().flatMap(BillingEnvironment.init(rawValue:))
+    }
     func storefrontCountry() async -> String? {
         guard let storefront = await Storefront.current else { return nil }
         return StorefrontCountry.alpha2(storefront.countryCode)

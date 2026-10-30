@@ -127,9 +127,10 @@ public enum AppReferBilling {
         }
 
         let explicitKey = apiKey
+        let storeContext = ResolvedBillingStoreContext()
+        let storeKit = LiveBillingStoreKit()
         let scope: @Sendable () -> BillingEnvironment? = {
-            guard let key = explicitKey ?? AppRefer.currentApiKey() else { return environment }
-            return try? BillingEnvironment.select(apiKey: key, explicit: environment)
+            storeContext.select(apiKey: explicitKey ?? AppRefer.currentApiKey(), explicit: environment)
         }
         let storage = BillingStorage.live()
         let broadcaster = self.broadcaster
@@ -148,7 +149,7 @@ public enum AppReferBilling {
             ),
             storage: storage,
             queue: PendingPurchaseQueue(fileURL: storage.directory.appendingPathComponent("pending_purchases.json")),
-            storeKit: LiveBillingStoreKit(),
+            storeKit: storeKit,
             options: .init(productEntitlements: entitlementsByProduct, defaultEntitlement: defaultEntitlement, environment: scope),
             appUserId: appUserId,
             // Same gate as Support: no device id while collection is off, or after
@@ -166,7 +167,10 @@ public enum AppReferBilling {
         _engine = engine
         lock.unlock()
 
-        DispatchQueue.main.async { Task { await engine.start() } }
+        DispatchQueue.main.async { Task {
+            await storeContext.resolve(from: storeKit, explicit: environment)
+            await engine.start()
+        } }
         observeForeground(engine)
     }
 
@@ -285,7 +289,9 @@ public enum AppReferBilling {
         if let engine { return await engine.customerInfo(policy: fetchPolicy) }
         // Before Billing.configure, only the registered key can select a scope.
         let transactions = await LiveBillingStoreKit().currentEntitlements()
-        let selected = AppRefer.currentApiKey().flatMap { try? BillingEnvironment.select(apiKey: $0) }
+        let key = AppRefer.currentApiKey()
+        let detected = key?.hasPrefix("pk_test_") == true ? BillingEnvironment.sandbox : await LiveBillingStoreKit().storeEnvironment()
+        let selected = key != nil && key == AppRefer.currentApiKey() ? detected : nil
         let local = LocalEntitlements.compute(
             transactions: transactions.filter { selected != nil && $0.environment == selected },
             configured: [:], learned: [:], defaultEntitlement: nil, now: Date()

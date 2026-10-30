@@ -56,6 +56,9 @@ final class MockBillingTransport: BillingTransport, @unchecked Sendable {
 }
 
 final class FakeStoreKit: BillingStoreKit, @unchecked Sendable {
+    var storeEnvironmentResult: BillingEnvironment?
+    var storeEnvironmentQueries = 0
+    func storeEnvironment() async -> BillingEnvironment? { storeEnvironmentQueries += 1; return storeEnvironmentResult }
     var entitlements: [StoreTransaction]
     var unfinished: [StoreKitUpdate] = []
     var syncCalls = 0
