@@ -23,6 +23,7 @@ struct StoreTransaction: Sendable, Equatable {
     /// A later transaction in a subscription chain (`originalId != id`). Renewals never
     /// match or consume a purchase intent: they belong to the original purchase's owner.
     var isRenewal: Bool { originalId != id }
+    var environment: BillingEnvironment? { BillingEnvironment.localTransaction(signedTransaction) }
 }
 
 /// One transaction delivered by StoreKit (purchase, update or unfinished).

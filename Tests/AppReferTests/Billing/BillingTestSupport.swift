@@ -184,7 +184,8 @@ struct BillingTestEnvironment {
                 baseURLs: ["https://trk.example.com", "https://main.example.com"],
                 apiKey: { apiKey },
                 transport: transport,
-                keyWaitAttempts: 0
+                keyWaitAttempts: 0,
+                environmentProvider: options.environment
             ),
             storage: storage ?? self.storage(),
             queue: queue ?? self.queue(),

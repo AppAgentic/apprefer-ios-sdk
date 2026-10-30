@@ -760,3 +760,13 @@ await AppRefer.setCollectionEnabled(false)
 Call this when collection consent is withdrawn. The choice persists across launches. Disabling cancels in-flight attribution, conversion-value, consent and product-event traffic, clears the durable event queue, and blocks activation/background retries. Configure returns cached attribution (or an unavailable/failed result if none exists) while disabled. Support and Billing continue independently. Call `setCollectionEnabled(true)` and then configure again to resume; enabling alone sends nothing. Calling it with `true` while collection is already on changes nothing (no pause, no queue clear). `configure(userId:)` still stores the user id while collection is off, so Support uses that account. Reset does not change this choice.
 
 Product events include `app_user_id` from the identity set via `setUserId` when tracked. The identity is saved in the queued payload, so retries and relaunches retain the original account even after a user switch. Without an identity the field is omitted. Internal events whose names start with `_` retain their existing payloads.
+
+### Billing environments (0.13.3 candidate)
+
+Billing snapshots use one environment. Test SDK keys default to sandbox; live SDK keys default to production. For store sandbox testing with a live key, explicitly choose sandbox in Billing configuration:
+
+```
+AppReferBilling.configure(apiKey: "pk_live_…", environment: .sandbox)
+```
+
+A test key cannot select production. Do not enable sandbox in your production build. Customer identities are shared, but cached snapshots and offline grants are accepted only for the selected environment. Historic unscoped caches and unknown local proof environments grant nothing until verified. Pending proofs are retained and classified by the server; receipts for the other environment remain queued for that environment.

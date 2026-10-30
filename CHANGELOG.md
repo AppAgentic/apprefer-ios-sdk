@@ -1,3 +1,9 @@
+## 0.13.3 (candidate, not published)
+
+- Isolate customer snapshots, caches and offline grants by production or sandbox. Public Billing configuration accepts an explicit environment, including sandbox with a live SDK key; test keys cannot select production.
+- Preserve and classify legacy pending store proofs using server-verified environments. Other-environment receipts stay queued without expiring or blocking valid work. Read-only migration checkpoints are scoped per environment; app identities and ownership tokens remain shared.
+- Unknown local environments and historic unscoped caches grant nothing until verified.
+
 ## 0.13.2 (2026-10-30)
 
 - Preserve online access and automatically import verified legacy purchases whose account tag matches the current user: Apple UUID user ids and Google Play standard Base64 SHA-256 user ids. Foreign and unknown tags remain excluded; an explicitly registered foreign token takes precedence.

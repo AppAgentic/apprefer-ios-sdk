@@ -405,6 +405,19 @@ final class BillingStorage {
         guard let data = try? JSONEncoder().encode(value) else { return }
         defaults.set(data, forKey: "apprefer_billing_offerings:" + user)
     }
+    func purchaseEnvironment(_ signedTransaction: String) -> BillingEnvironment? {
+        let key = SHA256.hash(data: Data(signedTransaction.utf8)).map { String(format: "%02x", $0) }.joined()
+        let stored = defaults.dictionary(forKey: "apprefer_billing_proof_environments") as? [String: String] ?? [:]
+        return stored[key].flatMap(BillingEnvironment.init(rawValue:))
+    }
+
+    func recordPurchaseEnvironment(_ signedTransaction: String, environment: BillingEnvironment) {
+        let key = SHA256.hash(data: Data(signedTransaction.utf8)).map { String(format: "%02x", $0) }.joined()
+        var stored = defaults.dictionary(forKey: "apprefer_billing_proof_environments") as? [String: String] ?? [:]
+        stored[key] = environment.rawValue
+        defaults.set(stored, forKey: "apprefer_billing_proof_environments")
+    }
+
     private var customerInfoURL: URL { directory.appendingPathComponent("customer_info.json") }
 
     func cachedCustomerInfo() -> AppReferCustomerInfo? {

@@ -115,7 +115,8 @@ public enum AppReferBilling {
         entitlementsByProduct: [String: [String]] = [:],
         defaultEntitlement: String? = nil,
         debug: Bool = false,
-        logLevel: Int = 1
+        logLevel: Int = 1,
+        environment: BillingEnvironment? = nil
     ) {
         let logger = AppReferLogger(debug: debug, logLevel: logLevel)
         lock.lock()
@@ -126,8 +127,13 @@ public enum AppReferBilling {
         }
 
         let explicitKey = apiKey
+        let scope: @Sendable () -> BillingEnvironment? = {
+            guard let key = explicitKey ?? AppRefer.currentApiKey() else { return environment }
+            return try? BillingEnvironment.select(apiKey: key, explicit: environment)
+        }
         let storage = BillingStorage.live()
         let broadcaster = self.broadcaster
+        broadcaster.setValidator { info in scope().map { info.environment == $0 } ?? false }
         let engine = BillingEngine(
             api: BillingAPIClient(
                 // Purchases may be forwarded as conversions only for ATT-authorized installs,
@@ -137,12 +143,13 @@ public enum AppReferBilling {
                     [AppRefer.installLinkAllowed() ? LiveTrackingStatusProvider().current().baseURL : AppReferConfig.backendURL]
                 },
                 apiKey: { explicitKey ?? AppRefer.currentApiKey() },
-                transport: URLSessionBillingTransport()
+                transport: URLSessionBillingTransport(),
+                environmentProvider: scope
             ),
             storage: storage,
             queue: PendingPurchaseQueue(fileURL: storage.directory.appendingPathComponent("pending_purchases.json")),
             storeKit: LiveBillingStoreKit(),
-            options: .init(productEntitlements: entitlementsByProduct, defaultEntitlement: defaultEntitlement),
+            options: .init(productEntitlements: entitlementsByProduct, defaultEntitlement: defaultEntitlement, environment: scope),
             appUserId: appUserId,
             // Same gate as Support: no device id while collection is off, or after
             // reset() until configure runs again.
@@ -151,6 +158,7 @@ public enum AppReferBilling {
             onChange: { info in
                 broadcaster.publish(info)
                 DispatchQueue.main.async {
+                    guard broadcaster.isValid(info) else { return }
                     AppReferBilling.delegate?.appReferBilling(didReceiveUpdated: info)
                 }
             }
@@ -275,12 +283,15 @@ public enum AppReferBilling {
     /// answer comes from StoreKit's verified current entitlements merged with the cache.
     public static func customerInfo(fetchPolicy: FetchPolicy = .cachedOrFetched) async -> AppReferCustomerInfo {
         if let engine { return await engine.customerInfo(policy: fetchPolicy) }
-        // Not configured: still never lock a payer out.
+        // Before Billing.configure, only the registered key can select a scope.
+        let transactions = await LiveBillingStoreKit().currentEntitlements()
+        let selected = AppRefer.currentApiKey().flatMap { try? BillingEnvironment.select(apiKey: $0) }
         let local = LocalEntitlements.compute(
-            transactions: await LiveBillingStoreKit().currentEntitlements(),
+            transactions: transactions.filter { selected != nil && $0.environment == selected },
             configured: [:], learned: [:], defaultEntitlement: nil, now: Date()
         )
-        return LocalEntitlements.merge(server: nil, local: local, appUserId: "", now: Date(), source: .localFallback)
+        let result = LocalEntitlements.merge(server: nil, local: local, appUserId: "", now: Date(), source: .localFallback)
+        return AppReferCustomerInfo(appUserId: result.appUserId, entitlements: result.entitlements, activeSubscriptions: result.activeSubscriptions, requestDate: result.requestDate, source: result.source, environment: selected)
     }
 
     /// Every entitlement change, starting with the latest known value.
@@ -377,25 +388,29 @@ public enum AppReferBilling {
 /// Fans entitlement changes out to any number of `AsyncStream` subscribers.
 final class CustomerInfoBroadcaster: @unchecked Sendable {
     private let lock = NSLock()
+    private var validator: @Sendable (AppReferCustomerInfo) -> Bool = { _ in true }
+    func setValidator(_ value: @escaping @Sendable (AppReferCustomerInfo) -> Bool) { lock.lock(); validator = value; lock.unlock() }
+    func isValid(_ info: AppReferCustomerInfo) -> Bool { lock.lock(); let check = validator; lock.unlock(); return check(info) }
     private var latest: AppReferCustomerInfo?
     private var continuations: [UUID: AsyncStream<AppReferCustomerInfo>.Continuation] = [:]
 
     func publish(_ info: AppReferCustomerInfo) {
+        guard isValid(info) else { return }
         lock.lock()
         latest = info
         let targets = Array(continuations.values)
         lock.unlock()
-        for continuation in targets { continuation.yield(info) }
+        for continuation in targets where isValid(info) { continuation.yield(info) }
     }
 
     func stream() -> AsyncStream<AppReferCustomerInfo> {
-        AsyncStream { continuation in
+        let buffered = AsyncStream<AppReferCustomerInfo> { continuation in
             let id = UUID()
             lock.lock()
             continuations[id] = continuation
             let current = latest
             lock.unlock()
-            if let current { continuation.yield(current) }
+            if let current, isValid(current) { continuation.yield(current) }
             continuation.onTermination = { [weak self] _ in
                 guard let self else { return }
                 self.lock.lock()
@@ -403,5 +418,26 @@ final class CustomerInfoBroadcaster: @unchecked Sendable {
                 self.lock.unlock()
             }
         }
+        let reader = ScopedCustomerInfoReader(buffered) { [weak self] in self?.isValid($0) == true }
+        // Unfolding runs when next() is consumed, rather than when the broadcaster
+        // queued the element. A key change cannot replay an old buffered grant.
+        return AsyncStream(unfolding: { await reader.next() })
+    }
+}
+
+/// AsyncIteratorProtocol requires serial next() calls. The stream's unfolding
+/// closure owns this iterator; it never escapes to another consumer.
+private final class ScopedCustomerInfoReader: @unchecked Sendable {
+    private var iterator: AsyncStream<AppReferCustomerInfo>.Iterator
+    private let valid: @Sendable (AppReferCustomerInfo) -> Bool
+    init(_ stream: AsyncStream<AppReferCustomerInfo>, valid: @escaping @Sendable (AppReferCustomerInfo) -> Bool) {
+        iterator = stream.makeAsyncIterator()
+        self.valid = valid
+    }
+    func next() async -> AppReferCustomerInfo? {
+        while let info = await iterator.next() {
+            if valid(info) { return info }
+        }
+        return nil
     }
 }
