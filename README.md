@@ -761,7 +761,7 @@ Call this when collection consent is withdrawn. The choice persists across launc
 
 Product events include `app_user_id` from the identity set via `setUserId` when tracked. The identity is saved in the queued payload, so retries and relaunches retain the original account even after a user switch. Without an identity the field is omitted. Internal events whose names start with `_` retain their existing payloads.
 
-### Billing environments (0.13.3 candidate)
+### Billing environments (0.13.3)
 
 Billing snapshots use one environment. Test SDK keys select sandbox. Live keys automatically retain an owned store context, starting in production when none is known. New sandbox review/test purchases can select sandbox after store verification and a server answer confirming the captured buyer; no host toggle or special review build is required. Apple also uses verified app transaction context when available. Explicit selections remain strict. For controlled sandbox testing with a live key, you can explicitly choose sandbox:
 
