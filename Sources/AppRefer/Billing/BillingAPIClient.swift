@@ -132,15 +132,17 @@ struct BillingAPIClient: Sendable {
     let timeout: TimeInterval
     /// 100 ms polls while waiting for the SDK key.
     let keyWaitAttempts: Int
+    let environment: BillingEnvironment?
 
     init(
         baseURLs: [String],
         apiKey: @escaping @Sendable () -> String?,
         transport: BillingTransport,
         timeout: TimeInterval = 15,
-        keyWaitAttempts: Int = 30
+        keyWaitAttempts: Int = 30,
+        environment: BillingEnvironment? = nil
     ) {
-        self.init(baseURLProvider: { baseURLs }, apiKey: apiKey, transport: transport, timeout: timeout, keyWaitAttempts: keyWaitAttempts)
+        self.init(baseURLProvider: { baseURLs }, apiKey: apiKey, transport: transport, timeout: timeout, keyWaitAttempts: keyWaitAttempts, environment: environment)
     }
 
     init(
@@ -148,13 +150,15 @@ struct BillingAPIClient: Sendable {
         apiKey: @escaping @Sendable () -> String?,
         transport: BillingTransport,
         timeout: TimeInterval = 15,
-        keyWaitAttempts: Int = 30
+        keyWaitAttempts: Int = 30,
+        environment: BillingEnvironment? = nil
     ) {
         self.baseURLProvider = baseURLProvider
         self.apiKey = apiKey
         self.transport = transport
         self.timeout = timeout
         self.keyWaitAttempts = keyWaitAttempts
+        self.environment = environment
     }
 
     static func makeRequest(_ endpoint: Endpoint, baseURL: String, apiKey: String, timeout: TimeInterval = 15) throws -> URLRequest {
@@ -233,7 +237,11 @@ struct BillingAPIClient: Sendable {
 
     /// Sends the request. 5xx and network errors fail over to the next host; 4xx are final.
     func send(_ endpoint: Endpoint) async throws -> BillingCustomerResponse {
-        do { return try JSONDecoder().decode(BillingCustomerResponse.self, from: try await sendRaw(endpoint)) }
+        do {
+            let response = try JSONDecoder().decode(BillingCustomerResponse.self, from: try await sendRaw(endpoint))
+            if let environment, response.info.environment != environment { throw AppReferBillingError.invalidResponse }
+            return response
+        }
         catch let error as AppReferBillingError { throw error }
         catch { throw AppReferBillingError.invalidResponse }
     }
@@ -242,7 +250,11 @@ struct BillingAPIClient: Sendable {
         var lastError = AppReferBillingError.network("no endpoint")
 
         for baseURL in baseURLs {
-            let request = try Self.makeRequest(endpoint, baseURL: baseURL, apiKey: key, timeout: timeout)
+            var request = try Self.makeRequest(endpoint, baseURL: baseURL, apiKey: key, timeout: timeout)
+            if let environment {
+                _ = try BillingEnvironment.select(apiKey: key, explicit: environment)
+                request.setValue(environment.rawValue, forHTTPHeaderField: "X-AppRefer-Billing-Environment")
+            }
             let response: BillingHTTPResponse
             do {
                 response = try await transport.send(request)
