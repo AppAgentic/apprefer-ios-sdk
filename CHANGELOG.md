@@ -1,3 +1,9 @@
+## 0.13.2 (2026-10-30)
+
+- Preserve online access and automatically import verified legacy purchases whose account tag matches the current user: Apple UUID user ids and Google Play standard Base64 SHA-256 user ids. Foreign and unknown tags remain excluded; an explicitly registered foreign token takes precedence.
+- Retry the once-per-user read-only import after upgrading from versions that skipped tagged legacy purchases, retaining per-purchase checkpoints and never invoking Restore or completing/consuming imports.
+- Source candidate only until the reviewed tag and release receipts are available.
+
 ## 0.13.1 (2026-10-20)
 
 - Support home on narrow screens (320 pt, iPhone Duo cover) and with large text: help-article summaries wrap to 3 lines instead of stopping after a few words (`SupportLines.homeSummary`; the help centre keeps 2), quick-help tile subtitles wrap to 2 lines with both tiles of a row sharing the taller height (rows of two instead of `LazyVGrid`), and an empty subtitle adds no blank line. The floating composer (with its topic chip and error line) is now a bottom `safeAreaInset` of the home's scroll view instead of a `ZStack` overlay over a fixed 140 pt bottom padding, so the page ends 64 pt above the composer as it really is (photos, up to five lines, large text, keyboard) and the last tiles always scroll clear of it, while the glass bar still floats over the content. Sheet presentation is unchanged. No API, string or behaviour change otherwise.

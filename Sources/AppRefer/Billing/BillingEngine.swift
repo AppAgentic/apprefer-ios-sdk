@@ -315,6 +315,11 @@ actor BillingEngine {
         guard user == active, !storage.migrationSynced(user),
               migratingUsers.insert(user).inserted else { return }
         defer { migratingUsers.remove(user) }
+        if UUID(uuidString: user) != nil {
+            if storage.legacyAccountToken(for: user) == nil { registeredUsers.remove(user) }
+            _ = try? await fetchFromServer(user, drain: false)
+        }
+        guard activeUser() == user else { return }
         let open = Set(await storeKit.unfinishedTransactions().map(\.transactionId))
         let transactions = await storeKit.currentEntitlements()
         guard activeUser() == user else { return }
@@ -323,7 +328,9 @@ actor BillingEngine {
         for transaction in transactions {
             guard activeUser() == user else { return }
             if open.contains(transaction.id) { durable = false; continue }
-            if let token = transaction.appAccountToken, storage.appUserId(forAccountToken: token) != user {
+            if let token = transaction.appAccountToken, !ownsAccountToken(token, user: user) {
+                // Backend may not support legacy ownership yet. Retry after it does.
+                if UUID(uuidString: user) == token { durable = false }
                 continue // A foreign or unknown token must never be claimed by this user.
             }
             let progress = "\(Data(user.utf8).base64EncodedString()):\(transaction.id)"
@@ -405,6 +412,7 @@ actor BillingEngine {
     /// Stores a server answer and returns what callers should see.
     private func accept(_ response: BillingCustomerResponse, for user: String) async -> AppReferCustomerInfo {
         if let token = response.accountToken { storage.setAccountToken(token, for: response.info.appUserId) }
+        storage.setLegacyAccountToken(response.legacyAppAccountToken, for: response.info.appUserId)
         storage.learnEntitlements(from: response.info)
         guard response.info.appUserId == user, user == activeUser() else {
             // Answer for a user who is no longer current (logIn/logOut raced it).
@@ -426,12 +434,24 @@ actor BillingEngine {
         return mergeLocal(into: info, transactions: transactions, user: info.appUserId, source: info.source)
     }
 
+    /// RevenueCat StoreKit 2 used UUID(appUserId), not AppRefer's random token.
+    /// A locally registered foreign owner always wins over this compatibility rule.
+    private func ownsAccountToken(_ token: UUID, user: String) -> Bool {
+        if let owner = storage.appUserId(forAccountToken: token) { return owner == user }
+        return token == storage.accountToken(for: user) || storage.legacyAccountToken(for: user) == token
+    }
+
+    private func blocksQueuedToken(_ token: UUID?, user: String) -> Bool {
+        guard let token else { return false }
+        if let owner = storage.appUserId(forAccountToken: token), owner != user { return true }
+        return UUID(uuidString: user) == token && !ownsAccountToken(token, user: user)
+    }
+
     /// This user's verified StoreKit entitlements (see `withPendingLocal`).
     private func ownedTransactions(_ user: String) async -> [StoreTransaction] {
-        let token = storage.accountToken(for: user)
         let queued = Set(queue.entries.filter { $0.appUserId == user }.map(\.transactionId))
         return await storeKit.currentEntitlements().filter {
-            $0.appAccountToken == nil || $0.appAccountToken == token || queued.contains($0.id)
+            ($0.appAccountToken.map { ownsAccountToken($0, user: user) } ?? true) || (queued.contains($0.id) && !blocksQueuedToken($0.appAccountToken, user: user))
         }
     }
 
