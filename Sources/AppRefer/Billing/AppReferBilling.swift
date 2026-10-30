@@ -129,10 +129,11 @@ public enum AppReferBilling {
         let explicitKey = apiKey
         let storeContext = ResolvedBillingStoreContext()
         let storeKit = LiveBillingStoreKit()
-        let scope: @Sendable () -> BillingEnvironment? = {
-            storeContext.select(apiKey: explicitKey ?? AppRefer.currentApiKey(), explicit: environment)
-        }
         let storage = BillingStorage.live()
+        let automatic = AutomaticBillingScope(directory: storage.directory, apiKey: { explicitKey ?? AppRefer.currentApiKey() }, explicit: environment, resetEpoch: { AppRefer.accountEpoch() })
+        let scope: @Sendable () -> BillingEnvironment? = {
+            automatic.select(base: storeContext.select(apiKey: explicitKey ?? AppRefer.currentApiKey(), explicit: environment), verifiedStoreEnvironment: storeContext.verifiedEnvironment)
+        }
         let broadcaster = self.broadcaster
         broadcaster.setValidator { info in scope().map { info.environment == $0 } ?? false }
         let engine = BillingEngine(
@@ -150,7 +151,7 @@ public enum AppReferBilling {
             storage: storage,
             queue: PendingPurchaseQueue(fileURL: storage.directory.appendingPathComponent("pending_purchases.json")),
             storeKit: storeKit,
-            options: .init(productEntitlements: entitlementsByProduct, defaultEntitlement: defaultEntitlement, environment: scope),
+            options: .init(productEntitlements: entitlementsByProduct, defaultEntitlement: defaultEntitlement, environment: scope, automaticScope: automatic),
             appUserId: appUserId,
             // Same gate as Support: no device id while collection is off, or after
             // reset() until configure runs again.

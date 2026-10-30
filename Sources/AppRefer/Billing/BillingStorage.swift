@@ -238,14 +238,18 @@ final class BillingStorage {
     var resetUser: String? {
         get { if case .user(let marker) = storedResetUser { return marker }; return nil }
         set {
+            if newValue != nil { defaults.set(UUID().uuidString, forKey: "apprefer_billing_automatic_reset_generation") }
             if secure.set(newValue, forKey: Key.resetUser) || newValue == nil { defaults.removeObject(forKey: Key.resetUser) }
             else { defaults.set(newValue, forKey: Key.resetUser) }
         }
     }
 
+    var automaticResetGeneration: String? { defaults.string(forKey: "apprefer_billing_automatic_reset_generation") }
+
     /// Called by reset() when Billing isn't configured in this process: remembers the stored
     /// Billing user (anonymous or not). Nothing is stored when Billing never had a user.
     func recordAccountReset() {
+        defaults.set(UUID().uuidString, forKey: "apprefer_billing_automatic_reset_generation")
         guard let current = storedCurrentAppUserId else { return }
         resetUser = current
     }

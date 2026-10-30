@@ -12,6 +12,7 @@ final class ResolvedBillingStoreContext: @unchecked Sendable {
     func resolve(_ value: BillingEnvironment?) {
         lock.lock(); detected = value; ready = true; lock.unlock()
     }
+    var verifiedEnvironment: BillingEnvironment? { lock.lock(); defer { lock.unlock() }; return ready ? detected : nil }
     func select(apiKey: String?, explicit: BillingEnvironment?) -> BillingEnvironment? {
         guard let apiKey else { return explicit }
         if explicit != nil || apiKey.hasPrefix("pk_test_") { return try? BillingEnvironment.select(apiKey: apiKey, explicit: explicit) }

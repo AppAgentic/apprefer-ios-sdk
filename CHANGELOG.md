@@ -3,6 +3,7 @@
 - Isolate customer snapshots, caches and offline grants by production or sandbox. Public Billing configuration accepts an explicit environment, including sandbox with a live SDK key; test keys cannot select production.
 - Preserve and classify legacy pending store proofs using server-verified environments. Other-environment receipts stay queued without expiring or blocking valid work. Read-only migration checkpoints are scoped per environment; app identities and ownership tokens remain shared.
 - Unknown local environments and historic unscoped caches grant nothing until verified.
+- Automatically recover live-key sandbox purchases when verified app context is unavailable, using protected no-backup purchase authorization and owned server snapshots. Exact-proof recovery survives outages and restarts; account/key/reset changes revoke pending authorization. Explicit environments remain strict.
 
 ## 0.13.2 (2026-10-30)
 
