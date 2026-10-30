@@ -13,6 +13,8 @@ final class AutomaticBillingScope: @unchecked Sendable {
     private struct Authorization: Codable {
         let context: String
         let generation: UUID
+        var intent: String? = nil
+        var proof: String? = nil
     }
     private struct Document: Codable {
         var user: String?
@@ -107,16 +109,24 @@ final class AutomaticBillingScope: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         guard let ticket = captureLocked(user: intent.appUserId),
               let authorization = document.intents[intent.id.uuidString], matches(authorization, ticket),
+              authorization.proof == nil || authorization.proof == hash(transaction.signedTransaction),
               !transaction.isRenewal, transaction.productId == intent.productId,
               transaction.purchaseDate >= intent.startedAt.addingTimeInterval(-300),
               intent.accountToken == nil || intent.accountToken == transaction.appAccountToken else { return nil }
         return ticket
     }
-    func authorizeProof(_ proof: String, ticket: Ticket) throws {
+    func authorizeProof(_ proof: String, ticket: Ticket, intent: PurchaseIntent? = nil) throws {
         lock.lock(); defer { lock.unlock() }
         guard current(ticket) else { throw AppReferBillingError.invalidResponse }
         var next = document
-        next.proofs[hash(proof)] = Authorization(context: context(ticket.user, ticket.key), generation: ticket.generation)
+        let previous = next.proofs[hash(proof)]
+        var authorization = Authorization(context: context(ticket.user, ticket.key), generation: ticket.generation, intent: previous.flatMap { matches($0, ticket) ? $0.intent : nil })
+        if let intent {
+            let id = intent.id.uuidString
+            guard var pending = next.intents[id], matches(pending, ticket), pending.proof == nil || pending.proof == hash(proof) else { throw AppReferBillingError.invalidResponse }
+            pending.proof = hash(proof); next.intents[id] = pending; authorization.intent = id
+        }
+        next.proofs[hash(proof)] = authorization
         try save(next)
     }
     func recoverProof(user: String, proof: String) -> Ticket? {
@@ -133,10 +143,14 @@ final class AutomaticBillingScope: @unchecked Sendable {
         var next = document; next.proofs.removeValue(forKey: hash(proof)); try save(next)
     }
     /// Called after a server answer has confirmed both environment and captured owner.
-    @discardableResult func commit(_ ticket: Ticket, environment: BillingEnvironment, owner: String) throws -> Bool {
+    @discardableResult func commit(_ ticket: Ticket, environment: BillingEnvironment, owner: String, acceptedProof: String? = nil) throws -> Bool {
         lock.lock(); defer { lock.unlock() }
         guard current(ticket), owner == ticket.user else { return false }
         var next = document; next.environments[context(ticket.user, ticket.key)] = environment
+        if let acceptedProof {
+            if let id = next.proofs[hash(acceptedProof)]?.intent { next.intents.removeValue(forKey: id) }
+            next.proofs.removeValue(forKey: hash(acceptedProof))
+        }
         try save(next); committedThisLaunch.insert(context(ticket.user, ticket.key)); return true
     }
     func inheritConfirmedAnonymous(_ anonymous: String, ticket: Ticket, owner: String) throws {
@@ -182,17 +196,7 @@ final class AutomaticBillingScope: @unchecked Sendable {
     private func save(_ next: Document) throws {
         guard usable else { throw AppReferBillingError.storage("Automatic billing state unavailable") }
         do {
-            try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-            // Protect and exclude the temporary file before rename, so no intermediate
-            // durable capability is eligible for backup or readable while locked.
-            let temporary = file.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
-            defer { try? FileManager.default.removeItem(at: temporary) }
-            try JSONEncoder().encode(next).write(to: temporary, options: [.completeFileProtection])
-            var values = URLResourceValues(); values.isExcludedFromBackup = true
-            var protectedURL = temporary; try protectedURL.setResourceValues(values)
-            if FileManager.default.fileExists(atPath: file.path) {
-                _ = try FileManager.default.replaceItemAt(file, withItemAt: temporary)
-            } else { try FileManager.default.moveItem(at: temporary, to: file) }
+            try ProtectedBillingState.write(JSONEncoder().encode(next), to: file)
             document = next
         } catch { usable = false; throw AppReferBillingError.storage("Could not save automatic billing state") }
     }

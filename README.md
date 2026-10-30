@@ -763,10 +763,10 @@ Product events include `app_user_id` from the identity set via `setUserId` when 
 
 ### Billing environments (0.13.3 candidate)
 
-Billing snapshots use one environment. Test SDK keys default to sandbox; live SDK keys default to production. For store sandbox testing with a live key, explicitly choose sandbox in Billing configuration:
+Billing snapshots use one environment. Test SDK keys select sandbox. Live keys automatically retain an owned store context, starting in production when none is known. New sandbox review/test purchases can select sandbox after store verification and a server answer confirming the captured buyer; no host toggle or special review build is required. Apple also uses verified app transaction context when available. Explicit selections remain strict. For controlled sandbox testing with a live key, you can explicitly choose sandbox:
 
 ```
 AppReferBilling.configure(apiKey: "pk_live_…", environment: .sandbox)
 ```
 
-A test key cannot select production. Do not enable sandbox in your production build. Customer identities are shared, but cached snapshots and offline grants are accepted only for the selected environment. Historic unscoped caches and unknown local proof environments grant nothing until verified. Pending proofs are retained and classified by the server; receipts for the other environment remain queued for that environment.
+A test key cannot select production. Do not enable sandbox in your production build. Customer identities are shared, but cached snapshots and offline grants are accepted only for the selected environment. Historic unscoped caches and unknown local proof environments grant nothing until verified. Pending proofs are retained and classified by the server. Only exact proofs authorized by a new caller-initiated purchase may recover automatic selection after an outage or restart; legacy queues, migration and Restore do not change it. Successful recording consumes both proof and originating intent authorization atomically. Other-environment legacy receipts remain queued for that environment.

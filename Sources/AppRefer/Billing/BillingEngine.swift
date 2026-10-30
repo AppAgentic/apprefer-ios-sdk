@@ -428,6 +428,9 @@ actor BillingEngine {
         }
         let info = await accept(response, for: user)
         if drain { await drainQueue() }
+        if options.environment != nil, info.environment != options.environment?(), let current = activeUser() {
+            return try await fetchFromServer(current, drain: false)
+        }
         return info
     }
 
@@ -649,8 +652,8 @@ actor BillingEngine {
                 ?? automatic?.recoverProof(user: owner, proof: transaction.signedTransaction)
             let response: BillingCustomerResponse
             if let ticket, let environment = transaction.environment {
-                try automatic?.authorizeProof(transaction.signedTransaction, ticket: ticket)
-                response = try await sendAuthorizedPurchase(endpoint, ticket: ticket, verifiedEnvironment: environment)
+                try automatic?.authorizeProof(transaction.signedTransaction, ticket: ticket, intent: intent)
+                response = try await sendAuthorizedPurchase(endpoint, ticket: ticket, verifiedEnvironment: environment, proof: transaction.signedTransaction)
                 storage.recordPurchaseEnvironment(transaction.signedTransaction, environment: environment)
                 try automatic?.forgetProof(transaction.signedTransaction)
             } else { response = try await api.send(endpoint) }
@@ -660,7 +663,7 @@ actor BillingEngine {
             dropIntent(intent)
             let info = await accept(response, for: owner)
             await drainQueue()
-            if owner == user { return info }
+            if owner == activeUser(), options.environment == nil || info.environment == options.environment?() { return info }
             // Someone else's purchase: the signed-in user still gets only their own access.
             guard let current = activeUser() else { return await lockedFallback() }
             return await reachableAnswer(for: current)
@@ -900,7 +903,7 @@ actor BillingEngine {
                 )
                 let response: BillingCustomerResponse
                 if let automaticTicket {
-                    response = try await sendAuthorizedPurchase(endpoint, ticket: automaticTicket, verifiedEnvironment: storage.purchaseEnvironment(entry.signedTransaction))
+                    response = try await sendAuthorizedPurchase(endpoint, ticket: automaticTicket, verifiedEnvironment: storage.purchaseEnvironment(entry.signedTransaction), proof: entry.signedTransaction)
                     try options.automaticScope?.forgetProof(entry.signedTransaction)
                 } else { response = try await api.send(endpoint) }
                 queue.remove(transactionId: entry.transactionId)
@@ -927,7 +930,7 @@ actor BillingEngine {
 
     /// Authorization was persisted before upload. A mismatch may redirect this exact
     /// request, but only an owned, generation-current answer can change read scope.
-    private func sendAuthorizedPurchase(_ endpoint: BillingAPIClient.Endpoint, ticket: AutomaticBillingScope.Ticket, verifiedEnvironment: BillingEnvironment?) async throws -> BillingCustomerResponse {
+    private func sendAuthorizedPurchase(_ endpoint: BillingAPIClient.Endpoint, ticket: AutomaticBillingScope.Ticket, verifiedEnvironment: BillingEnvironment?, proof: String) async throws -> BillingCustomerResponse {
         guard options.automaticScope?.isCurrent(ticket) == true else { throw AppReferBillingError.invalidResponse }
         let response: BillingCustomerResponse
         if let verifiedEnvironment {
@@ -942,7 +945,7 @@ actor BillingEngine {
             }
         }
         guard let environment = response.info.environment,
-              try options.automaticScope?.commit(ticket, environment: environment, owner: response.info.appUserId) == true else { throw AppReferBillingError.invalidResponse }
+              try options.automaticScope?.commit(ticket, environment: environment, owner: response.info.appUserId, acceptedProof: proof) == true else { throw AppReferBillingError.invalidResponse }
         return response
     }
 

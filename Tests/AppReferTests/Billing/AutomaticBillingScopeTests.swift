@@ -113,7 +113,8 @@ final class AutomaticBillingScopeTests: XCTestCase {
             return (try JSONSerialization.data(withJSONObject: ["appUserId": "buyer", "environment": selected, "entitlements": [:], "activeSubscriptions": []]), 200)
         }
         let engine = env.engine(transport: transport, options: .init(environment: scope, automaticScope: restarted), appUserId: "buyer", queue: queue, apiKey: "pk_live_a")
-        await engine.drainQueue()
+        let refreshed = await engine.customerInfo(policy: .fetchCurrent)
+        XCTAssertEqual(refreshed.environment, .sandbox)
         XCTAssertEqual(scope(), .sandbox)
         XCTAssertNil(queue.entry(transactionId: "authorized"))
         XCTAssertNotNil(queue.entry(transactionId: "legacy"))
@@ -258,6 +259,43 @@ final class AutomaticBillingScopeTests: XCTestCase {
         XCTAssertEqual(selected(), .sandbox)
         XCTAssertNil(restarted.recoverProof(user: "buyer", proof: transaction.signedTransaction))
         XCTAssertTrue(transport.requests(to: "/api/billing/v1/purchases").contains { $0.jsonBody?["signedTransaction"] as? String == transaction.signedTransaction })
+    }
+
+    func testAcceptedProofAtomicallyConsumesOriginatingIntentBeforePhysicalCleanup() throws {
+        let directory = directory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let scope = AutomaticBillingScope(directory: directory, apiKey: { "pk_live_a" }, explicit: nil)
+        try scope.setUser("buyer")
+        let ticket = try XCTUnwrap(scope.capture(user: "buyer"))
+        let intent = PurchaseIntent(appUserId: "buyer", productId: "plan", accountToken: nil, startedAt: BillingFixtures.now)
+        let transaction = StoreTransaction(id: "old", originalId: "old", productId: "plan", kind: .autoRenewable,
+            purchaseDate: BillingFixtures.now, expirationDate: nil, revocationDate: nil, isUpgraded: false,
+            periodType: .normal, signedTransaction: "old-proof")
+        try scope.authorizeIntent(intent, ticket: ticket)
+        try scope.authorizeProof(transaction.signedTransaction, ticket: ticket, intent: intent)
+        XCTAssertTrue(try scope.commit(ticket, environment: .sandbox, owner: "buyer", acceptedProof: transaction.signedTransaction))
+        // The physical PurchaseIntent can remain on disk after a failed removal/crash.
+        let restart = AutomaticBillingScope(directory: directory, apiKey: { "pk_live_a" }, explicit: nil)
+        let next = try XCTUnwrap(restart.capture(user: "buyer"))
+        XCTAssertTrue(try restart.commit(next, environment: .production, owner: "buyer"))
+        XCTAssertNil(restart.recoverIntent(intent, verified: transaction))
+        XCTAssertNil(restart.recoverProof(user: "buyer", proof: transaction.signedTransaction))
+        XCTAssertEqual(restart.environment(user: "buyer"), .production)
+    }
+
+    func testNewAuthorizedKeyCanRebindExactProofWithoutBorrowingPreviousKeyAuthorization() throws {
+        let directory = directory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let old = AutomaticBillingScope(directory: directory, apiKey: { "pk_live_old" }, explicit: nil)
+        try old.setUser("buyer")
+        try old.authorizeProof("same-proof", ticket: XCTUnwrap(old.capture(user: "buyer")))
+        let next = AutomaticBillingScope(directory: directory, apiKey: { "pk_live_new" }, explicit: nil)
+        XCTAssertNil(next.recoverProof(user: "buyer", proof: "same-proof"))
+        let intent = PurchaseIntent(appUserId: "buyer", productId: "plan", accountToken: nil, startedAt: BillingFixtures.now)
+        let ticket = try XCTUnwrap(next.capture(user: "buyer"))
+        try next.authorizeIntent(intent, ticket: ticket)
+        try next.authorizeProof("same-proof", ticket: ticket, intent: intent)
+        XCTAssertNotNil(next.recoverProof(user: "buyer", proof: "same-proof"))
     }
 
 }
