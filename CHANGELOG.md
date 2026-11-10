@@ -1,3 +1,10 @@
+## 0.14.0 (candidate, not published)
+
+- Support: `AppRefer.support.send(_:subject:context:)` starts a new conversation without opening the chat and returns its id, for an app's own "Report a problem" form. `context` (`[String: String]`) is the app's own data, sent as `context.app` on the new conversation and never shown to the customer. Empty text throws `AppReferSupportError` (code `EMPTY_TEXT`). One `clientMessageId` per call; network errors, 408, 429 and 5xx are retried twice (about 0.5 s and 1.5 s) with the same id, then thrown. Same session, profile, reset and 401 handling as the chat; a reset or account switch while it runs throws `CancellationError`.
+- Support: `compose(_:context:)` and `AppReferSupportView(composing:context:)` take the same optional data, sent only with the first conversation started from that chat (and its retries), never shown. `compose(text)` callers are unchanged.
+- `context.app` is cleaned on the device before sending (the server applies the same rules): keys `^[a-z0-9_]{1,40}$`, control characters as spaces, values trimmed and cut to 500 characters, empty values dropped, then the first 20 keys in sorted order; omitted when nothing is left.
+- Version 0.14.0.
+
 ## 0.13.3 (candidate, not published)
 
 - Isolate customer snapshots, caches and offline grants by production or sandbox. Public Billing configuration accepts an explicit environment, including sandbox with a live SDK key; test keys cannot select production.

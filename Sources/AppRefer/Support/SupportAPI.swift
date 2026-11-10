@@ -541,8 +541,12 @@ actor SupportAPI {
         return list.conversations
     }
 
-    func start(text: String, subject: String? = nil, attachmentIds: [String], clientMessageId: String, generation epoch: Int? = nil) async throws -> SupportThread {
-        var body: [String: Any] = ["text": text, "context": Self.context(), "clientMessageId": clientMessageId]
+    /// `appContext` goes out as `context.app` (cleaned first; omitted when nothing is left).
+    func start(text: String, subject: String? = nil, attachmentIds: [String], clientMessageId: String, appContext: [String: String] = [:], generation epoch: Int? = nil) async throws -> SupportThread {
+        var context = Self.context()
+        let app = Self.cleanAppContext(appContext)
+        if !app.isEmpty { context["app"] = app }
+        var body: [String: Any] = ["text": text, "context": context, "clientMessageId": clientMessageId]
         if let subject { body["subject"] = subject }
         if !attachmentIds.isEmpty { body["attachmentIds"] = attachmentIds }
         return try JSONDecoder().decode(SupportThread.self, from: try await call("POST", "/api/support/v1/conversations", body: body, expectedGeneration: epoch))
@@ -645,7 +649,66 @@ actor SupportAPI {
         }
     }
 
+    // MARK: - Start without the chat
+
+    /// Waits between attempts of a direct start after a network or server failure (tests shorten it).
+    private(set) var startRetryDelays: [UInt64] = [500_000_000, 1_500_000_000]
+    func setStartRetryDelays(_ delays: [UInt64]) { startRetryDelays = delays }
+
+    /// Starts a new conversation without the chat and returns its id. One clientMessageId for
+    /// every attempt, so a retry after a lost answer returns the stored conversation. Network,
+    /// 408, 429 and 5xx failures are retried twice, then thrown. A reset or account switch while
+    /// it runs throws CancellationError.
+    func startConversation(text: String, subject: String?, appContext: [String: String]) async throws -> String {
+        let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !body.isEmpty else {
+            throw AppReferSupportError(status: 0, message: "The message is empty", reason: .unavailable, code: "EMPTY_TEXT")
+        }
+        let subject = subject?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let epoch = generation
+        let clientMessageId = UUID().uuidString
+        var attempt = 0
+        while true {
+            do {
+                let thread = try await start(text: body, subject: subject, attachmentIds: [], clientMessageId: clientMessageId,
+                                             appContext: appContext, generation: epoch)
+                guard epoch == generation else { throw CancellationError() }
+                return thread.conversation.id
+            } catch {
+                if error is CancellationError || epoch != generation { throw CancellationError() }
+                // Not retried: a refusal (4xx), a locked Keychain, a missing key or a bad answer.
+                let transient = error is URLError || ((error as? AppReferSupportError).map {
+                    $0.reason == .server && ($0.status == 0 || $0.status == 408 || $0.status == 429 || $0.status >= 500)
+                } ?? false)
+                guard transient, attempt < startRetryDelays.count else { throw error }
+                try await Task.sleep(nanoseconds: startRetryDelays[attempt])
+                attempt += 1
+            }
+        }
+    }
+
     // MARK: - Context
+
+    /// The app's own data for `context.app`: keys `^[a-z0-9_]{1,40}$` only, control characters
+    /// as spaces, values trimmed and cut to 500 characters, empty values dropped, then the
+    /// first 20 keys in sorted order. The server applies the same rules.
+    static func cleanAppContext(_ context: [String: String]) -> [String: String] {
+        var result: [String: String] = [:]
+        for key in context.keys.sorted() {
+            guard result.count < 20, isAppContextKey(key), let raw = context[key] else { continue }
+            let spaced = String(String.UnicodeScalarView(raw.unicodeScalars.map { $0.properties.generalCategory == .control ? " " : $0 }))
+            let value = String(spaced.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500)).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty { result[key] = value }
+        }
+        return result
+    }
+
+    private static func isAppContextKey(_ key: String) -> Bool {
+        let bytes = Array(key.utf8)
+        guard (1...40).contains(bytes.count) else { return false }
+        return bytes.allSatisfy { (0x61...0x7A).contains($0) || (0x30...0x39).contains($0) || $0 == 0x5F }
+    }
+
 
     /// App version, device and OS, shown to the team with a new conversation.
     static func context() -> [String: Any] {

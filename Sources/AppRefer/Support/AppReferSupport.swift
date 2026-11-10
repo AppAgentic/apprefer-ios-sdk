@@ -157,9 +157,23 @@ public final class AppReferSupport {
     }
 
     /// Opens the help chat straight on a new message, optionally pre-filled
-    /// (e.g. a "Report a problem" button).
-    public func compose(_ text: String = "") {
-        present(AppReferSupportView(composing: text))
+    /// (e.g. a "Report a problem" button). `context` is your app's own data for the team
+    /// (e.g. `["course_id": "c_123"]`): never shown to the customer, sent only with the first
+    /// conversation started from this chat. Keys `a-z 0-9 _` (up to 40 characters), at most
+    /// 20 keys, values up to 500 characters; anything else is left out.
+    public func compose(_ text: String = "", context: [String: String] = [:]) {
+        present(AppReferSupportView(composing: text, context: context))
+    }
+
+    /// Starts a new conversation without opening the chat, for your own "Report a problem"
+    /// form, and returns its id. `context` is your app's own data for the team, never shown to
+    /// the customer (same rules as `compose`). The conversation then shows in the chat like
+    /// any other. Throws an `AppReferSupportError` (code `EMPTY_TEXT`) when `text` is empty.
+    /// Network and server failures are retried twice with the same message id (a retry never
+    /// makes a second conversation), then thrown. `AppRefer.reset()`, `clearIdentity()` or
+    /// another account while it runs throws `CancellationError`.
+    public func send(_ text: String, subject: String? = nil, context: [String: String] = [:]) async throws -> String {
+        try await SupportAPI.shared.startConversation(text: text, subject: subject, appContext: context)
     }
 
     /// Opens the help chat over the current screen, optionally on one conversation.

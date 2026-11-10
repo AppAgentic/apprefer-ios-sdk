@@ -534,6 +534,34 @@ if AppRefer.support.handleNotification(response.notification.request.content.use
 
 Customers can attach up to four screenshots per message; they are compressed on the device (about 1600 px, under 700 KB) and uploaded straight to storage. The chat checks for replies only while it's open.
 
+### Your own "Report a problem" form (0.14.0)
+
+Attach your app's own data to a new conversation, for your team, the AI assistant and the team
+API. The customer never sees it, and it is never part of the message text.
+
+```swift
+// Your own form posts straight to Support, then shows your own "Thanks, we're on it" screen.
+let conversationId = try await AppRefer.support.send(
+    whatsWrong,                                   // what the customer typed
+    subject: "Map issue",
+    context: ["course_id": course.id, "hole": "\(hole)", "source": "map_report"]
+)
+
+// Or open the chat with the message filled in; the data goes with the conversation it starts.
+AppRefer.support.compose("The green on hole 7 is in the wrong place",
+                         context: ["course_id": course.id, "source": "map_report"])
+```
+
+`send` starts a new conversation without opening the chat and returns its id; it shows in the
+chat history like any other. Empty text throws (`AppReferSupportError`, code `EMPTY_TEXT`).
+Network and server failures are retried twice with the same message id, so a retry never makes a
+second conversation, then thrown. `AppRefer.reset()` or another account while it runs throws
+`CancellationError`. `compose` sends the data only with the first conversation started from that
+chat. Rules for `context`: keys of `a-z`, `0-9` and `_` (1 to 40 characters), at most 20 keys
+(the first 20 in sorted order), values cut to 500 characters, control characters turned into
+spaces, empty values left out. Keys that break the rules are dropped, never an error. Existing
+`compose(text)` calls are unchanged.
+
 ### Verified identity (0.12.0)
 
 The app user id the SDK sends with Support is only a claim from the device. To let your team and

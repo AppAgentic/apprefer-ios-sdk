@@ -18,13 +18,20 @@ public struct AppReferSupportView: View {
     @ObservedObject private var account = SupportAccountState.shared
     private let destination: Destination
     private let draft: String?
+    private let appContext: [String: String]
     private let initialGeneration: Int
     public init(conversationId: String? = nil) { self.init(opening: conversationId.map(Destination.conversation) ?? .home) }
-    public init(opening destination: Destination) { self.destination = destination; self.draft = nil; initialGeneration = SupportAccountState.shared.generation }
-    public init(composing draft: String) { self.destination = .home; self.draft = draft; initialGeneration = SupportAccountState.shared.generation }
+    public init(opening destination: Destination) { self.destination = destination; self.draft = nil; self.appContext = [:]; initialGeneration = SupportAccountState.shared.generation }
+    /// Opens on a new message. `context` is your app's own data for the team, never shown;
+    /// it goes only with the first conversation started here (see `AppRefer.support.compose`).
+    public init(composing draft: String, context: [String: String] = [:]) {
+        self.destination = .home; self.draft = draft; self.appContext = context; initialGeneration = SupportAccountState.shared.generation
+    }
     public var body: some View {
-        SupportAccountView(destination: account.generation == initialGeneration ? destination : .home,
-                           draft: account.generation == initialGeneration ? draft : nil)
+        let same = account.generation == initialGeneration
+        SupportAccountView(destination: same ? destination : .home,
+                           draft: same ? draft : nil,
+                           appContext: same ? appContext : [:])
             .id(account.generation)
             .environment(\.layoutDirection, SupportStrings.isRightToLeft ? .rightToLeft : .leftToRight)
             .environment(\.locale, SupportStrings.locale)
@@ -37,17 +44,19 @@ struct SupportAccountView: View {
     @Environment(\.dismiss) private var dismiss
     private let destination: AppReferSupportView.Destination
     private let initialDraft: String?
+    private let appContext: [String: String]
 
-    init(destination: AppReferSupportView.Destination, draft: String?) {
+    init(destination: AppReferSupportView.Destination, draft: String?, appContext: [String: String] = [:]) {
         self.destination = destination
         self.initialDraft = draft
+        self.appContext = appContext
     }
 
     private var palette: SupportPalette { SupportPalette(AppReferSupport.shared.accentColor ?? .accentColor) }
 
     public var body: some View {
         ZStack {
-            SupportHomeScreen(model: home, palette: palette, draft: initialDraft, close: { dismiss() }, push: push)
+            SupportHomeScreen(model: home, palette: palette, draft: initialDraft, appContext: appContext, close: { dismiss() }, push: push)
             ForEach(Array(path.enumerated()), id: \.element) { index, route in
                 Group {
                     switch route {
@@ -110,6 +119,9 @@ struct SupportHomeScreen: View {
     @State private var error: String?
     /// The same on every retry of this message.
     @State private var clientMessageId = UUID().uuidString
+    /// The app's hidden data from `compose(_:context:)`: sent with the first conversation
+    /// started here (and its retries), then cleared.
+    @State private var appContext: [String: String]
     /// The invitation whose capture screen is open.
     @State private var capturing: SupportCaptureTarget?
     @State private var lastCapture: String?
@@ -117,13 +129,14 @@ struct SupportHomeScreen: View {
     @State private var anchor = SupportHomeAnchor()
     private let startsFocused: Bool
 
-    init(model: SupportHomeModel, palette: SupportPalette, draft: String?, close: @escaping () -> Void, push: @escaping (SupportRoute) -> Void) {
+    init(model: SupportHomeModel, palette: SupportPalette, draft: String?, appContext: [String: String] = [:], close: @escaping () -> Void, push: @escaping (SupportRoute) -> Void) {
         _model = ObservedObject(wrappedValue: model)
         self.palette = palette
         self.close = close
         self.push = push
         self.startsFocused = draft != nil
         _text = State(initialValue: draft ?? "")
+        _appContext = State(initialValue: appContext)
     }
 
     private var support: AppReferSupport { .shared }
@@ -482,7 +495,9 @@ struct SupportHomeScreen: View {
             var ids: [String] = []
             for image in images { ids.append(try await SupportAPI.shared.upload(await SupportImages.jpegOffMain(image), generation: epoch)) }
             let body = sentText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let t = try await SupportAPI.shared.start(text: body, subject: topic?.title, attachmentIds: ids, clientMessageId: clientMessageId, generation: epoch)
+            let t = try await SupportAPI.shared.start(text: body, subject: topic?.title, attachmentIds: ids, clientMessageId: clientMessageId,
+                                                        appContext: appContext, generation: epoch)
+            appContext = [:]
             // Anything typed while it was sending stays in the field.
             text = text.hasPrefix(sentText) ? String(text.dropFirst(sentText.count)) : text
             images = []
