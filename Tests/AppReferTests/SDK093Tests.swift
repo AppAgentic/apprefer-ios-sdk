@@ -73,7 +73,7 @@ final class SDK093Tests: XCTestCase {
     }
 
     func testVersion() {
-        XCTAssertEqual(AppReferVersion.current, "0.13.3")
+        XCTAssertEqual(AppReferVersion.current, "0.14.0")
     }
 
     private func attributionStorage(keychain: FakeDeviceIdKeychain = FakeDeviceIdKeychain()) -> AppReferStorage {
